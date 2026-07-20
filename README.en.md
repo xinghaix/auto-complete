@@ -1,168 +1,119 @@
 # Auto Complete
 
-[中文](README.md) · [English](README.en.md)
+[中文](README.md) · [English](README.en.md) · [Documentation](docs/README.en.md)
 
-<p align="center">
-  <img src="docs/assets/logo.svg" width="96" height="96" alt="Auto Complete logo"/>
-</p>
+<p align="center"><img src="docs/assets/logo.svg" width="96" height="96" alt="Auto Complete logo"/></p>
 
-Lightweight **AI inline code completion**: **JetBrains** plugin ships today; **VS Code** extension is the TypeScript dual (`hosts/vscode` + `packages/core-ts`).
+Lightweight, bring-your-own-endpoint **AI inline code completion**. The project contains two independent hosts:
 
-- Bring your own endpoint: `baseUrl` / API key / model
-- OpenAI-compatible APIs (Ollama, vLLM, gateways, Mistral, …)
-- Adaptive debounce, cache, skip, and error backoff
-- Prompt templates, dual timeouts, secure secret storage
-- Status bar + logs (JB tool window / VS Code Output + settings panel)
-- **Dual engines** (Kotlin + TypeScript) + `packages/shared-spec` — no Extension Host bridge into JetBrains
+| Host | Runtime engine | Current delivery |
+|---|---|---|
+| JetBrains | Kotlin/JVM `core/` + `plugin/` | Install-from-Disk ZIP |
+| VS Code | TypeScript `packages/core-ts/` + `hosts/vscode/` | Install-from-VSIX package |
+| Shared UI/spec | Vue `packages/settings-ui/` + `packages/shared-spec/` | Embedded by both hosts; shared templates, settings contract, fixtures |
 
-**License:** Apache-2.0 · **Stage:** open-source preview (Install from Disk / VSIX / GitHub Releases).
+JetBrains and VS Code do not call one another through an Extension Host, RPC, or `kilo serve`. Configure your own `baseUrl`, model, and optional API key; the host renders completion as ghost text.
 
----
+**License:** Apache-2.0 · **Stage:** open-source preview.
 
-## Origin
+## Features
 
-The **core completion behavior and design** of this plugin are extracted and reimplemented from open-source **[Kilo Code (kilocode)](https://github.com/Kilo-Org/kilocode)** and related classic autocomplete work (including [kilocode-legacy](https://github.com/Kilo-Org/kilocode-legacy) as a behavioral reference).
+- OpenAI-compatible HTTP endpoints with advanced header/path/template overrides; supports Ollama, vLLM, compatible gateways, and similar services
+- OpenAI FIM, Qwen, DeepSeek, StarCoder, and pseudo-FIM Chat templates with model-name detection
+- Saved profiles, model listing, connection tests, and one/all-template probes
+- Adaptive debounce, cancellation, generation stale drop, cache, skip, filtering, and error backoff
+- Prefix/suffix budgets; no repository or recent-file context by default
+- JetBrains PasswordSafe / VS Code SecretStorage; exports contain no secret
+- Shared Settings + Logs Web UI (JetBrains JCEF / VS Code Webview) plus host-native log entry points
+- Settings UI localisation for English, Chinese, Japanese, and Korean
 
-After kilocode moved to **v7**, the product became heavier and the inline-completion path harder to use and maintain in isolation. This project **spins completion out** as a focused, self-hosted-friendly tool:
+Known host differences—VS Code has not yet matched JetBrains for `.gitignore`, recent-file context, and comment/string detection—are explicit in [implementation status](docs/IMPLEMENTATION_STATUS.en.md).
 
-| Host | Engine | Status |
-|------|--------|--------|
-| JetBrains (`plugin/`) | Kotlin `core/` | Ready (Install from Disk) |
-| VS Code (`hosts/vscode/`) | TypeScript `packages/core-ts/` | Multi-profile + Webview settings/logs + native Settings |
-| Shared Web | `packages/settings-ui/` | VS Code Webview + JetBrains **JCEF only** (no Swing settings) |
-
-This repository is an **independent implementation**, not a wrapper around the VS Code extension host or `kilo serve`. See [NOTICE](NOTICE) and [docs/SOURCES.md](docs/SOURCES.md).
-
-### JetBrains compatibility
-
-| | |
-|--|--|
-| **Minimum IDE** | **IntelliJ Platform 2024.2+** (`since-build` **242**) |
-| Settings UI | **JCEF Web only** (no Swing settings). 2024.2 uses platform JCEF; on 2025.3+/2026 enable **Web Browser (JCEF)** (optional `com.intellij.modules.jcef`) |
-| Maximum | No `until-build` cap |
-
-2024.2 **does** include JCEF; this plugin uses an **optional** jcef dependency plus **reflective** host loading. See **[docs/COMPATIBILITY.md](docs/COMPATIBILITY.md)**.
-
-Examples: IntelliJ IDEA **2024.2**, **2025.x**, **2026.x**.
-
----
-
-## Install (from Disk)
-
-1. Use **2024.2+**. On 2026.x, enable **Web Browser (JCEF)** if needed.
-2. Download `auto-complete-*.zip` from [Releases](../../releases) (or build locally).
-3. IDE → **Settings → Plugins → ⚙ → Install Plugin from Disk…**
-4. Restart the IDE.
-5. **Settings → Tools → Auto Complete**, or the **Auto Complete** tool window.
-6. Configure Base URL, model, API key (optional) → **Test Connection**.
-
-Local example (Ollama):
-
-| Field | Example |
-|-------|---------|
-| Base URL | `http://127.0.0.1:11434/v1` |
-| Model | `qwen2.5-coder:7b` |
-| API key | empty if unauthenticated |
-
-Manual trigger: **Ctrl+Shift+Space** (IDE Keymap action `AutoComplete.Trigger`).
-
----
-
-## Build from source
+## Quick install
 
 ### JetBrains
 
-Requires **JDK 21** and network access for IntelliJ Platform dependencies.
+Requires **IntelliJ Platform 2024.2+ (build 242+)**. JCEF is required for the Web settings panel; newer IDEs may need **Web Browser (JCEF)** enabled.
+
+1. Download `auto-complete-*.zip` from GitHub Releases, or build it below.
+2. IDE → **Settings/Preferences → Plugins → ⚙ → Install Plugin from Disk…**.
+3. Select the ZIP and restart.
+4. Open the right-side **Auto Complete** tool window, or use the **Auto Complete** actions in the Tools menu.
+5. Create a profile, enter Base URL, model, and optional API key, then run **Test connection** first.
+
+Full compatibility notes: [docs/COMPATIBILITY.md](docs/COMPATIBILITY.md).
+
+### VS Code
+
+Requires VS Code `^1.85.0`.
+
+1. Obtain `auto-complete-*.vsix`, or run local packaging.
+2. Extensions → … → **Install from VSIX…**, then reload the window.
+3. Run **Auto Complete: Open Settings Panel**, create a profile, and test the connection.
+4. **Auto Complete: Show Logs** opens the Logs tab and OutputChannel.
+
+More: [hosts/vscode/README.md](hosts/vscode/README.md).
+
+## Build and verify locally
+
+Requires **JDK 21**, **Node.js 18+**, and npm. From the repository root:
 
 ```bash
-# Optional on macOS Homebrew:
-export JAVA_HOME=/opt/homebrew/opt/openjdk@21/libexec/openjdk.jdk/Contents/Home
-
+npm install
 ./gradlew :core:test :plugin:test
+npm run test:js
+npm run build:js
 ./gradlew :plugin:buildPlugin
-# or: ./scripts/package-local.sh
 ```
 
-Artifact: `plugin/build/distributions/auto-complete-<version>.zip`
+JetBrains development sandbox:
 
 ```bash
 ./gradlew :plugin:runIde
 ```
 
-### VS Code + shared JS
-
-Requires **Node 18+**.
+Package both hosts:
 
 ```bash
-npm install
-npm run test:core-ts
-npm run build:js
-# Extension: hosts/vscode/dist/extension.js
-# Optional VSIX: cd hosts/vscode && npm run package
+./scripts/package-local.sh
+# or npm run package:local
 ```
 
----
+| Artifact | Path |
+|---|---|
+| JetBrains ZIP | `plugin/build/distributions/auto-complete-*.zip` |
+| VS Code VSIX | `hosts/vscode/dist-vsix/auto-complete-*.vsix` |
 
-## Modules
+For one host: `SKIP_JB=1 ./scripts/package-local.sh` or `SKIP_VSCODE=1 ./scripts/package-local.sh`.
 
-| Module | Role |
-|--------|------|
-| `core/` | Pure Kotlin engine, HTTP client, cache / skip / filter / backoff |
-| `plugin/` | IntelliJ Platform: InlineCompletion, Settings, StatusBar, Logs |
-| `packages/shared-spec/` | Schema, templates, bridge protocol, golden fixtures |
-| `packages/core-ts/` | TypeScript completion engine (dual of `core/`) |
-| `packages/settings-ui/` | Shared Web settings + logs UI |
-| `hosts/vscode/` | VS Code extension host |
+> The packaging script explicitly runs only `:core:test`; run the full JVM and JS tests above before release.
 
----
+## Local endpoint example
 
-## Features (high level)
+```text
+Base URL: http://127.0.0.1:11434/v1
+Model:    qwen2.5-coder:7b
+API key:  empty only when the service has no auth
+Template: AUTO (or QWEN / CHAT etc. for the service)
+```
 
-- Ghost-text inline completion with cancel-on-type
-- Saved **profiles** (switch / rename / delete; keys in PasswordSafe)
-- Prompt templates: Auto / OpenAI FIM / Qwen / DeepSeek / StarCoder / Chat pseudo-FIM
-- Template **Test** / **Try all** on the settings page
-- Separate completion vs settings-probe timeouts
-- Privacy-minded defaults: no full-repo context by default
-- UI locales: English, 中文, 日本語, 한국어
+Model and endpoint support for templates varies. Use **Fetch models**, **Test connection**, and **Test template** instead of guessing a request format from the model name.
 
-Design docs: see [docs/README.en.md](docs/README.en.md) (Chinese index: [docs/README.md](docs/README.md)).
+## Privacy and security
 
----
+- API keys stay in the IDE secure store, never ordinary configuration, exports, or logs.
+- The default request contains budget-trimmed prefix/suffix from the current file; file path is on by default and can be disabled.
+- Prompt bodies, recent files, and repository-wide context are off by default.
+- Users configure remote endpoints themselves; review the provider's data policy.
 
-## Documentation
+For reports, see [SECURITY.md](SECURITY.md).
 
-| Doc | Content |
-|-----|---------|
-| [docs/README.en.md](docs/README.en.md) | Doc index ([中文](docs/README.md)) |
-| [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) | Architecture (ZH) |
-| [docs/SETTINGS.md](docs/SETTINGS.md) | Settings (ZH) |
-| [docs/PROVIDERS.md](docs/PROVIDERS.md) | Providers (ZH) |
-| [docs/PERFORMANCE.md](docs/PERFORMANCE.md) | Performance (ZH) |
-| [docs/RELEASE.md](docs/RELEASE.md) | Release (ZH) |
-| [docs/OPEN_SOURCE.md](docs/OPEN_SOURCE.md) | Open-source checklist (EN) |
-| [docs/SOURCES.md](docs/SOURCES.md) | Relation to kilocode (ZH) |
-| [CHANGELOG.md](CHANGELOG.md) | Changelog |
-| [CONTRIBUTING.md](CONTRIBUTING.md) | Contributing ([中文](CONTRIBUTING.zh.md)) |
-| [SECURITY.md](SECURITY.md) | Security |
+## Documentation and contributing
 
-Deep design docs under `docs/` are primarily Chinese today; English README + index cover product onboarding.
+- [Documentation index](docs/README.en.md) / [中文](docs/README.md)
+- [Architecture](docs/ARCHITECTURE.en.md) · [Settings](docs/SETTINGS.en.md) · [Providers](docs/PROVIDERS.en.md) · [Performance](docs/PERFORMANCE.en.md)
+- [Build/release](docs/RELEASE.en.md) · [Implementation status](docs/IMPLEMENTATION_STATUS.en.md) · [Sources and attribution](docs/SOURCES.en.md)
+- [Contributing](CONTRIBUTING.md) / [中文](CONTRIBUTING.zh.md)
+- [Changelog](CHANGELOG.md)
 
----
-
-## Privacy & security
-
-- API keys live in the IDE **PasswordSafe**, not plain settings XML
-- Full prompt logging is **off** by default
-- Completions use prefix/suffix budgets, not the whole repository by default
-- HTTP follows the IDE **HTTP Proxy** settings
-
----
-
-## Contributing
-
-See [CONTRIBUTING.md](CONTRIBUTING.md). Please open an issue before large design changes.
-
-## License
-
-Apache License 2.0 — [LICENSE](LICENSE), [NOTICE](NOTICE).
+The project is independently implemented while informed by classic Kilo Code completion behaviour. See [NOTICE](NOTICE) and [sources](docs/SOURCES.en.md).

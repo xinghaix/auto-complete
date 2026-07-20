@@ -1,115 +1,54 @@
-# Sources and Extraction Map
+# 上游参考、归属与边界
 
-[中文文档索引](README.md) · [English index](README.en.md)
+[English](SOURCES.en.md) · [文档索引](README.md)
 
-## 0. 产品叙事（为何独立）
+## 项目关系
 
-本项目的**代码补全核心功能与行为**，来自开源 [Kilo Code / kilocode](https://github.com/Kilo-Org/kilocode) 体系中补全相关能力的抽离与重实现（经典算法与规格亦对照 [kilocode-legacy](https://github.com/Kilo-Org/kilocode-legacy)）。
+Auto Complete 是独立的双宿主内联补全项目。它参考开源 [Kilo Code / kilocode](https://github.com/Kilo-Org/kilocode) 与 [kilocode-legacy](https://github.com/Kilo-Org/kilocode-legacy) 的经典补全行为和设计思路，并在本仓库中以 Kotlin/JVM 与 TypeScript 重新实现。
 
-kilocode 进入 **v7** 后整体更重，内联补全不再容易作为「轻量自托管补全」单独使用与演进，因此新建本仓库：
+当前交付不再是“JetBrains 已交付、VS Code 计划中”：仓库已包含 JetBrains `plugin` + Kotlin `core`、VS Code `hosts/vscode` + `packages/core-ts`、共享 `packages/settings-ui` 与 `packages/shared-spec`。两个宿主不通过 Extension Host、RPC 或 `kilo serve` 互相调用。
 
-- **当前交付**：仅 JetBrains IDE 插件  
-- **后续计划**：VS Code 插件（补全 core 能力对齐 / 复用思路）  
+## 参考用途
 
-本仓库**不**再依赖 VS Code Extension Host 或 `kilo serve` 作为运行时。
-
-## 1. 权威参考快照
-
-| 来源 | 版本 / 提交 | 公开仓库 |
+| 参考 | 用途 | 本项目处理 |
 |---|---|---|
-| Kilo monorepo | `main` / 产品线演进 | https://github.com/Kilo-Org/kilocode |
-| Kilo legacy | tag `v5.16.2`（经典补全） | https://github.com/Kilo-Org/kilocode-legacy |
+| `kilocode-legacy` v5.16.2 | 经典 autocomplete 的 cache、skip、FIM、过滤和生命周期行为 | 以测试/规格锁定预期后重写；不移植 JetBrains→VS Code RPC |
+| 当前 `kilocode` monorepo | error backoff、现代 FIM 路由和产品演进的参考 | 只借鉴行为；不引入 agent 运行时、gateway 账号体系或 CLI 服务 |
+| Continue 等上游的公开补全思想 | 仅在需要时作为算法/协议参考 | 先确认来源许可和归属，再写独立实现 |
 
-说明：monorepo 与 legacy 职责不同；实现映射以行为规格为准，本地克隆路径勿写进仓库。
+历史 v5 JetBrains 壳曾把文档全文经 RPC 送往 VS Code extension host。该拓扑是本项目明确放弃的反例：当前两个引擎各自在本进程发 HTTP，并由 `PromptBuilder` 预算裁剪前后缀。
 
-## 2. v5 JetBrains 内联壳（可参考，不可当完整引擎）
+## 当前实现映射
 
-目录：
-
-`kilocode-legacy/jetbrains/plugin/src/main/kotlin/ai/kilocode/jetbrains/inline/`
-
-| 文件 | 作用 | 新项目怎么用 |
+| 行为域 | Kotlin/JVM | TypeScript |
 |---|---|---|
-| `KiloCodeInlineCompletionProvider.kt` | IDE provider，渲染 gray text | 重写为本地 engine 调用 |
-| `InlineCompletionService.kt` | RPC 调 VS Code 命令 | **不移植 RPC**；改 HTTP/engine |
-| `InlineCompletionManager.kt` | provider 注册注销 | 可参考生命周期 |
-| `KiloCodeInlineCompletionInsertHandler.kt` | accept 后 telemetry RPC | 改本地 log/metrics |
-| `InlineCompletionConstants.kt` | 命令 ID、10s 超时 | 只留概念；超时改 2500ms |
+| 主流水线 | `core/.../engine/CompletionEngine.kt` | `packages/core-ts/src/engine.ts` |
+| HTTP 与模板 | `core/.../client/HttpCompletionClient.kt` | `packages/core-ts/src/httpClient.ts` |
+| cache / skip / filter | `core/.../{cache,skip,filter}/` | `packages/core-ts/src/{cache,contextualSkip,suggestionFilter}.ts` |
+| prompt 与语言映射 | `core/.../prompt/`、`util/LanguageMap.kt` | `packages/core-ts/src/prompt*`、`languageMap.ts` |
+| JetBrains 宿主 | `plugin/.../ide`、`bridge`、`config`、`ui` | — |
+| VS Code 宿主 | — | `hosts/vscode/src/` |
+| 共用契约 | `packages/shared-spec/`：schema、templates、language map、UiBridge、fixtures | 同左 |
 
-协议（仅作历史记录）：
+`shared-spec` 是跨端对齐的文档/fixture 契约。改动补全行为、模板或设置字段时，应同时检查两端实现和 fixture 测试；不要假设宿主在运行时自动读取每一份 JSON。
 
-```
-command: kilo-code.jetbrains.getInlineCompletions
-args: [uri, {line, character}, fullFileContent, languageId, requestId]
-result: { requestId, items: [{insertText, range}], error }
-```
+## 不移植的能力
 
-## 3. v5 VS Code 引擎（算法主来源）
+以下不属于当前产品边界：
 
-目录：
+- VS Code Extension Host 为 JetBrains 提供补全；
+- `kilo serve` 或 Kilo Gateway 作为运行时依赖；
+- Kilo 登录、余额、设备流或 OAuth 账号体系；
+- Agent、Next Edit、仓库级检索或默认多文件重上下文；
+- 上游私有路径、密钥、品牌资产或未确认许可的代码块。
 
-`kilocode-legacy/src/services/autocomplete/`
+## 许可与贡献要求
 
-| 路径 | 作用 | 新项目落点 |
-|---|---|---|
-| `AutocompleteServiceManager.ts` | 开关、注册、snooze、status | `config` + `ide` + `ui` |
-| `AutocompleteModel.ts` | FIM/stream via ApiHandler | `client` 重写，不搬 ApiHandler 大盘 |
-| `AutocompleteJetbrainsBridge.ts` | JB RPC 入口 | **不保留** |
-| `classic-auto-complete/AutocompleteInlineCompletionProvider.ts` | 主流水线 | `engine` |
-| `classic-auto-complete/FillInTheMiddle.ts` | FIM prompt | `prompt` |
-| `classic-auto-complete/inline-utils.ts`（若存在/同类） | cache/debounce 辅助 | `cache` / `engine` |
-| `classic-auto-complete/contextualSkip.ts` | 跳过策略 | `skip` |
-| `classic-auto-complete/uselessSuggestionFilter.ts` | 结果过滤 | `filter` |
-| `classic-auto-complete/HoleFiller.ts` | chat-style fallback | P1 可选 |
-| `continuedev/core/autocomplete/**` | 重 context / templates | 精简取用，默认不深依赖 |
-| `AutocompleteStatusBar.ts` | 状态栏 | `ui` |
-| settings: `ghostServiceSettings` | 旧配置键 | 映射到新 settings 名 |
+本仓库使用 Apache-2.0（见 [LICENSE](../LICENSE)）并保留 [NOTICE](../NOTICE)。参考上游不等于可直接复制：贡献者应确认每段拟复用代码、测试 fixture、文案或资产的许可证和归属；需要保留的声明必须写入 NOTICE 或相应第三方声明。
 
-## 4. monorepo v7 可借鉴点
+贡献新功能时：
 
-路径：`kilocode/packages/kilo-vscode/src/services/autocomplete/`
-
-| 点 | 说明 |
-|---|---|
-| `ErrorBackoff.ts` | 比 v5 更完整的熔断，建议并入 |
-| classic cache/skip/filter | 与 v5 同源演进 |
-| `fim.ts` + gateway | 了解现代 FIM 路由，但新项目不依赖 CLI |
-| next-edit/* | **不进 v1** |
-
-v7 JetBrains：
-
-- 仅 `KiloAutocompleteSettingsService` 等迁移残留
-- 不能作为补全实现来源
-
-## 5. 移植级别定义
-
-| 级别 | 含义 | 例子 |
-|---|---|---|
-| S0 不移植 | 架构废弃 | RPC bridge、extension host、kilo serve 依赖 |
-| S1 行为移植 | 用测试锁定行为后重写 | cache match、skip、filter |
-| S2 参考重写 | 看思路，API 全新建 | provider settings、status bar |
-| S3 有限代码参考 | 小纯函数可对照 | backoff 分类、first-line policy |
-
-原则：**少搬多写**。开源项目要干净，不把 Kilo agent 运行时拖进来。
-
-## 6. 许可与归属
-
-实施代码前必须处理：
-
-1. 确认 Kilo legacy / monorepo 许可证（legacy 根目录 `LICENSE` / `NOTICE`）
-2. Continue 抽取部分的上游许可
-3. 本仓库 `NOTICE` / `THIRD_PARTY_NOTICES.md` 记录来源
-4. 若存在 Weibo/Apache 头（v5 insert handler 可见 SPDX），按原许可证保留必要声明
-
-建议本项目主许可：Apache-2.0 或 MIT（选定后写进根 LICENSE）。
-
-## 7. 抽离检查表
-
-开始写实现前：
-
-- [ ] 只读参考 v5.16.2，不改 legacy 仓库
-- [ ] 新代码落在 `auto-complete`，不往 monorepo 塞独立产品
-- [ ] 每个从 TS 移植的行为都有 Kotlin 测试
-- [ ] 无 extension host 启动逻辑
-- [ ] 无 Kilo token 登录硬依赖
-- [ ] 默认不会把 prompt 全文写日志
+1. 把行为描述为本仓库的可测试需求，而不是“照搬上游实现”。
+2. 优先独立编写最小实现和测试；不要复制 agent/extension-host 基础设施。
+3. 若新代码受第三方许可约束，先完成许可审查和归属记录。
+4. 保持 API key、个人 endpoint 与机器路径不进入源码、文档、fixtures 或日志样本。

@@ -1,116 +1,109 @@
-# Release / Distribution
+# 构建、安装与发布
 
-[中文文档索引](README.md) · [English index](README.en.md)
+[English](RELEASE.en.md) · [文档索引](README.md)
 
-**Stage:** open-source preview (zip / GitHub Releases).  
-JetBrains Marketplace is optional and not required for community use.  
-产品说明默认中文：[../README.md](../README.md) · [English](../README.en.md)
+当前版本为开源预览：可本地构建并通过 **JetBrains Install Plugin from Disk** 或 **VS Code Install from VSIX** 安装。Marketplace 发布不是默认流程，也没有在 CI 自动执行。
 
-## 1. Distribution channels
+## 前置条件
 
-| Channel | Use | How |
-|---------|-----|-----|
-| Install from Disk | Users & self-test | `buildPlugin` zip |
-| GitHub Releases | Public download | Attach zip to a tag |
-| `runIde` | Contributor sandbox | `./gradlew :plugin:runIde` |
-| Marketplace | Optional later | Token via env only — never commit |
+| 目标 | 要求 |
+|---|---|
+| JetBrains 插件 | JDK 21；可下载 IntelliJ Platform/Gradle 依赖的网络 |
+| JS、设置 UI 与 VS Code 扩展 | Node.js 18+、npm |
+| JetBrains 运行 | IntelliJ Platform 2024.2+（build 242+）；可用 JCEF |
+| VS Code 运行 | VS Code `^1.85.0` |
 
-Artifact:
+macOS Homebrew 的 JDK 21 示例：
+
+```bash
+export JAVA_HOME=/opt/homebrew/opt/openjdk@21/libexec/openjdk.jdk/Contents/Home
+```
+
+这只是示例。Linux/Windows 请设置为自己的 JDK 21 安装目录。
+
+## 安装依赖与完整验证
+
+从仓库根目录执行：
+
+```bash
+npm install
+./gradlew :core:test :plugin:test
+npm run test:js
+npm run build:js
+./gradlew :plugin:buildPlugin
+```
+
+上述顺序覆盖 Kotlin/JetBrains 测试、TypeScript/设置 UI 测试、JS 构建以及 JetBrains 分发包构建。生成的 JetBrains zip 在：
 
 ```text
 plugin/build/distributions/auto-complete-<version>.zip
 ```
 
-## 2. Compatibility (JetBrains)
-
-| | |
-|--|--|
-| **Minimum** | **2024.2+** / Platform build **`242`** (`pluginSinceBuild`) |
-| **JCEF** | Web-only settings; **optional** `com.intellij.modules.jcef` + reflective host (`SettingsJcefHost`) |
-| Full notes | [COMPATIBILITY.md](COMPATIBILITY.md) |
-
-Do not mark jcef as a **required** `<depends>` again — that breaks 2024.2 plugin load.
-
-## 3. Build & install
+本地开发 JetBrains：
 
 ```bash
-export JAVA_HOME=...   # JDK 21 if needed
+./gradlew :plugin:runIde
+```
+
+该命令启动隔离 IDE 沙箱，不等同于从 zip 安装后的兼容性验收。
+
+## 双端本地打包
+
+推荐使用脚本构建可安装产物：
+
+```bash
+npm install              # 首次或依赖更新后
 ./scripts/package-local.sh
-# or: ./gradlew :core:test :plugin:test :plugin:buildPlugin
+# 或 npm run package:local
 ```
 
-IDE (**2024.2+**):
+脚本会构建共享 `settings-ui`，运行 `:core:test`，构建 JetBrains zip，再构建 `core-ts`、VS Code extension 并创建 VSIX。产物为：
 
-1. On 2025.3+/2026, enable **Web Browser (JCEF)** if present
-2. Settings → Plugins → ⚙ → **Install Plugin from Disk…**
-3. Select the zip → restart
-4. Settings → Tools → **Auto Complete** (or tool window)
-5. Configure endpoint → **Test Connection**
+| 产物 | 安装方式 |
+|---|---|
+| `plugin/build/distributions/auto-complete-*.zip` | JetBrains：Settings/Preferences → Plugins → ⚙ → Install Plugin from Disk… → 重启 |
+| `hosts/vscode/dist-vsix/auto-complete-*.vsix` | VS Code：Extensions → … → Install from VSIX… → 重载窗口 |
 
-## 4. Release checklist
-
-- [ ] `CHANGELOG.md` updated for the version
-- [ ] `pluginVersion` / `pluginSinceBuild` in `gradle.properties` (min **242** unless COMPATIBILITY.md updated)
-- [ ] `./gradlew :core:test :plugin:test` green
-- [ ] `./gradlew :plugin:buildPlugin` green
-- [ ] Smoke on **2024.2** and/or **2026.x**: install zip, Web settings (JCEF), Test Connection, ghost text, logs, keymap
-- [ ] Git tag `v<pluginVersion>` (annotated) + push
-- [ ] GitHub Release title `Auto Complete <version>` + attach zip
-- [ ] (Optional) Marketplace publish — only with env token
-
-### Commit / tag wording
-
-**Commits (ongoing):** conventional — `feat:`, `fix:`, `docs:`, `chore:`, `test:`.
-
-**Release commit** (when bumping version in-tree):
-
-```text
-chore(release): 0.1.1
-
-Summarize user-facing changes in the body; keep subject = version only.
-```
-
-**First open-source snapshot** (docs/CI without version bump):
-
-```text
-docs: open-source the JetBrains auto-complete plugin
-```
-
-**Tag:** always `v` + version, e.g. `v0.1.1` (matches `auto-complete-0.1.1.zip`).
+只构建一个宿主：
 
 ```bash
-git tag -a v0.1.1 -m "Auto Complete 0.1.1
-
-Install-from-Disk / GitHub Release build.
-See CHANGELOG.md for details."
+SKIP_JB=1 ./scripts/package-local.sh      # 仅 VS Code
+SKIP_VSCODE=1 ./scripts/package-local.sh  # 仅 JetBrains
 ```
 
-## 5. Versioning
+> 脚本用于打包，不替代完整验证：它当前只显式运行 `:core:test`，不会自动运行 `:plugin:test` 或 `npm run test:js`。发包前应执行上一节的完整命令。
 
-- `0.1.x` — open-source preview; breaking changes allowed with notes
-- Prefer semver once past 0.x
-- Tag name ≡ `v` + `pluginVersion`; never tag `latest` or date-only names
+## 初次配置与 smoke test
 
-## 5. Marketplace (optional, later)
+1. 在设置面板创建/选择 profile，填写 Base URL、模型和可选 API key。
+2. 先执行 **Fetch models**（可选）与 **Test connection**。
+3. 选择正确的 FIM/chat 模板，必要时 **Test template** 或 **Try all templates**。
+4. 打开受支持的文本文件，检查自动 ghost text、手动触发、继续输入取消、Tab/IDE 默认接受行为和日志。
+5. 在 JetBrains 2024.2 与较新的 IDE 上检查 JCEF 面板；较新版本需确保 **Web Browser (JCEF)** 可用。详情见 [COMPATIBILITY.md](COMPATIBILITY.md)。
+6. 在 VS Code 检查设置面板、OutputChannel、SecretStorage key 和 VSIX 安装。
 
-1. JetBrains account + Marketplace listing  
-2. Keep plugin id `io.autocomplete` stable  
-3. English description + screenshots + privacy notes  
-4. `JETBRAINS_MARKETPLACE_TOKEN` as CI/env secret only  
-5. Optional `signPlugin`  
-6. `./gradlew :plugin:publishPlugin`
+## CI
 
-```kotlin
-// plugin/build.gradle.kts — enable only when intentionally publishing
-// intellijPlatform {
-//   publishing {
-//     token.set(providers.environmentVariable("JETBRAINS_MARKETPLACE_TOKEN"))
-//   }
-// }
+`.github/workflows/ci.yml` 有两个 job：
+
+- **JVM (JDK 21)**：`./gradlew :core:test :plugin:test --stacktrace`、`./gradlew :plugin:buildPlugin --stacktrace`，并上传 zip artifact；
+- **JS (Node 22)**：`npm install`、`npm run test:js`、`npm run build:js`。
+
+CI 当前不会签名、发布 Marketplace、创建 GitHub Release 或上传 VSIX artifact。不要把这些描述成已经启用的自动发布功能。
+
+## 版本与发布清单
+
+1. 更新 `gradle.properties` 的 `pluginVersion`，并保持 `hosts/vscode/package.json` 与根 Node workspace 版本意图一致。
+2. 在 `CHANGELOG.md` 的 `[Unreleased]` 写入面向用户的变更。
+3. 完整验证通过后运行双端打包。
+4. 手动在目标 JetBrains/VS Code 版本安装产物并 smoke test。
+5. 创建带注释的 `v<version>` tag；GitHub Release 附加 zip，若要提供 VS Code 安装包则同时附加 VSIX。
+6. 仅在明确请求时配置 Marketplace/signing token；token 只能来自环境或 CI secret，绝不进仓库。
+
+建议 tag：
+
+```bash
+git tag -a v0.1.1 -m "Auto Complete 0.1.1"
 ```
 
-## 6. Do not
-
-- Commit Marketplace or signing secrets  
-- Treat Marketplace as required for open source  
-- Bundle API keys or model weights  
+没有用户明确要求时，不要 push、打 tag 或发布。

@@ -1,35 +1,40 @@
 # 文档索引
 
-[中文](README.md) · [English](README.en.md)
+[中文](README.md) · [English](README.en.md) · [项目主页](../README.md)
 
-项目主页说明（安装 / 构建 / 由来）：[../README.md](../README.md) · [English](../README.en.md)
+Auto Complete 是面向 **JetBrains 与 VS Code** 的双宿主 AI 内联代码补全项目：JetBrains 使用 Kotlin/JVM `core`，VS Code 使用 TypeScript `core-ts`，共享设置/模板/语言映射/fixture 规格与 Vue 设置界面。两个宿主独立运行；JetBrains 不依赖 VS Code Extension Host 或 `kilo serve`。
 
-## 项目由来（摘要）
+## 快速入口
 
-补全相关核心能力与行为思路来自开源 **[kilocode](https://github.com/Kilo-Org/kilocode)**（及经典实现对照 [kilocode-legacy](https://github.com/Kilo-Org/kilocode-legacy)）。  
-在 kilocode **v7** 后产品变重、补全路径难独立使用，故将**代码补全抽成独立项目**。
+- 安装与本地双端打包：[项目主页](../README.md)
+- JetBrains 兼容性与 JCEF：[COMPATIBILITY.md](COMPATIBILITY.md)
+- 端点、模型模板、连接探测：[PROVIDERS.md](PROVIDERS.md)
+- 设置项、存储位置和隐私：[SETTINGS.md](SETTINGS.md)
+- 构建、测试、分发和发布：[RELEASE.md](RELEASE.md)
 
-- **当前**：仅 JetBrains IDE 插件  
-- **计划**：VS Code 插件  
+## 文档对照
 
-详细映射见 [SOURCES.md](SOURCES.md)。
+| 主题 | 中文 | English |
+|---|---|---|
+| 系统架构与双宿主边界 | [ARCHITECTURE.md](ARCHITECTURE.md) | [ARCHITECTURE.en.md](ARCHITECTURE.en.md) |
+| 设置、profile、隐私与日志 | [SETTINGS.md](SETTINGS.md) | [SETTINGS.en.md](SETTINGS.en.md) |
+| Provider、FIM/chat 模板和探测 | [PROVIDERS.md](PROVIDERS.md) | [PROVIDERS.en.md](PROVIDERS.en.md) |
+| 热路径、预算和性能验证 | [PERFORMANCE.md](PERFORMANCE.md) | [PERFORMANCE.en.md](PERFORMANCE.en.md) |
+| 构建、安装、包和发布 | [RELEASE.md](RELEASE.md) | [RELEASE.en.md](RELEASE.en.md) |
+| JetBrains 平台和 JCEF | [COMPATIBILITY.md](COMPATIBILITY.md) | 同一份双语文档 |
+| 开源发布准备 | [OPEN_SOURCE.zh.md](OPEN_SOURCE.zh.md) | [OPEN_SOURCE.md](OPEN_SOURCE.md) |
+| 上游参考、归属和边界 | [SOURCES.md](SOURCES.md) | [SOURCES.en.md](SOURCES.en.md) |
+| 实现状态和已知宿主差异 | [IMPLEMENTATION_STATUS.md](IMPLEMENTATION_STATUS.md) | [IMPLEMENTATION_STATUS.en.md](IMPLEMENTATION_STATUS.en.md) |
+| 贡献 | [../CONTRIBUTING.zh.md](../CONTRIBUTING.zh.md) | [../CONTRIBUTING.md](../CONTRIBUTING.md) |
+| 安全披露 | [../SECURITY.zh.md](../SECURITY.zh.md) | [../SECURITY.md](../SECURITY.md) |
+| 变更记录 | [../CHANGELOG.md](../CHANGELOG.md) | [../CHANGELOG.md](../CHANGELOG.md) |
 
-## 文档列表
+## 规格与宿主专用文档
 
-| 文档 | 说明 | 语言 |
-|------|------|------|
-| [ARCHITECTURE.md](ARCHITECTURE.md) | 系统架构与边界 | 中文 |
-| [SETTINGS.md](SETTINGS.md) | 设置项参考 | 中文 |
-| [PROVIDERS.md](PROVIDERS.md) | 端点、模板与请求格式 | 中文 |
-| [PERFORMANCE.md](PERFORMANCE.md) | 延迟、预算与热路径 | 中文 |
-| [RELEASE.md](RELEASE.md) | 构建、安装与发版 | 中文 |
-| [COMPATIBILITY.md](COMPATIBILITY.md) | JetBrains 最低版本（242 / 2024.2+）、JCEF 动态加载 | 中/英 |
-| [OPEN_SOURCE.md](OPEN_SOURCE.md) | 开源发布清单 | 英文 |
-| [SOURCES.md](SOURCES.md) | 与 kilocode 的参考关系 | 中文 |
-| [IMPLEMENTATION_STATUS.md](IMPLEMENTATION_STATUS.md) | 实现进度 | 中/英混排 |
-| [../CHANGELOG.md](../CHANGELOG.md) | 版本变更 | 英文为主 |
-| [../CONTRIBUTING.zh.md](../CONTRIBUTING.zh.md) | 贡献指南 | 中文 |
-| [../CONTRIBUTING.md](../CONTRIBUTING.md) | Contributing | 英文 |
-| [../SECURITY.md](../SECURITY.md) | 安全披露 | 英文 |
+- [共享规格 README](../packages/shared-spec/README.md) / [中文](../packages/shared-spec/README.zh.md)
+- [UiBridge 协议](../packages/shared-spec/bridge-protocol.md) / [中文](../packages/shared-spec/bridge-protocol.zh.md)
+- [VS Code 扩展 README](../hosts/vscode/README.md) / [中文](../hosts/vscode/README.zh.md)
 
-深层设计文档暂以中文维护；产品入口以仓库根目录 **中文 README 为默认**。
+## 事实来源
+
+文档以可执行配置和代码为准：`settings.gradle.kts`、根 `package.json`、`plugin/src/main/resources/META-INF/plugin.xml`、`hosts/vscode/package.json`、两个 `CompletionEngine` 实现及 `.github/workflows/ci.yml`。若文字和代码冲突，应先修正文档；当前树是双宿主实现，不能写成单宿主或把 VS Code 归为未来功能。

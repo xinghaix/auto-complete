@@ -13,10 +13,9 @@ inline completion use:
 - https://github.com/Kilo-Org/kilocode
 - Classic autocomplete reference: https://github.com/Kilo-Org/kilocode-legacy
 
-This repository ships a JetBrains IDE plugin today; a VS Code extension is planned.
-It is not a redistribution of the VS Code extension host or kilo serve RPC bridge.
+This repository ships JetBrains and VS Code hosts today. It is not a redistribution of either host, a VS Code extension-host bridge, or a `kilo serve` RPC bridge.
 
-Runtime: JetBrains IntelliJ Platform (under JetBrains terms).
+Runtime: JetBrains IntelliJ Platform and VS Code (under their respective platform terms).
 
 No third-party model weights or API keys are bundled.
 See docs/SOURCES.md for mapping notes.

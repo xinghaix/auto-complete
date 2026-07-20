@@ -1,32 +1,33 @@
 # Security Policy
 
-[中文 README](README.md) · [English README](README.en.md)
+[中文](SECURITY.zh.md) · [English](SECURITY.md)
 
 ## Supported versions
 
-Security fixes are accepted against the latest `main` branch and the most recent release tag.
+Security fixes are accepted for the current `main` branch and the latest released tag. This is an open-source preview; do not infer support for untested historical packages.
 
 ## Reporting a vulnerability
 
-Please **do not** open a public issue for security-sensitive reports (e.g. secret leakage, auth header handling, path traversal in ignore rules).
+Do **not** open a public issue for a security-sensitive report, including secret exposure, UiBridge/Webview/JCEF injection, provider-header handling, unsafe path filtering, or unexpected code-context transmission.
 
-Prefer one of:
+Use one of:
 
-1. GitHub **Security Advisories** (private report) on this repository, if enabled  
-2. Contact the maintainers via the email listed on the GitHub org/profile page  
+1. GitHub **Security Advisories** private reporting for this repository, if enabled; or
+2. the maintainer contact listed on the repository/org profile.
 
-Include:
+Include the affected version or commit, host (JetBrains/VS Code), impact, minimal reproduction steps, relevant redacted logs, and whether you have a proposed fix. Never include a live API key or private source code unless a maintainer provides a secure channel.
 
-- Affected version / commit  
-- Impact and reproduction steps  
-- Whether a fix is already proposed  
+## Secret and context handling
 
-## Safe handling of secrets
-
-- User API keys must remain in PasswordSafe (or equivalent secure storage)  
-- Never commit real tokens, keys, or personal endpoints into the repo  
-- CI must not require Marketplace or signing secrets for open-source PR builds  
+- API keys must be stored only in JetBrains PasswordSafe or VS Code SecretStorage.
+- Keys, Authorization headers, and personal endpoints must not enter source, docs, fixtures, exported settings, CI logs, or issue comments.
+- UiBridge snapshots and exports expose `hasApiKey` only; they must not return plaintext secrets.
+- Settings UI must not directly call provider HTTP. Probes go through the host and engine client.
+- Completion sends trimmed prefix/suffix to user-configured endpoints. File paths are on by default; recent-open-file context and prompt-body logging are opt-in and disabled by default.
+- CI and ordinary PR builds must not require Marketplace/signing secrets.
 
 ## Scope notes
 
-This plugin sends code context (prefix/suffix, optional path) to **user-configured** endpoints. Review your provider’s data policies. Logging of full prompts is opt-in and disabled by default.
+This project runs in two hosts. Please identify the host and IDE/extension version in reports. JetBrains networking follows IDE proxy/trust-store integration; VS Code uses its extension networking path. Provider data policies, TLS interception, endpoint access controls, and network egress policies remain the user's responsibility.
+
+For a complete description of what settings can transmit, see [docs/SETTINGS.en.md](docs/SETTINGS.en.md) and [docs/PROVIDERS.en.md](docs/PROVIDERS.en.md).

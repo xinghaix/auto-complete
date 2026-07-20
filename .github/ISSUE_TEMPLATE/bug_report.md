@@ -7,10 +7,12 @@ labels: bug
 
 ## Environment
 
-- Plugin version:
-- IDE (name + version):
+- Auto Complete version / commit:
+- Host: JetBrains or VS Code
+- IDE name + version:
 - OS:
 - Endpoint type (local Ollama / cloud / other):
+- Template (AUTO / QWEN / CHAT / …):
 
 ## Steps to reproduce
 
@@ -22,6 +24,6 @@ labels: bug
 
 ## Actual
 
-## Logs
+## Logs and privacy
 
-Paste relevant lines from **Auto Complete Logs** (redact API keys and private code).
+Paste only relevant lines from the **Auto Complete** logs or VS Code OutputChannel. **Redact API keys, Authorization headers, private endpoints, and private code.** State whether prompt logging or recent-file context was enabled.

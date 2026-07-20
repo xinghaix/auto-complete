@@ -1,6 +1,10 @@
 # UiBridge Protocol
 
+[English](bridge-protocol.md) · [中文](bridge-protocol.zh.md)
+
 Version field on every message: `v: 1`.
+
+> **Implementation status:** the active baseline is snapshot/profile/secret/probe/model/log-batch/platform/export/import support. Use `applySettings` to change `logLevel`. Rows marked **reserved** describe a future-compatible shape and are not dispatched by both current hosts.
 
 Transport:
 
@@ -45,10 +49,10 @@ type BridgeResponse = {
 | `probeAllTemplates` | `{ profileId? }` | `probeAllResult` | |
 | `listModels` | `{ profileId? }` | `modelsResult` | |
 | `subscribeLogs` | `{ level? }` | `logSubscribed` | Then push `logBatch` |
-| `unsubscribeLogs` | — | `logUnsubscribed` | |
+| `unsubscribeLogs` | — | `logUnsubscribed` | **Reserved**; JetBrains handles it, current VS Code bridge does not dispatch it |
 | `clearLogs` | — | `logsCleared` | |
 | `getLogLevel` | — | `logLevel` | |
-| `setLogLevel` | `{ level }` | `logLevel` | |
+| `setLogLevel` | `{ level }` | `logLevel` | **Reserved**; update through `applySettings` today |
 | `getPlatform` | — | `platform` | `{ platform, locale, theme }` — **locale is IDE UI language** (VS Code `env.language`, JB `DynamicBundle.getLocale()` BCP-47). settings-ui maps to en/zh/ja/ko. **theme** is IDE color scheme (`light`/`dark`/`high-contrast`); settings-ui `uiTheme` preference (`auto`/`light`/`dark`) decides whether to follow it. |
 | `exportSettings` | — | `exportResult` | No secrets |
 | `importSettings` | `{ json }` | `applyResult` | Merge / replace |
@@ -57,12 +61,12 @@ type BridgeResponse = {
 
 | type | payload |
 |------|---------|
-| `snapshot` | full snapshot (no keys) |
-| `logEntry` | single log entry |
-| `logBatch` | `{ entries: LogEntry[] }` — preferred, every 100–200ms |
-| `themeChanged` | `{ theme: "light"\|"dark"\|"high-contrast" }` |
-| `localeChanged` | `{ locale: string }` |
-| `settingsChanged` | external change notification |
+| `snapshot` | full snapshot (no keys); normally returned in response to a request |
+| `logEntry` | **Reserved**; current hosts batch logs rather than push individual entries |
+| `logBatch` | `{ entries: LogEntry[] }` — active push path, typically every 100–200ms |
+| `themeChanged` | **Reserved**; hosts provide initial theme through `getPlatform` |
+| `localeChanged` | **Reserved**; hosts provide initial locale through `getPlatform` |
+| `settingsChanged` | **Reserved**; current UI refreshes from apply/snapshot responses |
 
 ## Security (locked)
 

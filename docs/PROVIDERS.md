@@ -1,149 +1,72 @@
-# Providers
+# Provider 与提示模板
 
-## 1. 设计目标
+[English](PROVIDERS.en.md) · [文档索引](README.md)
 
-- 自定义 `baseUrl` + `apiKey` + `model` 是一等公民
-- 先支持最常见本地/兼容端点
-- 协议适配与引擎解耦
-- 便于抓包级日志（状态码/耗时），默认不记录密钥与全文 prompt
+Auto Complete 不绑定账号体系。它向用户配置的 HTTP endpoint 发送已裁剪的 prefix/suffix，并把响应解析为内联补全文本。主实现位于 `core/.../client/HttpCompletionClient.kt` 与 `packages/core-ts/src/httpClient.ts`。
 
-## 2. Provider 预设
+## 连接模型
 
-### 2.1 `openai-compatible`（默认）
+每个 profile 包含：服务根地址 `baseUrl`、模型、可选 API key、鉴权头模板、额外 headers JSON、模板和路径覆盖。API key 保存在 PasswordSafe（JetBrains）或 SecretStorage（VS Code）；设置快照、导出与日志不会返回明文。
 
-适用：Ollama、LM Studio、vLLM、多数 OpenAI 兼容网关。
+当前宿主 profile 走 OpenAI-compatible 请求管线，并支持自定义头、路径和模板覆盖。核心客户端保留 `CUSTOM` / `MISTRAL_FIM` 兼容枚举，但现有设置 UI 不提供完整的独立 custom-provider 产品流程；历史 `mistral-fim` 读入后会归一为 OpenAI-compatible + FIM 模板。
 
-默认：
+## 模板、路径与传输
 
-- baseUrl: `http://127.0.0.1:11434/v1`
-- path: `/chat/completions`
-- auth: `Authorization: Bearer ${apiKey}`（key 为空则省略）
-
-请求示意：
-
-```json
-{
-  "model": "qwen2.5-coder:7b",
-  "temperature": 0,
-  "max_tokens": 128,
-  "messages": [
-    {
-      "role": "system",
-      "content": "You are a code completion engine. Continue the code. Output only the completion."
-    },
-    {
-      "role": "user",
-      "content": "<prefix>...user code before cursor...</prefix>\n<suffix>...after cursor...</suffix>\nReturn only the middle completion."
-    }
-  ]
-}
-```
-
-实现可改进为更紧凑的 FIM-in-chat 模板；关键是**只返回补全文本**。
-
-### 2.2 `mistral-fim`（已废弃 UI）
-
-历史选项，与 `openai-compatible` + `(fim) OpenAI FIM` 模板等价。  
-设置页已移除；读入旧配置时归一为 `openai-compatible`。Codestral 请用兼容 OpenAI + FIM 模板。
-
-### 2.3 `custom`
-
-用户提供：
-
-- 完整 path
-- headers
-- 提示词模板（见下）
-- 可选 body 模板扩展
-
-### 2.4 提示词模板（Prompt template）
-
-设置页可选手动模板，或 `Auto` 按模型名检测。用户可对**当前模板**探测，或 **Try all** 依次试完全部模板直到成功。
-
-| 模板 | 传输 | 默认 path | 正文要点 |
+| 模板 ID | 适合模型 | 默认路径 | 请求正文 |
 |---|---|---|---|
-| `(fim) OpenAI FIM`（原 Codestral API） | `prompt` + `suffix` 字段 | 始终落到 `{host}/v1/fim/completions`（base 已含 `/v1` 时用 `/fim/completions`） | OpenAI 兼容 FIM（Codestral 等） |
-| `(fim) Qwen` | 单字段 `prompt` | `/completions` | `<\|fim_prefix\|>…<\|fim_suffix\|>…<\|fim_middle\|>` |
-| `(fim) DeepSeek` | 单字段 `prompt` | `/completions` | `<｜fim▁begin｜>…` 系列 token |
-| `(fim) StarCoder` | 单字段 `prompt` | `/completions` | `<fim_prefix>…` 系列 token |
-| `(chat) Pseudo-FIM` | `messages` | `/chat/completions` | `<prefix>/<suffix>` 伪 FIM |
-| `Auto` | 运行时解析 | 取决于检测结果 | 见模型名启发式 |
+| `CODESTRAL_API` | Codestral / Mistral code / Devstral | `/fim/completions` | `prompt` + `suffix` 字段 |
+| `QWEN` | Qwen、CodeGemma、泛 coder 名 | `/completions` | 单个 FIM token `prompt` |
+| `DEEPSEEK` | DeepSeek Coder | `/completions` | DeepSeek FIM token `prompt` |
+| `STARCODER` | StarCoder、SantaCoder、CodeLlama 等 | `/completions` | StarCoder FIM token `prompt` |
+| `CHAT` | chat/completions 服务 | `/chat/completions` | system + user `messages`，含 `<prefix>` / `<suffix>` |
+| `AUTO` | 默认 | 按检测结果 | 从模型名选择；未匹配时为 `CHAT` |
 
-探测结果：
+路径相对于 `baseUrl` 组合。对 OpenAI FIM，裸 host 会得到 `/v1/fim/completions`，已经以 `/v1` 结尾的 baseUrl 则得到 `/fim/completions`。`fimPath`、`completionsPath` 和 `chatPath` 可覆盖默认值；先确认服务端的实际 API，而不要盲目套用某个模型名称。
 
-- **SUCCESS**：HTTP 2xx 且补全文非空 → 可点 Apply 锁定该模板  
-- **EMPTY**：HTTP 2xx 但空补全 → 端点通、模板/模型可能不匹配  
-- **FAILED**：网络/4xx/5xx → 看 path 与鉴权
+所有请求均包含模型、`max_tokens`/等价字段、温度和可选 `stream=true`。FIM 模板还写入对应停止 token。默认输出限制 128、温度 0、补全超时 3000 ms。
 
-## 3. 统一客户端接口
+## OpenAI-compatible 示例
 
-```kotlin
-interface CompletionClient {
-    suspend fun complete(
-        request: ProviderRequest,
-        signal: CancellationToken,
-    ): ProviderResponse
-}
+常见本地服务的基本 profile：
 
-data class ProviderRequest(
-    val model: String,
-    val prefix: String,
-    val suffix: String,
-    val maxTokens: Int,
-    val temperature: Double,
-    val stream: Boolean,
-    val metadata: Map<String, String> = emptyMap(), // language, path?
-)
-
-data class ProviderResponse(
-    val text: String,
-    val usage: Usage? = null,
-    val rawStatus: Int? = null,
-)
+```text
+baseUrl: http://127.0.0.1:11434/v1
+model: qwen2.5-coder:7b
+API key: 留空（仅当服务无需鉴权）
+promptTemplate: AUTO 或 QWEN
 ```
 
-Engine 不关心具体 JSON 字段名；Adapter 负责映射。
+`CHAT` 模板要求 endpoint 接受 OpenAI 风格的 `messages`。`CODESTRAL_API` 要求 endpoint 接受 `prompt` 与 `suffix`。两者不是可随意互换的 JSON；请使用设置面板的模板测试决定。
 
-## 4. 取消与超时
+## 鉴权和额外头
 
-- 使用可取消 HTTP（协程 cancel 关闭连接）
-- `timeoutMs` 为补全硬超时；`settingsTimeoutMs` 为设置页探测硬超时
-- 插件 HTTP 走 IDE 代理设置（与内置插件一致），避免「同样 URL/Key 只有内置能通」
-- 超时与取消都不得抛到 UI 模态框
-- 仅写 log + 空补全
+- 默认头模板为 `Authorization: Bearer ***`；`***` 由 API key 替换。
+- 空 API key 时不会发送默认鉴权头。
+- `extraHeadersJson` 必须是 JSON object，用于不兼容 `Authorization` 的网关或额外路由头。
+- 日志对鉴权材料脱敏；不要把 key 放进 baseUrl、headers 示例、issue 或导出的配置。
 
-## 5. 错误映射
+## 连接、模型与模板探测
 
-| HTTP / 情况 | ErrorKind | 用户可见 |
-|---|---|---|
-| 401/403 | fatal | 状态栏 error + 可选通知 |
-| 402（若存在） | fatal/retriable 可配 | 默认 fatal |
-| 429/5xx | retriable | 日志 |
-| 超时 | retriable/transient | 日志 |
-| 连接失败 | retriable | 日志 |
-| cancel | cancel | 静默 |
+面板操作始终经过 **Web UI → UiBridge → 宿主 → HTTP client**。Webview/JCEF 不直接 `fetch` 用户端点。
 
-## 6. Test Connection
+- **拉取模型**：请求 `/models`；遇到 404/405 会尝试兼容的 `/v1/models`。
+- **测试连接**：发送短 Python prefix/suffix，`maxTokens` 最多 16。
+- **测试模板**：用当前或指定模板发同一最小请求。
+- **尝试全部模板**：对所有具体模板依次探测，结果保留路径、耗时、状态和截断预览。
 
-最小探测：
+`SUCCESS` 表示 2xx 且获得非空补全文本；`EMPTY` 表示 endpoint 可达但模板/模型可能不匹配；`FAILED` 表示网络、超时、鉴权或非 2xx。设置探测使用独立的 `settingsTimeoutMs`（默认 15000 ms），不会占用 ghost-text 的 3000 ms 超时预算。
 
-1. 用短 prefix/suffix（如 `def add(a, b):\n    ` + 空 suffix）
-2. `maxTokens` 上限 16
-3. 显示 latency 与截断响应
+## 错误、取消与网络
 
-禁止：
+| 情况 | 引擎行为 |
+|---|---|
+| 用户继续输入或宿主取消 | 取消 HTTP/任务；静默处理 |
+| 401/403 | fatal backoff；状态栏/通知（取决于设置） |
+| 429、5xx、传输失败、超时 | retriable backoff；写日志、不阻断编辑 |
+| 2xx 空文本或过滤后为空 | 不展示建议，记录诊断 |
 
-- 用用户当前打开的大文件做探测
-- 在探测日志里打印 apiKey
+JetBrains HTTP 使用 IDE 的代理与信任库支持；VS Code 使用扩展的 TypeScript 网络客户端。两端对在途请求都支持取消。服务端重定向、TLS 和公司代理差异由宿主运行环境决定，先看日志中的最终 URL、错误和状态码。
 
-## 7. 安全
+## 隐私
 
-- apiKey 只进 PasswordSafe
-- 日志中 redaction：`Authorization`、`api-key`、`token`
-- `allowRemote=false` 时拒绝非本地 baseUrl
-- 不自动跟随未知重定向到第三方域（实现时明确策略）
-
-## 8. 非目标 Provider（v1）
-
-- 完整 OpenRouter 账户体系
-- Kilo Gateway 登录设备流
-- 需要浏览器 OAuth 的 provider（可后置）
+请求会发送裁剪后的当前文件前后缀，默认还会包含文件路径；不会默认附带整个仓库或最近文件。关闭 `sendFilePath` 可避免发送路径；保持 `enableRecentFileContext=false` 可避免附带其它已打开文件片段。详见 [SETTINGS.md](SETTINGS.md) 与 [PERFORMANCE.md](PERFORMANCE.md)。

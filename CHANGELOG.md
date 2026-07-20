@@ -15,7 +15,7 @@
 - `[vscode]` `hosts/vscode` multi-profile globalState + per-profile SecretStorage, Webview, OutputChannel
 - `[settings-ui]` full Settings|Logs UI: profile CRUD, advanced, probes, log filter, export/import
 - `[settings-ui]` full i18n en/zh/ja/ko; auto-follow IDE language (VS Code `env.language`, JB `DynamicBundle`)
-- `[jetbrains]` JCEF-only settings (tool window + IDE Settings); required `com.intellij.modules.jcef`; Swing settings UI removed
+- `[jetbrains]` JCEF-only Settings + Logs tool window; Swing settings UI removed; `com.intellij.modules.jcef` is optional on newer IDEs
 - CI Node job for `core-ts` tests and JS package build
 
 ### Changed

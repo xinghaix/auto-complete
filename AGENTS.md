@@ -1,75 +1,68 @@
 # AGENTS.md
 
-Guidance for agents/developers implementing or releasing `auto-complete`.
+Guidance for agents and contributors working in `auto-complete`.
 
-## Product
+## Product and current topology
 
-JetBrains inline AI autocomplete plugin.  
-Single process, Kotlin, direct user `baseUrl` / API key (PasswordSafe).
+Auto Complete is a dual-host, bring-your-own-endpoint AI inline completion product:
 
-**Origin:** completion core extracted from open-source [kilocode](https://github.com/Kilo-Org/kilocode) (post-v7 spin-out).  
-**Now:** JetBrains only · **Planned:** VS Code extension.
+- **JetBrains:** `plugin/` host + Kotlin/JVM `core/` engine.
+- **VS Code:** `hosts/vscode/` host + TypeScript `packages/core-ts/` engine.
+- **Shared:** `packages/shared-spec/` contracts/fixtures and Vue `packages/settings-ui/` embedded through each host bridge.
 
-User-facing docs: Chinese default [`README.md`](README.md), English [`README.en.md`](README.en.md).
+The hosts run independently. JetBrains must never use a VS Code Extension Host, `kilo serve`, or an RPC bridge to obtain completion. The project is an independent implementation informed by Kilo Code behaviour; see `docs/SOURCES.md` and `NOTICE`.
 
-## Current stage
+User-facing documentation is paired Chinese/English: root `README.md` / `README.en.md`, then `docs/README.md` / `docs/README.en.md`.
 
-**Open-source preview.**
+## Stage and distribution
 
-- Ship via Install from Disk / GitHub Releases
-- CI runs tests + `buildPlugin`
-- **Do not** commit Marketplace / signing tokens
-- Marketplace `publishPlugin` only when explicitly requested and token is env-only
+Open-source preview:
 
-## Required reading
+- JetBrains: Install from Disk / GitHub Release ZIP.
+- VS Code: Install from VSIX / GitHub Release VSIX.
+- CI tests and builds; it does not sign, publish Marketplace, create releases, or upload VSIX.
+- Do not commit Marketplace/signing tokens, API keys, or private endpoints.
+
+## Required reading before meaningful changes
 
 1. `docs/ARCHITECTURE.md`
 2. `docs/SETTINGS.md`
 3. `docs/PROVIDERS.md`
 4. `docs/PERFORMANCE.md`
 5. `docs/RELEASE.md`
-6. `docs/COMPATIBILITY.md` — **JetBrains min 2024.2 / build 242**; optional jcef + reflective host
-7. `docs/OPEN_SOURCE.md`
-8. `docs/SOURCES.md`
-9. `docs/IMPLEMENTATION_STATUS.md`
-10. `CONTRIBUTING.md`
+6. `docs/COMPATIBILITY.md`
+7. `docs/SOURCES.md`
+8. `docs/IMPLEMENTATION_STATUS.md`
+9. `CONTRIBUTING.md`
 
 ## Hard constraints
 
-- No VS Code extension host / RPC bridge
-- No `kilo serve` as a runtime dependency
-- No Next Edit / Agent product in v1
-- Do not default to whole-file or whole-repo context
-- Do not store apiKey in plain XML
-- Do not perform HTTP on the EDT
-- Do not add secrets to the repository
-- JetBrains **minimum 2024.2 / `pluginSinceBuild=242`**. Settings are **Web/JCEF only** (no Swing settings). Keep `com.intellij.modules.jcef` **optional** and load JCEF via `SettingsJcefHost` reflection — never hard-require the jcef plugin or put `JBCefBrowser` types on `SettingsWebPanel`.
+- No VS Code host/RPC bridge or `kilo serve` runtime dependency for JetBrains.
+- Do not store API keys in plain XML, settings JSON, snapshots, exports, fixtures, or logs.
+- Do not perform HTTP or large text work on the JetBrains EDT.
+- Do not default to whole-file, whole-repository, or recent-file context.
+- Settings UI must not directly call user provider HTTP: use UI Bridge → host → engine client.
+- Preserve cancellation and generation checks; cancellation is a normal path.
+- Keep `com.intellij.modules.jcef` optional. Load JCEF through `SettingsJcefHost` reflection; do not place `JBCefBrowser` types on `SettingsWebPanel`.
+- JetBrains minimum remains 2024.2 / `pluginSinceBuild=242` unless compatibility docs and tests are deliberately updated.
+- No Agent/Next Edit product scope in the completion path.
+- Do not claim cross-host parity where the code differs. Current gaps are documented in `docs/IMPLEMENTATION_STATUS.md`.
 
-## Local package (JetBrains + VS Code)
+## Local verification
 
 ```bash
-export JAVA_HOME=/opt/homebrew/opt/openjdk@21/libexec/openjdk.jdk/Contents/Home  # if needed
+npm install
+./gradlew :core:test :plugin:test
+npm run test:js
+npm run build:js
+./gradlew :plugin:buildPlugin
 ./scripts/package-local.sh
-# or: npm run package:local
-
-# JetBrains: Install Plugin from Disk → plugin/build/distributions/auto-complete-*.zip
-# VS Code:   Install from VSIX     → hosts/vscode/dist-vsix/auto-complete-*.vsix
-
-# Optional: SKIP_JB=1 or SKIP_VSCODE=1 to package only one host
 ```
 
-## Reference projects (read-only)
-
-Behavioral reference only — do not implement this product inside those trees:
-
-- https://github.com/Kilo-Org/kilocode-legacy (classic autocomplete algorithms)
-- https://github.com/Kilo-Org/kilocode (monorepo; contrast only)
+`package-local.sh` builds JCEF/Webview assets, ZIP, and VSIX but explicitly tests only `:core:test`; it does not replace the full test set. For host-only packages, set `SKIP_JB=1` or `SKIP_VSCODE=1`.
 
 ## Git
 
-- Prefer conventional commits: `feat:`, `fix:`, `docs:`, `chore:`, `test:`
-- Release version bump: `chore(release): X.Y.Z`
-- First public docs/CI snapshot: `docs: open-source the JetBrains auto-complete plugin`
-- Tags: annotated `vX.Y.Z` with subject `Auto Complete X.Y.Z` (see `docs/OPEN_SOURCE.md`)
-- Do not push to remote unless the user asks
-- Do not force-push `main` without explicit request
+- Use conventional commit prefixes where practical: `feat:`, `fix:`, `docs:`, `chore:`, `test:`.
+- Release commits use `chore(release): X.Y.Z`; annotated tags use `vX.Y.Z`.
+- Do not push, tag, publish, or force-push without explicit user direction.
