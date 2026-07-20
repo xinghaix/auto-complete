@@ -1,0 +1,205 @@
+{
+  "name": "auto-complete",
+  "displayName": "Auto Complete",
+  "description": "Inline AI code completion. Bring your own OpenAI-compatible endpoint (Ollama, etc.).",
+  "version": "0.1.1",
+  "publisher": "auto-complete",
+  "license": "Apache-2.0",
+  "icon": "media/icon.png",
+  "engines": {
+    "vscode": "^1.85.0"
+  },
+  "categories": ["Machine Learning", "Other"],
+  "keywords": ["ai", "completion", "inline", "fim", "ollama"],
+  "activationEvents": [
+    "onStartupFinished"
+  ],
+  "main": "./dist/extension.js",
+  "contributes": {
+    "commands": [
+      {
+        "command": "autoComplete.trigger",
+        "title": "Auto Complete: Trigger Inline Completion"
+      },
+      {
+        "command": "autoComplete.openSettings",
+        "title": "Auto Complete: Open Settings Panel"
+      },
+      {
+        "command": "autoComplete.toggleEnabled",
+        "title": "Auto Complete: Toggle Enabled"
+      },
+      {
+        "command": "autoComplete.showLogs",
+        "title": "Auto Complete: Show Logs"
+      },
+      {
+        "command": "autoComplete.setApiKey",
+        "title": "Auto Complete: Set API Key"
+      }
+    ],
+    "keybindings": [
+      {
+        "command": "autoComplete.trigger",
+        "key": "ctrl+shift+space",
+        "mac": "cmd+shift+space",
+        "when": "editorTextFocus"
+      }
+    ],
+    "configuration": {
+      "title": "Auto Complete",
+      "properties": {
+        "autoComplete.enabled": {
+          "type": "boolean",
+          "default": true,
+          "description": "Enable inline AI completions"
+        },
+        "autoComplete.autoTrigger": {
+          "type": "boolean",
+          "default": true,
+          "description": "Trigger completions automatically while typing"
+        },
+        "autoComplete.baseUrl": {
+          "type": "string",
+          "default": "http://127.0.0.1:11434/v1",
+          "description": "OpenAI-compatible service base URL"
+        },
+        "autoComplete.model": {
+          "type": "string",
+          "default": "qwen2.5-coder:7b",
+          "description": "Model name"
+        },
+        "autoComplete.promptTemplate": {
+          "type": "string",
+          "enum": ["AUTO", "CODESTRAL_API", "QWEN", "DEEPSEEK", "STARCODER", "CHAT"],
+          "default": "AUTO",
+          "description": "Prompt template (AUTO detects from model name)"
+        },
+        "autoComplete.timeoutMs": {
+          "type": "number",
+          "default": 3000,
+          "minimum": 500,
+          "maximum": 30000,
+          "description": "Inline completion hard timeout (ms)"
+        },
+        "autoComplete.settingsTimeoutMs": {
+          "type": "number",
+          "default": 15000,
+          "minimum": 1000,
+          "maximum": 120000,
+          "description": "Settings probe timeout (ms)"
+        },
+        "autoComplete.maxTokens": {
+          "type": "number",
+          "default": 128,
+          "minimum": 16,
+          "maximum": 1024
+        },
+        "autoComplete.temperature": {
+          "type": "number",
+          "default": 0,
+          "minimum": 0,
+          "maximum": 2
+        },
+        "autoComplete.stream": {
+          "type": "boolean",
+          "default": false,
+          "description": "Experimental streaming (first token)"
+        },
+        "autoComplete.maxPrefixChars": {
+          "type": "number",
+          "default": 8000
+        },
+        "autoComplete.maxSuffixChars": {
+          "type": "number",
+          "default": 2000
+        },
+        "autoComplete.debounceMinMs": {
+          "type": "number",
+          "default": 150
+        },
+        "autoComplete.debounceInitialMs": {
+          "type": "number",
+          "default": 300
+        },
+        "autoComplete.debounceMaxMs": {
+          "type": "number",
+          "default": 1000
+        },
+        "autoComplete.enableInComments": {
+          "type": "boolean",
+          "default": true
+        },
+        "autoComplete.enableInStrings": {
+          "type": "boolean",
+          "default": true
+        },
+        "autoComplete.firstLineOnlyWhenMidLine": {
+          "type": "boolean",
+          "default": true
+        },
+        "autoComplete.sendFilePath": {
+          "type": "boolean",
+          "default": true
+        },
+        "autoComplete.maxFileSizeKb": {
+          "type": "number",
+          "default": 512
+        },
+        "autoComplete.logLevel": {
+          "type": "string",
+          "enum": ["debug", "info", "warn", "error"],
+          "default": "info"
+        },
+        "autoComplete.logPromptBodies": {
+          "type": "boolean",
+          "default": false
+        },
+        "autoComplete.showStatusBar": {
+          "type": "boolean",
+          "default": true
+        },
+        "autoComplete.uiTheme": {
+          "type": "string",
+          "enum": ["auto", "light", "dark"],
+          "default": "auto",
+          "description": "Settings panel theme (auto follows IDE, or force light/dark)"
+        },
+        "autoComplete.fimPath": {
+          "type": "string",
+          "default": "",
+          "description": "Override FIM path (empty = auto)"
+        },
+        "autoComplete.chatPath": {
+          "type": "string",
+          "default": "/chat/completions"
+        },
+        "autoComplete.completionsPath": {
+          "type": "string",
+          "default": ""
+        },
+        "autoComplete.authHeaderTemplate": {
+          "type": "string",
+          "default": "Authorization: Bearer ${apiKey}"
+        }
+      }
+    },
+    "viewsContainers": {
+      "activitybar": []
+    }
+  },
+  "scripts": {
+    "build": "node scripts/build.mjs",
+    "package": "node scripts/package-vsix.mjs",
+    "typecheck": "tsc -p tsconfig.json --noEmit"
+  },
+  "dependencies": {
+    "@auto-complete/core-ts": "file:../../packages/core-ts"
+  },
+  "devDependencies": {
+    "@types/node": "^22.10.0",
+    "@types/vscode": "^1.85.0",
+    "esbuild": "^0.25.0",
+    "typescript": "^5.7.2"
+  }
+}

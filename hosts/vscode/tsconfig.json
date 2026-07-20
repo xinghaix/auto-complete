@@ -1,0 +1,20 @@
+{
+  "compilerOptions": {
+    "target": "ES2022",
+    "module": "ESNext",
+    "moduleResolution": "Bundler",
+    "outDir": "dist",
+    "rootDir": "src",
+    "strict": true,
+    "skipLibCheck": true,
+    "esModuleInterop": true,
+    "forceConsistentCasingInFileNames": true,
+    "lib": ["ES2022"],
+    "sourceMap": true,
+    "noEmit": true,
+    "paths": {
+      "@auto-complete/core-ts": ["../../packages/core-ts/src/index.ts"]
+    }
+  },
+  "include": ["src/**/*"]
+}

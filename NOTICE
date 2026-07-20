@@ -1,0 +1,22 @@
+Auto Complete
+Copyright contributors to the Auto Complete project.
+
+Licensed under the Apache License, Version 2.0.
+See LICENSE for the full text.
+
+---
+
+Core code-completion behavior was extracted and reimplemented from open-source
+Kilo Code (kilocode), after the v7 product line became heavier for standalone
+inline completion use:
+
+- https://github.com/Kilo-Org/kilocode
+- Classic autocomplete reference: https://github.com/Kilo-Org/kilocode-legacy
+
+This repository ships a JetBrains IDE plugin today; a VS Code extension is planned.
+It is not a redistribution of the VS Code extension host or kilo serve RPC bridge.
+
+Runtime: JetBrains IntelliJ Platform (under JetBrains terms).
+
+No third-party model weights or API keys are bundled.
+See docs/SOURCES.md for mapping notes.

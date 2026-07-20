@@ -1,0 +1,81 @@
+<!-- Plugin Configuration File. Read more: https://plugins.jetbrains.com/docs/intellij/plugin-configuration-file.html -->
+<idea-plugin>
+    <id>io.autocomplete</id>
+    <name>Auto Complete</name>
+    <vendor url="https://github.com">auto-complete</vendor>
+    <resource-bundle>messages.AutoCompleteBundle</resource-bundle>
+    <description><![CDATA[
+    <p>Lightweight AI inline code completion for JetBrains IDEs.</p>
+    <ul>
+      <li>Bring your own baseUrl / API key / model</li>
+      <li>OpenAI-compatible endpoints (Ollama, vLLM, gateways, …)</li>
+      <li>Profiles, prompt templates, adaptive debounce and cache</li>
+      <li>One Web panel: Settings + Logs (JCEF)</li>
+      <li>Single-process Kotlin — no VS Code host bridge</li>
+    </ul>
+    <p><b>Requires IntelliJ Platform 2024.2+ (build 242+)</b>.
+    Settings need working JCEF. See docs/COMPATIBILITY.md.</p>
+    <p>Apache-2.0 open source. Install from Disk or GitHub Releases.
+    Keys stay in the IDE PasswordSafe.</p>
+    ]]></description>
+
+    <depends>com.intellij.modules.platform</depends>
+    <!-- Optional: 2025.3+/2026 attaches JCEF plugin as parent classloader. -->
+    <depends optional="true" config-file="auto-complete-jcef.xml">com.intellij.modules.jcef</depends>
+
+    <extensions defaultExtensionNs="com.intellij">
+        <applicationService serviceImplementation="io.autocomplete.config.AutoCompleteSettingsService"/>
+        <applicationService serviceImplementation="io.autocomplete.plugin.AutoCompleteAppService"/>
+        <projectService serviceImplementation="io.autocomplete.plugin.AutoCompleteProjectService"/>
+
+        <!-- No applicationConfigurable: single entry = tool window Web UI (Settings | Logs). -->
+
+        <inline.completion.provider implementation="io.autocomplete.ide.AutoCompleteInlineProvider"/>
+
+        <statusBarWidgetFactory
+                id="AutoCompleteStatusBar"
+                implementation="io.autocomplete.ui.AutoCompleteStatusBarFactory"/>
+
+        <toolWindow id="Auto Complete"
+                    anchor="right"
+                    factoryClass="io.autocomplete.ui.SettingsWebToolWindowFactory"
+                    icon="/icons/acToolWindow.svg"/>
+
+        <notificationGroup id="Auto Complete"
+                           displayType="BALLOON"
+                           isLogByDefault="true"/>
+    </extensions>
+
+    <applicationListeners>
+        <listener class="io.autocomplete.plugin.AutoCompleteLifecycleListener"
+                  topic="com.intellij.ide.AppLifecycleListener"/>
+    </applicationListeners>
+
+    <actions>
+        <group id="AutoComplete.Menu"
+               popup="true"
+               icon="/icons/acAction.svg">
+            <add-to-group group-id="ToolsMenu" anchor="last"/>
+            <action id="AutoComplete.Trigger"
+                    class="io.autocomplete.ide.TriggerCompletionAction"
+                    icon="/icons/acAction.svg">
+                <keyboard-shortcut keymap="$default" first-keystroke="ctrl shift SPACE"/>
+            </action>
+            <action id="AutoComplete.Cancel"
+                    class="io.autocomplete.ide.CancelCompletionsAction"
+                    icon="/icons/acAction.svg"/>
+            <action id="AutoComplete.Toggle"
+                    class="io.autocomplete.ide.ToggleEnabledAction"
+                    icon="/icons/acAction.svg"/>
+            <action id="AutoComplete.Snooze"
+                    class="io.autocomplete.ide.SnoozeAction"
+                    icon="/icons/acAction.svg"/>
+            <action id="AutoComplete.OpenSettings"
+                    class="io.autocomplete.ide.OpenSettingsAction"
+                    icon="/icons/acAction.svg"/>
+            <action id="AutoComplete.OpenLogs"
+                    class="io.autocomplete.ide.OpenLogsAction"
+                    icon="/icons/acToolWindow.svg"/>
+        </group>
+    </actions>
+</idea-plugin>

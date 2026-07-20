@@ -1,0 +1,26 @@
+{
+  "name": "@auto-complete/settings-ui",
+  "version": "0.1.1",
+  "private": true,
+  "description": "Shared Web settings + logs UI for VS Code Webview and JetBrains JCEF (Vue 3)",
+  "license": "Apache-2.0",
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build",
+    "preview": "vite preview",
+    "test": "tsx --test src/i18n/detect.test.ts src/utils/helpers.test.ts src/html-entry.test.ts src/mount.test.ts",
+    "typecheck": "vue-tsc -p tsconfig.json --noEmit"
+  },
+  "dependencies": {
+    "vue": "^3.5.13"
+  },
+  "devDependencies": {
+    "@types/node": "^22.10.0",
+    "@vitejs/plugin-vue": "^5.2.1",
+    "tsx": "^4.19.2",
+    "typescript": "^5.7.2",
+    "vite": "^6.0.3",
+    "vue-tsc": "^2.2.0"
+  }
+}

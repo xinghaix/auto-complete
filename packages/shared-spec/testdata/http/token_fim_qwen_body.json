@@ -1,0 +1,30 @@
+{
+  "name": "qwen_token_fim_request_body",
+  "description": "Expected request shape for QWEN COMPLETION_PROMPT wire format",
+  "template": "QWEN",
+  "input": {
+    "model": "qwen2.5-coder:7b",
+    "prefix": "def add(a, b):\n    ",
+    "suffix": "\n",
+    "maxTokens": 16,
+    "temperature": 0,
+    "stream": false
+  },
+  "expectedBody": {
+    "model": "qwen2.5-coder:7b",
+    "prompt": "<|fim_prefix|>def add(a, b):\n    <|fim_suffix|>\n<|fim_middle|>",
+    "max_tokens": 16,
+    "temperature": 0,
+    "stream": false,
+    "stop": [
+      "<|endoftext|>",
+      "<|fim_prefix|>",
+      "<|fim_middle|>",
+      "<|fim_suffix|>",
+      "<|fim_pad|>",
+      "<|repo_name|>",
+      "<|file_sep|>",
+      "<|im_end|>"
+    ]
+  }
+}

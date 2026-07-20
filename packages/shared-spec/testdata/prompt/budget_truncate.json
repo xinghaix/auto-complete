@@ -1,0 +1,41 @@
+{
+  "name": "prompt_budget_truncate",
+  "cases": [
+    {
+      "id": "prefix_take_end",
+      "prefix": "AAAAABBBBBCCCCC",
+      "suffix": "xyz",
+      "maxPrefixChars": 5,
+      "maxSuffixChars": 10,
+      "path": "src/a.ts",
+      "language": null,
+      "sendFilePath": false,
+      "expectedPrefix": "CCCCC",
+      "expectedSuffix": "xyz"
+    },
+    {
+      "id": "suffix_take_start",
+      "prefix": "ab",
+      "suffix": "0123456789",
+      "maxPrefixChars": 100,
+      "maxSuffixChars": 4,
+      "path": null,
+      "language": null,
+      "sendFilePath": false,
+      "expectedPrefix": "ab",
+      "expectedSuffix": "0123"
+    },
+    {
+      "id": "with_file_header",
+      "prefix": "code",
+      "suffix": "",
+      "maxPrefixChars": 100,
+      "maxSuffixChars": 100,
+      "path": "Main.kt",
+      "language": "kotlin",
+      "sendFilePath": true,
+      "expectedPrefixContains": ["File: Main.kt", "Language: kotlin", "code"],
+      "expectedSuffix": ""
+    }
+  ]
+}

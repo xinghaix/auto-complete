@@ -1,0 +1,1142 @@
+/* IntelliJ / VS Code settings-inspired density — property table layout */
+
+:root {
+  color-scheme: light;
+
+  /* Light defaults (JB New UI-ish) */
+  --bg: #f7f8fa;
+  --panel: #ffffff;
+  --fg: #000000d9;
+  --muted: #0000008c;
+  --border: #0000001a;
+  --border-strong: #00000026;
+  --input-bg: #ffffff;
+  --input-fg: #000000d9;
+  --input-border: #00000033;
+  --hover: #0000000a;
+  --active-tab: #3574f0;
+  --btn: #3574f0;
+  --btn-hover: #3369d6;
+  --btn-fg: #ffffff;
+  --btn2: #0000000d;
+  --btn2-fg: #000000d9;
+  --btn2-border: #00000026;
+  --ok-bg: #e6f4ea;
+  --ok-fg: #137333;
+  --ok-border: #ceead6;
+  --warn-bg: #fef7e0;
+  --warn-fg: #b06000;
+  --warn-border: #fce8b2;
+  --err-bg: #fce8e6;
+  --err-fg: #c5221f;
+  --err-border: #f5c6c2;
+  /* Shared name column width is set per .group-card via JS measure (--label-w) */
+  --label-max: min(42vw, 16rem);
+  --radius: 4px;
+  --font: system-ui, -apple-system, "Segoe UI", "JetBrains Sans", "Helvetica Neue", Arial, sans-serif;
+  --mono: "JetBrains Mono", ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+
+  /* Prefer host tokens when present (VS Code / future JB theme push) */
+  --bg: var(--vscode-sideBar-background, var(--bg));
+  --panel: var(--vscode-editor-background, var(--panel));
+  --fg: var(--vscode-foreground, var(--fg));
+  --muted: var(--vscode-descriptionForeground, var(--muted));
+  --border: var(--vscode-panel-border, var(--border));
+  --input-bg: var(--vscode-input-background, var(--input-bg));
+  --input-fg: var(--vscode-input-foreground, var(--input-fg));
+  --input-border: var(--vscode-input-border, var(--input-border));
+  --btn: var(--vscode-button-background, var(--btn));
+  --btn-fg: var(--vscode-button-foreground, var(--btn-fg));
+  --btn2: var(--vscode-button-secondaryBackground, var(--btn2));
+  --btn2-fg: var(--vscode-button-secondaryForeground, var(--btn2-fg));
+  --active-tab: var(--vscode-focusBorder, var(--active-tab));
+  --font: var(--vscode-font-family, var(--font));
+}
+
+/*
+ * Auto + light IDE: keep :root (host / VS Code tokens).
+ * Forced light (data-theme-pref=light): override host tokens so dark IDE still looks white.
+ * Dark / high-contrast: always use dark palette (auto or forced).
+ */
+html[data-theme-pref="light"] {
+  color-scheme: light;
+  --bg: #f7f8fa;
+  --panel: #ffffff;
+  --fg: #000000d9;
+  --muted: #0000008c;
+  --border: #0000001a;
+  --border-strong: #00000026;
+  --input-bg: #ffffff;
+  --input-fg: #000000d9;
+  --input-border: #00000033;
+  --hover: #0000000a;
+  --active-tab: #3574f0;
+  --btn: #3574f0;
+  --btn-hover: #3369d6;
+  --btn-fg: #ffffff;
+  --btn2: #0000000d;
+  --btn2-fg: #000000d9;
+  --btn2-border: #00000026;
+  --ok-bg: #e6f4ea;
+  --ok-fg: #137333;
+  --ok-border: #ceead6;
+  --warn-bg: #fef7e0;
+  --warn-fg: #b06000;
+  --warn-border: #fce8b2;
+  --err-bg: #fce8e6;
+  --err-fg: #c5221f;
+  --err-border: #f5c6c2;
+}
+
+html[data-theme="dark"],
+html[data-theme="high-contrast"],
+html[data-theme-pref="dark"] {
+  color-scheme: dark;
+  --bg: #2b2d30;
+  --panel: #1e1f22;
+  --fg: #dfe1e5;
+  --muted: #9da0a8;
+  --border: #43454a;
+  --border-strong: #5a5d63;
+  --input-bg: #2b2d30;
+  --input-fg: #dfe1e5;
+  --input-border: #4e5157;
+  --hover: #ffffff0a;
+  --active-tab: #548af7;
+  --btn: #3574f0;
+  --btn-hover: #4681f4;
+  --btn-fg: #ffffff;
+  --btn2: #3c3f41;
+  --btn2-fg: #dfe1e5;
+  --btn2-border: #5a5d63;
+  --ok-bg: #1b3d2a;
+  --ok-fg: #6bcf8e;
+  --ok-border: #2d5a3d;
+  --warn-bg: #3d3420;
+  --warn-fg: #e0b44a;
+  --warn-border: #5a4a28;
+  --err-bg: #3d2424;
+  --err-fg: #f28b82;
+  --err-border: #5c3030;
+}
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+html,
+body {
+  margin: 0;
+  width: 100%;
+  height: 100%;
+  overflow: hidden;
+}
+
+body {
+  background: var(--bg);
+  color: var(--fg);
+  font-family: var(--font);
+  font-size: 13px;
+  line-height: 1.4;
+  -webkit-font-smoothing: antialiased;
+}
+
+#root {
+  width: 100%;
+  height: 100%;
+  overflow: hidden;
+}
+
+.app {
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+  height: 100%;
+  min-height: 100%;
+  max-width: none;
+  margin: 0;
+  background: var(--panel);
+  box-shadow: none;
+}
+
+/* ── top bar (tabs only; tool window already has title) ── */
+.header {
+  flex-shrink: 0;
+  background: var(--bg);
+  border-bottom: 1px solid var(--border);
+}
+
+.tabs {
+  display: flex;
+  gap: 2px;
+  padding: 0 10px;
+}
+
+.tabs button {
+  appearance: none;
+  border: 0;
+  background: transparent;
+  color: var(--muted);
+  font: inherit;
+  font-size: 12.5px;
+  font-weight: 500;
+  padding: 8px 12px 9px;
+  cursor: pointer;
+  border-bottom: 2px solid transparent;
+  margin-bottom: -1px;
+  transition: color 0.15s ease, border-color 0.15s ease;
+}
+
+.tabs button:hover {
+  color: var(--fg);
+}
+
+.tabs button.active {
+  color: var(--fg);
+  border-bottom-color: var(--active-tab);
+}
+
+
+/* ── scrollbar: blend with theme, no white gutter ── */
+.scroll::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
+}
+
+.scroll::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.scroll::-webkit-scrollbar-thumb {
+  background: var(--border-strong);
+  border-radius: 5px;
+  border: 2px solid transparent;
+  background-clip: content-box;
+}
+
+.scroll::-webkit-scrollbar-thumb:hover {
+  background: var(--muted);
+  background-clip: content-box;
+}
+
+.scroll::-webkit-scrollbar-corner {
+  background: transparent;
+}
+
+/* ── scroll body ── */
+.scroll {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-y: auto;
+  overflow-x: hidden;
+  padding: 14px 16px 12px;
+  background: var(--bg);
+}
+
+/* ── group: flat IDE-style section ── */
+.group {
+  margin-bottom: 20px;
+}
+
+.group-title {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 0 0 8px;
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+
+.group-title::after {
+  content: "";
+  flex: 1;
+  height: 1px;
+  background: var(--border);
+}
+
+.group-card {
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: var(--panel);
+  /* Must stay visible: JCEF/Chromium clips native <select> popups under overflow:hidden */
+  overflow: visible;
+  /* Do NOT use display:contents on rows/fieldset — breaks native <select> in JCEF */
+}
+
+/* fieldset must remain a real box so form controls stay interactive */
+.group-card > fieldset {
+  display: block;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  min-width: 0;
+}
+
+/* ── property row (table-like, no grid lines) ── */
+.row {
+  display: grid;
+  /*
+   * --label-w is measured per card (longest label). Fallback max-content is
+   * per-row only; after measure, all value columns share one left edge.
+   */
+  grid-template-columns: minmax(0, var(--label-w, max-content)) minmax(0, 1fr);
+  gap: 6px 14px;
+  align-items: start;
+  padding: 10px 12px;
+  min-height: 36px;
+  /* no border-bottom: keep spacing/alignment without table lines */
+}
+
+.row:hover {
+  background: var(--hover);
+}
+
+.row-label {
+  text-align: left;
+  font-size: 12.5px;
+  color: var(--fg);
+  padding-top: 6px;
+  line-height: 1.35;
+  min-width: 0;
+  max-width: var(--label-max);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.row-label .req {
+  color: var(--err-fg);
+  margin-left: 2px;
+}
+
+.row-control {
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  align-items: stretch;
+  text-align: left;
+  /* Above siblings so native <select> popup hit-testing is reliable in JCEF */
+  position: relative;
+  z-index: 1;
+}
+
+.row-control:focus-within {
+  z-index: 2;
+}
+
+.row-control input,
+.row-control select,
+.row-control textarea,
+.row-control .hstack,
+.row-control .result {
+  text-align: left;
+}
+
+/* number inputs: keep value left-aligned (some UAs center/right) */
+.row-control input[type="number"] {
+  text-align: left;
+}
+
+.row-help {
+  margin: 0;
+  font-size: 11px;
+  line-height: 1.45;
+  color: var(--muted);
+}
+
+.row.full {
+  grid-template-columns: 1fr;
+}
+
+.row.full .row-label {
+  padding-top: 0;
+}
+
+/* Narrow tool window: label above, value below */
+@media (max-width: 560px) {
+  .row:not(.full) {
+    grid-template-columns: 1fr;
+    gap: 4px;
+  }
+
+  .row-label {
+    padding-top: 0;
+    max-width: none;
+    white-space: normal;
+    overflow: visible;
+    text-overflow: unset;
+  }
+}
+
+/* ── controls ── */
+input[type="text"],
+input[type="password"],
+input[type="number"],
+select,
+textarea {
+  width: 100%;
+  margin: 0;
+  padding: 5px 8px;
+  font: inherit;
+  font-size: 12.5px;
+  color: var(--input-fg);
+  background: var(--input-bg);
+  border: 1px solid var(--input-border);
+  border-radius: var(--radius);
+  outline: none;
+  transition: border-color 0.12s ease, box-shadow 0.12s ease;
+  pointer-events: auto;
+  position: relative;
+  z-index: 1;
+}
+
+select {
+  -webkit-appearance: menulist;
+  appearance: menulist;
+  cursor: pointer;
+  min-height: 28px;
+}
+
+input:hover,
+select:hover,
+textarea:hover {
+  border-color: var(--border-strong);
+}
+
+input:focus,
+select:focus,
+textarea:focus {
+  border-color: var(--active-tab);
+  box-shadow: 0 0 0 1px var(--active-tab);
+}
+
+input:disabled,
+select:disabled,
+textarea:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+
+textarea {
+  /* No OS resize grip — matches other fixed controls; height via rows + min-height */
+  resize: none;
+  min-height: 52px;
+  max-height: 240px;
+  overflow-y: auto;
+  font-family: var(--mono);
+  font-size: 12px;
+  line-height: 1.45;
+  /* Same field chrome as inputs; avoid light system resize corner on dark themes */
+  field-sizing: content;
+}
+
+/* Theme-aligned scrollbar inside textareas (WebKit / JCEF / Chromium) */
+textarea::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+textarea::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+textarea::-webkit-scrollbar-thumb {
+  background: var(--border-strong);
+  border-radius: 4px;
+  border: 2px solid transparent;
+  background-clip: content-box;
+}
+
+textarea::-webkit-scrollbar-thumb:hover {
+  background: var(--muted);
+  background-clip: content-box;
+}
+
+.hstack {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  align-items: center;
+}
+
+.hstack > input,
+.hstack > select {
+  flex: 1 1 140px;
+  min-width: 0;
+}
+
+.hstack > button {
+  flex: 0 0 auto;
+}
+
+/* checkbox lines */
+.check {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  cursor: pointer;
+  font-size: 12.5px;
+  color: var(--fg);
+  user-select: none;
+}
+
+.check input {
+  width: 14px;
+  height: 14px;
+  margin: 2px 0 0;
+  flex-shrink: 0;
+  accent-color: var(--btn);
+  cursor: pointer;
+}
+
+.check .check-text {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.check .check-text strong {
+  font-weight: 500;
+}
+
+/* badge */
+.pill {
+  display: inline-flex;
+  align-items: center;
+  height: 20px;
+  padding: 0 7px;
+  border-radius: 999px;
+  font-size: 11px;
+  font-weight: 500;
+  border: 1px solid var(--border);
+  color: var(--muted);
+  background: var(--hover);
+  white-space: nowrap;
+}
+
+.pill.on {
+  color: var(--ok-fg);
+  background: var(--ok-bg);
+  border-color: var(--ok-border);
+}
+
+/* buttons */
+.btn {
+  appearance: none;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  height: 28px;
+  padding: 0 12px;
+  border-radius: var(--radius);
+  border: 1px solid transparent;
+  font: inherit;
+  font-size: 12.5px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: background 0.12s ease, border-color 0.12s ease, filter 0.12s ease;
+}
+
+.btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.btn-primary {
+  background: var(--btn);
+  color: var(--btn-fg);
+}
+
+.btn-primary:hover:not(:disabled) {
+  background: var(--btn-hover);
+}
+
+.btn-secondary {
+  background: var(--btn2);
+  color: var(--btn2-fg);
+  border-color: var(--btn2-border);
+}
+
+.btn-secondary:hover:not(:disabled) {
+  filter: brightness(0.97);
+}
+
+html[data-theme="dark"] .btn-secondary:hover:not(:disabled),
+html[data-theme="high-contrast"] .btn-secondary:hover:not(:disabled),
+html[data-theme-pref="dark"] .btn-secondary:hover:not(:disabled) {
+  filter: brightness(1.12);
+}
+
+.btn-ghost {
+  background: transparent;
+  color: var(--fg);
+  border-color: var(--border);
+}
+
+.btn-danger {
+  background: transparent;
+  color: var(--err-fg);
+  border-color: var(--err-border);
+}
+
+.btn-link {
+  height: auto;
+  padding: 2px 4px;
+  background: transparent;
+  color: var(--active-tab);
+  border: 0;
+  font-weight: 500;
+}
+
+.btn-link:hover {
+  text-decoration: underline;
+}
+
+/* result card */
+.result {
+  margin-top: 4px;
+  padding: 8px 10px;
+  border-radius: var(--radius);
+  border: 1px solid var(--border);
+  background: var(--hover);
+  font-size: 12px;
+}
+
+.result.ok {
+  background: var(--ok-bg);
+  border-color: var(--ok-border);
+  color: var(--ok-fg);
+}
+
+.result.err {
+  background: var(--err-bg);
+  border-color: var(--err-border);
+  color: var(--err-fg);
+}
+
+.result.warn {
+  background: var(--warn-bg);
+  border-color: var(--warn-border);
+  color: var(--warn-fg);
+}
+
+.result pre {
+  margin: 4px 0 0;
+  padding: 0;
+  white-space: pre-wrap;
+  word-break: break-word;
+  font-family: var(--mono);
+  font-size: 11.5px;
+  line-height: 1.45;
+}
+
+/* Inline banners: auto-hide + optional dismiss */
+.result-banner {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  animation: resultIn 0.15s ease;
+}
+
+.result-banner .result-body {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+.result-banner .result-body strong {
+  display: block;
+  margin-bottom: 2px;
+  font-weight: 600;
+}
+
+.result-dismiss {
+  appearance: none;
+  flex: 0 0 auto;
+  width: 22px;
+  height: 22px;
+  margin: -2px -4px 0 0;
+  padding: 0;
+  border: 0;
+  border-radius: 3px;
+  background: transparent;
+  color: inherit;
+  font-size: 16px;
+  line-height: 1;
+  opacity: 0.65;
+  cursor: pointer;
+}
+
+.result-dismiss:hover {
+  opacity: 1;
+  background: var(--hover);
+}
+
+@keyframes resultIn {
+  from {
+    opacity: 0;
+    transform: translateY(-2px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* ── section toolbar (profile row) ── */
+.toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 12px;
+  border-bottom: 1px solid var(--border);
+  background: var(--panel);
+}
+
+.toolbar-help {
+  flex: 1 0 100%;
+  margin: 0;
+  font-size: 11px;
+  line-height: 1.45;
+  color: var(--muted);
+}
+
+/* Native <select> — OS popup sits above page content (no row stacking bleed) */
+select.native-select,
+.row-control select {
+  width: 100%;
+  min-height: 28px;
+  margin: 0;
+  padding: 5px 8px;
+  font: inherit;
+  font-size: 12.5px;
+  color: var(--input-fg);
+  background: var(--input-bg);
+  border: 1px solid var(--input-border);
+  border-radius: var(--radius);
+  outline: none;
+  cursor: pointer;
+  -webkit-appearance: menulist;
+  appearance: menulist;
+}
+
+select.native-select:hover:not(:disabled),
+.row-control select:hover:not(:disabled) {
+  border-color: var(--border-strong);
+}
+
+select.native-select:focus,
+.row-control select:focus {
+  border-color: var(--active-tab);
+  box-shadow: 0 0 0 1px var(--active-tab);
+}
+
+select.native-select:disabled,
+.row-control select:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+
+.logs-bar-filter {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.logs-bar-filter select.native-select {
+  width: auto;
+  min-width: 96px;
+}
+
+/* When a row has an open-focus control, raise it above following rows */
+.row:focus-within {
+  position: relative;
+  z-index: 5;
+}
+
+/* model: editable combo + fetch button */
+.model-combo-wrap {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  align-items: stretch;
+  width: 100%;
+}
+
+.model-combo {
+  position: relative;
+  display: inline-flex;
+  align-items: stretch;
+  flex: 1 1 180px;
+  min-width: 140px;
+  height: 28px;
+  border: 1px solid var(--input-border);
+  border-radius: var(--radius);
+  background: var(--input-bg);
+  overflow: visible;
+}
+
+.model-combo:focus-within {
+  border-color: var(--active-tab);
+  box-shadow: 0 0 0 1px var(--active-tab);
+}
+
+.model-combo-input {
+  flex: 1 1 auto;
+  min-width: 0;
+  height: 100%;
+  margin: 0;
+  padding: 0 8px;
+  border: 0 !important;
+  border-radius: var(--radius) 0 0 var(--radius);
+  box-shadow: none !important;
+  background: transparent;
+  color: var(--input-fg);
+  font: inherit;
+  font-size: 12.5px;
+}
+
+.model-combo-input:disabled {
+  opacity: 0.55;
+}
+
+.model-combo-toggle {
+  appearance: none;
+  flex: 0 0 28px;
+  width: 28px;
+  height: 100%;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  border-left: 1px solid var(--input-border);
+  border-radius: 0 var(--radius) var(--radius) 0;
+  background: transparent;
+  color: var(--muted);
+  font-size: 11px;
+  line-height: 1;
+  cursor: pointer;
+}
+
+.model-combo-toggle:hover:not(:disabled) {
+  background: var(--hover);
+  color: var(--fg);
+}
+
+.model-combo-toggle:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+.model-combo-menu {
+  position: absolute;
+  top: calc(100% + 4px);
+  left: 0;
+  right: 0;
+  z-index: 60;
+  margin: 0;
+  padding: 4px;
+  list-style: none;
+  max-height: 220px;
+  overflow-y: auto;
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius);
+  background: var(--panel);
+  box-shadow: 0 8px 24px #00000033;
+}
+
+.model-combo-menu li {
+  margin: 0;
+  padding: 0;
+}
+
+.model-combo-menu button {
+  appearance: none;
+  display: block;
+  width: 100%;
+  margin: 0;
+  padding: 6px 8px;
+  border: 0;
+  border-radius: 3px;
+  background: transparent;
+  color: var(--fg);
+  font: inherit;
+  font-size: 12.5px;
+  text-align: left;
+  cursor: pointer;
+}
+
+.model-combo-menu button:hover {
+  background: var(--hover);
+}
+
+.model-combo-menu button.active {
+  background: color-mix(in srgb, var(--active-tab) 16%, transparent);
+  font-weight: 500;
+}
+
+.model-fetch-btn {
+  flex: 0 0 auto;
+  white-space: nowrap;
+}
+
+/* editable profile combo: input + dropdown toggle */
+.profile-combo {
+  position: relative;
+  display: inline-flex;
+  align-items: stretch;
+  flex: 1 1 220px;
+  min-width: 160px;
+  max-width: 360px;
+  height: 28px;
+  border: 1px solid var(--input-border);
+  border-radius: var(--radius);
+  background: var(--input-bg);
+  overflow: visible;
+}
+
+.profile-combo:focus-within {
+  border-color: var(--active-tab);
+  box-shadow: 0 0 0 1px var(--active-tab);
+}
+
+.profile-combo-input {
+  flex: 1 1 auto;
+  min-width: 0;
+  height: 100%;
+  margin: 0;
+  padding: 0 8px;
+  border: 0 !important;
+  border-radius: var(--radius) 0 0 var(--radius);
+  box-shadow: none !important;
+  background: transparent;
+  color: var(--input-fg);
+  font: inherit;
+  font-size: 12.5px;
+}
+
+.profile-combo-input:disabled {
+  opacity: 0.55;
+}
+
+.profile-combo-toggle {
+  appearance: none;
+  flex: 0 0 28px;
+  width: 28px;
+  height: 100%;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  border-left: 1px solid var(--input-border);
+  border-radius: 0 var(--radius) var(--radius) 0;
+  background: transparent;
+  color: var(--muted);
+  font-size: 11px;
+  line-height: 1;
+  cursor: pointer;
+}
+
+.profile-combo-toggle:hover:not(:disabled) {
+  background: var(--hover);
+  color: var(--fg);
+}
+
+.profile-combo-toggle:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+.profile-combo-menu {
+  position: absolute;
+  top: calc(100% + 4px);
+  left: 0;
+  right: 0;
+  z-index: 40;
+  margin: 0;
+  padding: 4px;
+  list-style: none;
+  max-height: 220px;
+  overflow-y: auto;
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius);
+  background: var(--panel);
+  box-shadow: 0 8px 24px #00000022;
+}
+
+.profile-combo-menu li {
+  margin: 0;
+  padding: 0;
+}
+
+.profile-combo-menu button {
+  appearance: none;
+  display: block;
+  width: 100%;
+  margin: 0;
+  padding: 6px 8px;
+  border: 0;
+  border-radius: 3px;
+  background: transparent;
+  color: var(--fg);
+  font: inherit;
+  font-size: 12.5px;
+  text-align: left;
+  cursor: pointer;
+}
+
+.profile-combo-menu button:hover {
+  background: var(--hover);
+}
+
+.profile-combo-menu button.active {
+  background: color-mix(in srgb, var(--active-tab) 16%, transparent);
+  color: var(--fg);
+  font-weight: 500;
+}
+
+/* ── advanced collapsible ── */
+.advanced-toggle {
+  border-bottom: 1px solid var(--border);
+  padding: 0 12px;
+}
+
+.advanced-toggle-btn {
+  appearance: none;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  width: 100%;
+  border: 0;
+  background: transparent;
+  color: var(--muted);
+  font: inherit;
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  padding: 10px 0;
+  cursor: pointer;
+}
+
+.advanced-toggle-btn:hover {
+  color: var(--fg);
+}
+
+.advanced-chevron {
+  display: inline-block;
+  font-size: 9px;
+  transition: transform 0.15s ease;
+}
+
+.advanced-chevron.open {
+  transform: rotate(90deg);
+}
+
+.advanced-body {
+  /* inherits row borders from nested rows */
+}
+
+/* ── inline delete confirmation ── */
+.delete-confirm {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+
+.delete-confirm-text {
+  font-size: 12px;
+  color: var(--err-fg);
+  font-weight: 500;
+  white-space: nowrap;
+}
+
+/* ── logs ── */
+.hint-block {
+  margin: 0 0 12px;
+  font-size: 12px;
+  line-height: 1.45;
+  color: var(--muted);
+}
+
+.logs-bar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  margin: 0 0 10px;
+}
+
+.logs-bar label {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12.5px;
+  color: var(--fg);
+}
+
+.logs-bar select {
+  width: auto;
+  min-width: 96px;
+}
+
+.logs-pane {
+  min-height: 220px;
+  max-height: calc(100vh - 260px);
+  overflow: auto;
+  padding: 10px 12px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: var(--panel);
+  color: var(--fg);
+  font-family: var(--mono);
+  font-size: 11.5px;
+  line-height: 1.5;
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
+/* ── floating save status ── */
+.save-status {
+  position: fixed;
+  bottom: 12px;
+  right: 16px;
+  z-index: 100;
+  padding: 6px 14px;
+  border-radius: var(--radius);
+  font-size: 12px;
+  font-weight: 500;
+  box-shadow: 0 4px 12px #00000022;
+  pointer-events: none;
+  animation: fadeIn 0.15s ease;
+}
+
+.save-status.saving {
+  background: var(--warn-bg);
+  color: var(--warn-fg);
+  border: 1px solid var(--warn-border);
+}
+
+.save-status.saved {
+  background: var(--ok-bg);
+  color: var(--ok-fg);
+  border: 1px solid var(--ok-border);
+}
+
+.save-status.error {
+  background: var(--err-bg);
+  color: var(--err-fg);
+  border: 1px solid var(--err-border);
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateY(4px); }
+  to { opacity: 1; transform: translateY(0); }
+}

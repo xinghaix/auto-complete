@@ -1,0 +1,65 @@
+# Gradle
+.gradle/
+build/
+**/build/
+out/
+
+# IntelliJ / IDE
+.idea/
+*.iml
+*.iws
+*.ipr
+.intellijPlatform/
+.kotlin/
+
+# OS / local
+.DS_Store
+Thumbs.db
+local.properties
+*.log
+*.swp
+*~
+
+# Secrets & local env (never commit)
+.env
+.env.*
+*.pem
+*.p12
+secrets/
+**/marketplace.token
+**/publish.token
+
+# Plugin sandbox / caches (if run outside build/)
+.idea-sandbox/
+idea-sandbox/
+
+# Test / coverage extras
+*.hprof
+.classpath
+.project
+.settings/
+coverage/
+.nyc_output/
+
+# Node / JS packages — install & build locally
+node_modules/
+**/node_modules/
+packages/*/dist/
+hosts/vscode/dist/
+hosts/vscode/dist-vsix/
+packages/settings-ui/dist/
+# Copied into the plugin at package time (copySettingsUi); not source of truth
+plugin/src/main/resources/settings-ui/
+*.vsix
+
+# Agent / session scratch (never publish)
+.grok/
+**/.grok/
+**/goal/
+**/goal/**
+*.goal.md
+
+# Local / historical planning (not published with the open-source tree)
+docs/PLAN.md
+docs/PLAN_CROSS_PLATFORM.md
+docs/PLAN_*.md

@@ -1,0 +1,111 @@
+{
+  "version": 1,
+  "templates": [
+    {
+      "id": "AUTO",
+      "shortLabel": "Auto",
+      "wireFormat": "CHAT_MESSAGES",
+      "probe": false,
+      "stopTokens": [],
+      "tokenPrompt": null
+    },
+    {
+      "id": "CODESTRAL_API",
+      "shortLabel": "(fim) OpenAI FIM",
+      "wireFormat": "FIM_FIELDS",
+      "probe": true,
+      "stopTokens": [],
+      "tokenPrompt": null,
+      "defaultPath": "/fim/completions"
+    },
+    {
+      "id": "QWEN",
+      "shortLabel": "(fim) Qwen",
+      "wireFormat": "COMPLETION_PROMPT",
+      "probe": true,
+      "stopTokens": [
+        "<|endoftext|>",
+        "<|fim_prefix|>",
+        "<|fim_middle|>",
+        "<|fim_suffix|>",
+        "<|fim_pad|>",
+        "<|repo_name|>",
+        "<|file_sep|>",
+        "<|im_end|>"
+      ],
+      "tokenPrompt": "<|fim_prefix|>{prefix}<|fim_suffix|>{suffix}<|fim_middle|>",
+      "defaultPath": "/completions"
+    },
+    {
+      "id": "DEEPSEEK",
+      "shortLabel": "(fim) DeepSeek",
+      "wireFormat": "COMPLETION_PROMPT",
+      "probe": true,
+      "stopTokens": [
+        "<｜fim▁begin｜>",
+        "<｜fim▁hole｜>",
+        "<｜fim▁end｜>",
+        "<|EOT|>",
+        "<｜end▁of▁sentence｜>"
+      ],
+      "tokenPrompt": "<｜fim▁begin｜>{prefix}<｜fim▁hole｜>{suffix}<｜fim▁end｜>",
+      "defaultPath": "/completions"
+    },
+    {
+      "id": "STARCODER",
+      "shortLabel": "(fim) StarCoder",
+      "wireFormat": "COMPLETION_PROMPT",
+      "probe": true,
+      "stopTokens": [
+        "<|endoftext|>",
+        "<fim_prefix>",
+        "<fim_middle>",
+        "<fim_suffix>",
+        "<fim_pad>",
+        "<file_sep>",
+        "<|eos|>"
+      ],
+      "tokenPrompt": "<fim_prefix>{prefix}<fim_suffix>{suffix}<fim_middle>",
+      "defaultPath": "/completions"
+    },
+    {
+      "id": "CHAT",
+      "shortLabel": "(chat) Pseudo-FIM",
+      "wireFormat": "CHAT_MESSAGES",
+      "probe": true,
+      "stopTokens": [],
+      "tokenPrompt": null,
+      "defaultPath": "/chat/completions"
+    }
+  ],
+  "detectionRules": [
+    {
+      "match": ["codestral", "mistral-code", "devstral"],
+      "template": "CODESTRAL_API"
+    },
+    {
+      "matchAll": ["deepseek"],
+      "matchAny": ["coder", "code"],
+      "template": "DEEPSEEK"
+    },
+    { "match": ["qwen", "codegemma"], "template": "QWEN" },
+    {
+      "match": ["starcoder", "santacoder", "codellama", "code-llama", "crystalcoder"],
+      "template": "STARCODER"
+    },
+    {
+      "match": ["gpt-", "claude", "o1", "o3", "o4", "chatgpt"],
+      "template": "CHAT"
+    },
+    {
+      "match": ["coder", "code-"],
+      "matchEndsWith": ["-code"],
+      "template": "QWEN"
+    }
+  ],
+  "defaultTemplate": "CHAT",
+  "chatSystemPrompt": "You are a code completion engine. Continue the code at the cursor. Output only the completion text, no markdown.",
+  "chatUserTemplate": "Complete the code at the cursor. Output only the completion text.\n<prefix>\n{prefix}\n</prefix>\n<suffix>\n{suffix}\n</suffix>\n",
+  "probePrefix": "def add(a, b):\n    ",
+  "probeSuffix": "\n"
+}

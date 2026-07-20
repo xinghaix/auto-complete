@@ -1,0 +1,160 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/auto-complete/settings.schema.json",
+  "title": "AutoCompleteSettings",
+  "description": "Cross-host settings schema for JetBrains + VS Code. Keys are English; secrets never appear in snapshot/export.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schemaVersion", "enabled", "profiles", "activeProfileId"],
+  "properties": {
+    "schemaVersion": {
+      "type": "integer",
+      "const": 1,
+      "description": "Settings document version for migrations"
+    },
+    "enabled": { "type": "boolean", "default": true },
+    "autoTrigger": { "type": "boolean", "default": true },
+    "snoozeMinutes": { "type": "integer", "minimum": 0, "default": 0 },
+    "showStatusBar": { "type": "boolean", "default": true },
+    "uiTheme": {
+      "type": "string",
+      "enum": ["auto", "light", "dark"],
+      "default": "auto",
+      "description": "Settings panel theme: auto follows IDE, or force light/dark"
+    },
+    "activeProfileId": { "type": "string" },
+    "profiles": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/ProviderProfile" },
+      "default": []
+    },
+    "enableInComments": { "type": "boolean", "default": true },
+    "enableInStrings": { "type": "boolean", "default": true },
+    "disabledLanguages": {
+      "type": "array",
+      "items": { "type": "string" },
+      "default": []
+    },
+    "firstLineOnlyWhenMidLine": { "type": "boolean", "default": true },
+    "acceptOnTab": { "type": "boolean", "default": true },
+    "sendFilePath": { "type": "boolean", "default": true },
+    "respectGitignore": { "type": "boolean", "default": true },
+    "ignoreGlobs": {
+      "type": "array",
+      "items": { "type": "string" },
+      "default": [
+        "**/.git/**",
+        "**/node_modules/**",
+        "**/dist/**",
+        "**/build/**",
+        "**/target/**",
+        "**/.idea/**",
+        "**/.gradle/**",
+        "**/vendor/**"
+      ]
+    },
+    "debounceMinMs": { "type": "integer", "minimum": 0, "default": 150 },
+    "debounceInitialMs": { "type": "integer", "minimum": 0, "default": 300 },
+    "debounceMaxMs": { "type": "integer", "minimum": 0, "default": 1000 },
+    "maxPrefixChars": { "type": "integer", "minimum": 1, "default": 8000 },
+    "maxSuffixChars": { "type": "integer", "minimum": 1, "default": 2000 },
+    "maxInFlight": { "type": "integer", "minimum": 1, "default": 1 },
+    "cacheSize": { "type": "integer", "minimum": 1, "default": 20 },
+    "lruSize": { "type": "integer", "minimum": 1, "default": 64 },
+    "maxFileSizeKb": { "type": "integer", "minimum": 1, "default": 512 },
+    "enableRecentFileContext": { "type": "boolean", "default": false },
+    "recentFileLimit": { "type": "integer", "minimum": 0, "default": 3 },
+    "recentFileMaxChars": { "type": "integer", "minimum": 1, "default": 1200 },
+    "allowRemote": { "type": "boolean", "default": true },
+    "logPromptBodies": { "type": "boolean", "default": false },
+    "logLevel": {
+      "type": "string",
+      "enum": ["debug", "info", "warn", "error"],
+      "default": "info"
+    },
+    "logRetention": {
+      "type": "integer",
+      "minimum": 50,
+      "maximum": 10000,
+      "default": 1000
+    },
+    "notifyOnFatalError": { "type": "boolean", "default": true },
+    "showCostApprox": { "type": "boolean", "default": false }
+  },
+  "$defs": {
+    "ProviderProfile": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "name"],
+      "properties": {
+        "id": { "type": "string", "minLength": 1 },
+        "name": { "type": "string", "minLength": 1 },
+        "provider": {
+          "type": "string",
+          "enum": ["openai-compatible", "custom", "mistral-fim"],
+          "default": "openai-compatible",
+          "description": "mistral-fim is legacy; hosts normalize to openai-compatible on load"
+        },
+        "baseUrl": {
+          "type": "string",
+          "default": "http://127.0.0.1:11434/v1"
+        },
+        "model": {
+          "type": "string",
+          "default": "qwen2.5-coder:7b"
+        },
+        "authHeaderTemplate": {
+          "type": "string",
+          "default": "Authorization: Bearer ${apiKey}"
+        },
+        "extraHeadersJson": {
+          "type": "string",
+          "default": "{}"
+        },
+        "fimPath": { "type": "string", "default": "" },
+        "chatPath": { "type": "string", "default": "/chat/completions" },
+        "completionsPath": { "type": "string", "default": "" },
+        "requestStyle": {
+          "type": "string",
+          "enum": ["AUTO", "FIM", "CHAT"],
+          "default": "AUTO",
+          "description": "Legacy field; prefer promptTemplate"
+        },
+        "promptTemplate": {
+          "type": "string",
+          "enum": ["AUTO", "CODESTRAL_API", "QWEN", "DEEPSEEK", "STARCODER", "CHAT"],
+          "default": "AUTO"
+        },
+        "temperature": { "type": "number", "minimum": 0, "maximum": 2, "default": 0 },
+        "maxTokens": { "type": "integer", "minimum": 16, "maximum": 1024, "default": 128 },
+        "timeoutMs": {
+          "type": "integer",
+          "minimum": 500,
+          "maximum": 30000,
+          "default": 3000,
+          "description": "Inline completion hard timeout"
+        },
+        "settingsTimeoutMs": {
+          "type": "integer",
+          "minimum": 1000,
+          "maximum": 120000,
+          "default": 15000,
+          "description": "Settings probes hard timeout (test connection / models / templates)"
+        },
+        "stream": { "type": "boolean", "default": false },
+        "overrideContextBudget": { "type": "boolean", "default": false },
+        "maxPrefixChars": { "type": "integer", "minimum": 1, "default": 8000 },
+        "maxSuffixChars": { "type": "integer", "minimum": 1, "default": 2000 },
+        "hasApiKey": {
+          "type": "boolean",
+          "default": false,
+          "description": "Snapshot-only flag; never a secret value"
+        }
+      }
+    },
+    "SettingsSnapshot": {
+      "description": "What UiBridge getSnapshot returns — same as root settings but profiles only expose hasApiKey, never apiKey plaintext",
+      "allOf": [{ "$ref": "#" }]
+    }
+  }
+}

@@ -1,0 +1,23 @@
+{
+  "name": "suggestion_cache_match",
+  "cases": [
+    {
+      "id": "exact",
+      "put": { "scope": "a.ts", "prefix": "foo(", "suffix": ")", "text": "bar" },
+      "find": { "scope": "a.ts", "prefix": "foo(", "suffix": ")" },
+      "expected": { "text": "bar", "match": "EXACT" }
+    },
+    {
+      "id": "partial_typing",
+      "put": { "scope": "a.ts", "prefix": "foo(", "suffix": ")", "text": "barBaz" },
+      "find": { "scope": "a.ts", "prefix": "foo(ba", "suffix": ")" },
+      "expected": { "text": "rBaz", "match": "PARTIAL_TYPING" }
+    },
+    {
+      "id": "backward_deletion",
+      "put": { "scope": "a.ts", "prefix": "foo(xy", "suffix": ")", "text": "z" },
+      "find": { "scope": "a.ts", "prefix": "foo(", "suffix": ")" },
+      "expected": { "text": "xyz", "match": "BACKWARD_DELETION" }
+    }
+  ]
+}

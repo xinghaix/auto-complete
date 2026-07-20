@@ -1,0 +1,27 @@
+{
+  "name": "auto-complete-monorepo",
+  "private": true,
+  "version": "0.1.1",
+  "description": "JetBrains + VS Code dual-host AI inline completion",
+  "license": "Apache-2.0",
+  "workspaces": [
+    "packages/shared-spec",
+    "packages/core-ts",
+    "packages/settings-ui",
+    "hosts/vscode"
+  ],
+  "scripts": {
+    "test:core-ts": "npm run test -w @auto-complete/core-ts",
+    "test:settings-ui": "npm run test -w @auto-complete/settings-ui",
+    "build:core-ts": "npm run build -w @auto-complete/core-ts",
+    "build:settings-ui": "npm run build -w @auto-complete/settings-ui",
+    "build:vscode": "npm run build -w auto-complete",
+    "build:js": "npm run build:core-ts && npm run build:settings-ui && npm run build:vscode",
+    "test:js": "npm run test:core-ts && npm run test:settings-ui",
+    "package:local": "bash ./scripts/package-local.sh",
+    "package:vscode": "npm run build:settings-ui && npm run package -w auto-complete"
+  },
+  "engines": {
+    "node": ">=18"
+  }
+}

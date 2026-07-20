@@ -1,0 +1,25 @@
+{
+  "name": "chat_completion_response",
+  "description": "OpenAI-style chat completion body; choices[0].message.content",
+  "requestStyle": "CHAT",
+  "wireFormat": "CHAT_MESSAGES",
+  "response": {
+    "choices": [
+      {
+        "message": {
+          "role": "assistant",
+          "content": "println(1)"
+        }
+      }
+    ],
+    "usage": {
+      "prompt_tokens": 3,
+      "completion_tokens": 2
+    }
+  },
+  "expectedText": "println(1)",
+  "expectedUsage": {
+    "inputTokens": 3,
+    "outputTokens": 2
+  }
+}

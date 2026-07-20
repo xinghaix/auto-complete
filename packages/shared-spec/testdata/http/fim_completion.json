@@ -1,0 +1,14 @@
+{
+  "name": "fim_completion_response",
+  "description": "OpenAI FIM / completions body; choices[0].text",
+  "requestStyle": "FIM",
+  "wireFormat": "FIM_FIELDS",
+  "response": {
+    "choices": [
+      {
+        "text": "return a + b"
+      }
+    ]
+  },
+  "expectedText": "return a + b"
+}

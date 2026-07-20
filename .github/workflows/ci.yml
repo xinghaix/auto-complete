@@ -1,0 +1,59 @@
+name: CI
+
+on:
+  push:
+    branches: [main, master]
+  pull_request:
+    branches: [main, master]
+
+jobs:
+  jvm:
+    name: JVM (JDK 21)
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up JDK 21
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "21"
+
+      - name: Setup Gradle
+        uses: gradle/actions/setup-gradle@v4
+
+      - name: Unit tests
+        run: ./gradlew :core:test :plugin:test --stacktrace
+
+      - name: Build plugin zip
+        run: ./gradlew :plugin:buildPlugin --stacktrace
+
+      - name: Upload distribution
+        if: success()
+        uses: actions/upload-artifact@v4
+        with:
+          name: auto-complete-zip
+          path: plugin/build/distributions/*.zip
+          if-no-files-found: error
+
+  js:
+    name: JS (core-ts + settings-ui + vscode)
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Node 22
+        uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+
+      - name: Install
+        run: npm install
+
+      - name: JS tests (core-ts + settings-ui i18n)
+        run: npm run test:js
+
+      - name: Build JS packages
+        run: npm run build:js

@@ -1,0 +1,13 @@
+src/**
+scripts/**
+tsconfig.json
+**/*.ts
+**/*.map
+node_modules/**
+../**
+../../**
+!dist/**
+!media/**
+!package.json
+!README.md
+!LICENSE
