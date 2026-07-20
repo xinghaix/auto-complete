@@ -44,7 +44,7 @@ if [[ "$SKIP_JB" != "1" ]]; then
   echo "==> Build JetBrains plugin zip"
   ./gradlew :plugin:buildPlugin
 
-  DIST_JB="$ROOT/plugin/build/distributions"
+  DIST_JB="$ROOT/apps/jetbrains/plugin/build/distributions"
   JB_ZIP="$(ls -1t "$DIST_JB"/auto-complete-*.zip 2>/dev/null | head -1 || true)"
   if [[ -z "$JB_ZIP" ]]; then
     JB_ZIP="$(ls -1t "$DIST_JB"/*.zip 2>/dev/null | head -1 || true)"
@@ -65,7 +65,7 @@ if [[ "$SKIP_VSCODE" != "1" ]]; then
   # package script rebuilds extension + runs vsce
   npm run package -w auto-complete
 
-  DIST_VS="$ROOT/hosts/vscode/dist-vsix"
+  DIST_VS="$ROOT/apps/vscode/extension/dist-vsix"
   VSIX="$(ls -1t "$DIST_VS"/auto-complete-*.vsix 2>/dev/null | head -1 || true)"
   if [[ -z "$VSIX" ]]; then
     VSIX="$(ls -1t "$DIST_VS"/*.vsix 2>/dev/null | head -1 || true)"

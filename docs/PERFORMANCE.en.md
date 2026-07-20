@@ -86,4 +86,4 @@ Suggested checks:
 4. Use a fake HTTP server to confirm a cancelled request never renders.
 5. Validate path and parsing separately for FIM and chat templates.
 
-Relevant tests/fixtures live in `core/src/test`, `plugin/src/test`, `packages/core-ts/test`, and `packages/settings-ui/src/*.test.ts`.
+Relevant tests/fixtures live in `packages/completion/engine-jvm/src/test`, `apps/jetbrains/plugin/src/test`, `packages/completion/engine-ts/test`, and `packages/settings/ui/src/*.test.ts`.

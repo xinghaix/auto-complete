@@ -6,7 +6,7 @@
 
 Auto Complete is an independent dual-host inline-completion project. It uses open-source [Kilo Code / kilocode](https://github.com/Kilo-Org/kilocode) and [kilocode-legacy](https://github.com/Kilo-Org/kilocode-legacy) as references for classic completion behaviour and design, then reimplements that behaviour in this repository in Kotlin/JVM and TypeScript.
 
-The current tree is not “JetBrains shipped, VS Code planned”: it contains JetBrains `plugin` plus Kotlin `core`, VS Code `hosts/vscode` plus `packages/core-ts`, shared `packages/settings-ui`, and `packages/shared-spec`. The hosts do not call each other through an Extension Host, RPC, or `kilo serve`.
+The current tree is not “JetBrains shipped, VS Code planned”: it contains JetBrains `plugin` plus Kotlin `core`, VS Code `apps/vscode/extension` plus `packages/completion/engine-ts`, shared `packages/settings/ui`, and `packages/completion/contracts`. The hosts do not call each other through an Extension Host, RPC, or `kilo serve`.
 
 ## Reference use
 
@@ -22,13 +22,13 @@ The historical v5 JetBrains shell sent complete documents through RPC to a VS Co
 
 | Behaviour | Kotlin/JVM | TypeScript |
 |---|---|---|
-| Main pipeline | `core/.../engine/CompletionEngine.kt` | `packages/core-ts/src/engine.ts` |
-| HTTP and templates | `core/.../client/HttpCompletionClient.kt` | `packages/core-ts/src/httpClient.ts` |
-| Cache / skip / filter | `core/.../{cache,skip,filter}/` | `packages/core-ts/src/{cache,contextualSkip,suggestionFilter}.ts` |
-| Prompt and language map | `core/.../prompt/`, `util/LanguageMap.kt` | `packages/core-ts/src/prompt*`, `languageMap.ts` |
-| JetBrains host | `plugin/.../ide`, `bridge`, `config`, `ui` | — |
-| VS Code host | — | `hosts/vscode/src/` |
-| Shared contract | `packages/shared-spec/`: schema, templates, language map, UiBridge, fixtures | same |
+| Main pipeline | `packages/completion/engine-jvm/.../engine/CompletionEngine.kt` | `packages/completion/engine-ts/src/engine.ts` |
+| HTTP and templates | `packages/completion/engine-jvm/.../client/HttpCompletionClient.kt` | `packages/completion/engine-ts/src/httpClient.ts` |
+| Cache / skip / filter | `packages/completion/engine-jvm/.../{cache,skip,filter}/` | `packages/completion/engine-ts/src/{cache,contextualSkip,suggestionFilter}.ts` |
+| Prompt and language map | `packages/completion/engine-jvm/.../prompt/`, `util/LanguageMap.kt` | `packages/completion/engine-ts/src/prompt*`, `languageMap.ts` |
+| JetBrains host | `apps/jetbrains/plugin/.../ide`, `bridge`, `config`, `ui` | — |
+| VS Code host | — | `apps/vscode/extension/src/` |
+| Shared contract | `packages/completion/contracts/`: schema, templates, language map, UiBridge, fixtures | same |
 
 `shared-spec` is a cross-host documentation/fixture contract. When changing completion behaviour, templates, or settings keys, review both host implementations and fixture tests; do not assume every JSON file is automatically loaded at runtime.
 

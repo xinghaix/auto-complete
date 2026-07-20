@@ -22,13 +22,13 @@ The project independently reimplements completion behaviour inspired by Kilo Cod
 
 ```text
 auto-complete/
-├── core/                     Kotlin/JVM completion engine, without IntelliJ UI
-├── plugin/                   JetBrains host: inline completion, JCEF, PasswordSafe, IDE HTTP support
+├── packages/completion/engine-jvm/                     Kotlin/JVM completion engine, without IntelliJ UI
+├── apps/jetbrains/plugin/                   JetBrains host: inline completion, JCEF, PasswordSafe, IDE HTTP support
 ├── packages/
 │   ├── shared-spec/          settings, templates, language map, UiBridge protocol, golden fixtures
 │   ├── core-ts/              TypeScript completion engine
 │   └── settings-ui/          Vue 3 Settings + Logs UI embedded by both hosts
-├── hosts/vscode/             VS Code extension: provider, SecretStorage, Webview, OutputChannel
+├── apps/vscode/extension/             VS Code extension: provider, SecretStorage, Webview, OutputChannel
 ├── docs/                     user and contributor documentation
 └── scripts/package-local.sh  local JetBrains ZIP + VSIX packaging script
 ```
@@ -39,8 +39,8 @@ Gradle contains only `core` and `plugin` (`settings.gradle.kts`). The root `pack
 
 | Layer | JetBrains | VS Code |
 |---|---|---|
-| Inline entry | `plugin/.../ide/AutoCompleteInlineProvider.kt` | `hosts/vscode/src/inline/provider.ts` |
-| Engine | `core/.../engine/CompletionEngine.kt` | `packages/core-ts/src/engine.ts` |
+| Inline entry | `apps/jetbrains/plugin/.../ide/AutoCompleteInlineProvider.kt` | `apps/vscode/extension/src/inline/provider.ts` |
+| Engine | `packages/completion/engine-jvm/.../engine/CompletionEngine.kt` | `packages/completion/engine-ts/src/engine.ts` |
 | Secret store | PasswordSafe | SecretStorage |
 | Settings/logs UI | `settings-ui` in a single **Auto Complete** tool window via JCEF `JbUiBridge` | `settings-ui` in a Webview through `VsCodeUiBridge`; raw logs also go to OutputChannel |
 | Regular settings | PersistentStateComponent | `globalState` plus VS Code configuration mirrors |
@@ -66,7 +66,7 @@ editor event / manual command
   → logs, status bar, and UI Bridge update
 ```
 
-The JetBrains entry reads a document to build prefix and suffix, but `PromptBuilder` trims outgoing data; this is not a default whole-file upload. In the current VS Code provider, comment and string hints are always `false` (`hosts/vscode/src/inline/provider.ts`), so those settings do not yet have syntax-aware enforcement on that host. Documentation must not promise full host parity here.
+The JetBrains entry reads a document to build prefix and suffix, but `PromptBuilder` trims outgoing data; this is not a default whole-file upload. In the current VS Code provider, comment and string hints are always `false` (`apps/vscode/extension/src/inline/provider.ts`), so those settings do not yet have syntax-aware enforcement on that host. Documentation must not promise full host parity here.
 
 ## Engine behaviour
 
@@ -84,7 +84,7 @@ The default global `maxInFlight` is 1. A new request cancels one in the same fil
 
 ## Providers and templates
 
-The JVM `HttpCompletionClient` and `packages/core-ts/src/httpClient.ts` resolve a template from the selected value or model name:
+The JVM `HttpCompletionClient` and `packages/completion/engine-ts/src/httpClient.ts` resolve a template from the selected value or model name:
 
 | Template | Default relative path | Wire format |
 |---|---|---|
@@ -100,12 +100,12 @@ Global behaviour/performance/log preferences are separate from named provider pr
 
 Defaults favour responsiveness and privacy: recent-file context is disabled, prompt-body logging is disabled, JetBrains honours `.gitignore` (VS Code currently reliably applies only extra globs), the file limit is 512 KB, and the completion hard timeout is 3000 ms. Enabling `logPromptBodies` writes truncated prompts and is a sensitive option.
 
-The UiBridge envelope, log batching, locale/theme events, and security rules are specified in [packages/shared-spec/bridge-protocol.md](../packages/shared-spec/bridge-protocol.md).
+The UiBridge envelope, log batching, locale/theme events, and security rules are specified in [packages/completion/contracts/bridge-protocol.md](../packages/completion/contracts/bridge-protocol.md).
 
 ## Verification boundary
 
-- Kotlin tests under `core/src/test` cover engine, cache, skip, templates, HTTP fixtures, and validation; `plugin/src/test` covers profiles, i18n, and UI state.
-- TypeScript fixtures in `packages/core-ts/test/fixtures.test.ts` use shared-spec golden data; the settings UI tests i18n, mounting, and HTML entries.
+- Kotlin tests under `packages/completion/engine-jvm/src/test` cover engine, cache, skip, templates, HTTP fixtures, and validation; `apps/jetbrains/plugin/src/test` covers profiles, i18n, and UI state.
+- TypeScript fixtures in `packages/completion/engine-ts/test/fixtures.test.ts` use shared-spec golden data; the settings UI tests i18n, mounting, and HTML entries.
 - CI runs JDK 21 `:core:test :plugin:test` plus ZIP build, and Node 22 `npm run test:js` plus `npm run build:js`.
 
 For build, installation, and packaging instructions, see [RELEASE.en.md](RELEASE.en.md).

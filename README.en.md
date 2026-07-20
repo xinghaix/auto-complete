@@ -8,9 +8,9 @@ Lightweight, bring-your-own-endpoint **AI inline code completion**. The project 
 
 | Host | Runtime engine | Current delivery |
 |---|---|---|
-| JetBrains | Kotlin/JVM `core/` + `plugin/` | Install-from-Disk ZIP |
-| VS Code | TypeScript `packages/core-ts/` + `hosts/vscode/` | Install-from-VSIX package |
-| Shared UI/spec | Vue `packages/settings-ui/` + `packages/shared-spec/` | Embedded by both hosts; shared templates, settings contract, fixtures |
+| JetBrains | Kotlin/JVM `packages/completion/engine-jvm/` + `apps/jetbrains/plugin/` | Install-from-Disk ZIP |
+| VS Code | TypeScript `packages/completion/engine-ts/` + `apps/vscode/extension/` | Install-from-VSIX package |
+| Shared UI/spec | Vue `packages/settings/ui/` + `packages/completion/contracts/` | Embedded by both hosts; shared templates, settings contract, fixtures |
 
 JetBrains and VS Code do not call one another through an Extension Host, RPC, or `kilo serve`. Configure your own `baseUrl`, model, and optional API key; the host renders completion as ghost text.
 
@@ -52,7 +52,7 @@ Requires VS Code `^1.85.0`.
 3. Run **Auto Complete: Open Settings Panel**, create a profile, and test the connection.
 4. **Auto Complete: Show Logs** opens the Logs tab and OutputChannel.
 
-More: [hosts/vscode/README.md](hosts/vscode/README.md).
+More: [apps/vscode/extension/README.md](apps/vscode/extension/README.md).
 
 ## Build and verify locally
 
@@ -81,8 +81,8 @@ Package both hosts:
 
 | Artifact | Path |
 |---|---|
-| JetBrains ZIP | `plugin/build/distributions/auto-complete-*.zip` |
-| VS Code VSIX | `hosts/vscode/dist-vsix/auto-complete-*.vsix` |
+| JetBrains ZIP | `apps/jetbrains/plugin/build/distributions/auto-complete-*.zip` |
+| VS Code VSIX | `apps/vscode/extension/dist-vsix/auto-complete-*.vsix` |
 
 For one host: `SKIP_JB=1 ./scripts/package-local.sh` or `SKIP_VSCODE=1 ./scripts/package-local.sh`.
 

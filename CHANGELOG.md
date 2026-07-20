@@ -10,9 +10,9 @@
 - Dual timeouts (completion vs settings probes); IDE HTTP Proxy
 - Per-profile optional override of Performance context window; Keymap-linked manual trigger
 - UI localization: English, Chinese, Japanese, Korean
-- `[both]` `packages/shared-spec`: settings schema, templates, language-map, UiBridge protocol, golden fixtures
-- `[vscode]` `packages/core-ts` TypeScript completion engine + fixture tests
-- `[vscode]` `hosts/vscode` multi-profile globalState + per-profile SecretStorage, Webview, OutputChannel
+- `[both]` `packages/completion/contracts`: settings schema, templates, language-map, UiBridge protocol, golden fixtures
+- `[vscode]` `packages/completion/engine-ts` TypeScript completion engine + fixture tests
+- `[vscode]` `apps/vscode/extension` multi-profile globalState + per-profile SecretStorage, Webview, OutputChannel
 - `[settings-ui]` full Settings|Logs UI: profile CRUD, advanced, probes, log filter, export/import
 - `[settings-ui]` full i18n en/zh/ja/ko; auto-follow IDE language (VS Code `env.language`, JB `DynamicBundle`)
 - `[jetbrains]` JCEF-only Settings + Logs tool window; Swing settings UI removed; `com.intellij.modules.jcef` is optional on newer IDEs

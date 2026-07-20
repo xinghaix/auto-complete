@@ -5,10 +5,10 @@
   "description": "JetBrains + VS Code dual-host AI inline completion",
   "license": "Apache-2.0",
   "workspaces": [
-    "packages/shared-spec",
-    "packages/core-ts",
-    "packages/settings-ui",
-    "hosts/vscode"
+    "packages/completion/contracts",
+    "packages/completion/engine-ts",
+    "packages/settings/ui",
+    "apps/vscode/extension"
   ],
   "scripts": {
     "test:core-ts": "npm run test -w @auto-complete/core-ts",

@@ -37,7 +37,7 @@ JetBrains support is **IntelliJ Platform 2024.2+ / build 242+**. JCEF is require
 | Recent-file context | JetBrains collects open-file snippets. VS Code currently supplies no recent-file snippets to the TS engine. |
 | Settings entry | JetBrains has only the JCEF tool-window entry, no Swing Configurable. VS Code has a Webview and mirrors selected common settings to native Settings. |
 | Secret/config naming | Both hosts provide equivalent concepts but internal persistence keys/names differ; do not manually copy storage files. |
-| Publishing automation | CI builds/tests only; it does not sign, publish Marketplace, create a Release, or upload VSIX. |
+| Publishing automation | CI builds/tests; a pushed `v*` tag creates a same-tag GitHub Release only when one does not already exist, then uploads ZIP/VSIX. Signing and Marketplace remain manual. |
 | Agent / Next Edit | Out of scope. |
 
 README, release notes, and Marketplace copy must not hide these gaps. Any claim of full host parity requires implementation and tests.

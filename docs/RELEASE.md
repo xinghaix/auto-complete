@@ -36,7 +36,7 @@ npm run build:js
 上述顺序覆盖 Kotlin/JetBrains 测试、TypeScript/设置 UI 测试、JS 构建以及 JetBrains 分发包构建。生成的 JetBrains zip 在：
 
 ```text
-plugin/build/distributions/auto-complete-<version>.zip
+apps/jetbrains/plugin/build/distributions/auto-complete-<version>.zip
 ```
 
 本地开发 JetBrains：
@@ -61,8 +61,8 @@ npm install              # 首次或依赖更新后
 
 | 产物 | 安装方式 |
 |---|---|
-| `plugin/build/distributions/auto-complete-*.zip` | JetBrains：Settings/Preferences → Plugins → ⚙ → Install Plugin from Disk… → 重启 |
-| `hosts/vscode/dist-vsix/auto-complete-*.vsix` | VS Code：Extensions → … → Install from VSIX… → 重载窗口 |
+| `apps/jetbrains/plugin/build/distributions/auto-complete-*.zip` | JetBrains：Settings/Preferences → Plugins → ⚙ → Install Plugin from Disk… → 重启 |
+| `apps/vscode/extension/dist-vsix/auto-complete-*.vsix` | VS Code：Extensions → … → Install from VSIX… → 重载窗口 |
 
 只构建一个宿主：
 
@@ -89,15 +89,15 @@ SKIP_VSCODE=1 ./scripts/package-local.sh  # 仅 JetBrains
 - **JVM (JDK 21)**：`./gradlew :core:test :plugin:test --stacktrace`、`./gradlew :plugin:buildPlugin --stacktrace`，并上传 zip artifact；
 - **JS (Node 22)**：`npm install`、`npm run test:js`、`npm run build:js`。
 
-CI 当前不会签名、发布 Marketplace、创建 GitHub Release 或上传 VSIX artifact。不要把这些描述成已经启用的自动发布功能。
+CI 在 `main`/PR 上只构建和测试；推送 `v*` tag 时，在 JVM 和 JS job 成功后自动下载 ZIP/VSIX artifact 并创建 GitHub Release。若同一 tag 已有 release，workflow 会跳过发布，绝不覆盖或重复上传。Marketplace 与签名仍未自动化。
 
 ## 版本与发布清单
 
-1. 更新 `gradle.properties` 的 `pluginVersion`，并保持 `hosts/vscode/package.json` 与根 Node workspace 版本意图一致。
+1. 更新 `gradle.properties` 的 `pluginVersion`，并保持 `apps/vscode/extension/package.json` 与根 Node workspace 版本意图一致。
 2. 在 `CHANGELOG.md` 的 `[Unreleased]` 写入面向用户的变更。
 3. 完整验证通过后运行双端打包。
 4. 手动在目标 JetBrains/VS Code 版本安装产物并 smoke test。
-5. 创建带注释的 `v<version>` tag；GitHub Release 附加 zip，若要提供 VS Code 安装包则同时附加 VSIX。
+5. 创建并推送带注释的 `v<version>` tag；CI 在测试通过后自动创建同名 GitHub Release 并附加 ZIP 与 VSIX。已有同名 release 时安全跳过发布。
 6. 仅在明确请求时配置 Marketplace/signing token；token 只能来自环境或 CI secret，绝不进仓库。
 
 建议 tag：

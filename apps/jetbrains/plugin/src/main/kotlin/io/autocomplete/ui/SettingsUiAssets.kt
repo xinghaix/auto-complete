@@ -113,8 +113,8 @@ internal object SettingsUiAssets {
     private fun devDir(): File? {
         val candidates =
             listOf(
-                File(System.getProperty("user.dir"), "packages/settings-ui/dist"),
-                File(System.getProperty("user.dir"), "../packages/settings-ui/dist"),
+                File(System.getProperty("user.dir"), "packages/settings/ui/dist"),
+                File(System.getProperty("user.dir"), "../packages/settings/ui/dist"),
             )
         return candidates.firstOrNull { File(it, "index.html").isFile && File(it, "assets").isDirectory }
     }

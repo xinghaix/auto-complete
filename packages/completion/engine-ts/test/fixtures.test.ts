@@ -16,7 +16,7 @@ import { CompletionEngine } from "../src/engine.js";
 import { defaultEngineSettings } from "../src/types.js";
 import { CancellationToken } from "../src/errorBackoff.js";
 
-const root = join(dirname(fileURLToPath(import.meta.url)), "../../shared-spec/testdata");
+const root = join(dirname(fileURLToPath(import.meta.url)), "../../contracts/testdata");
 
 function loadJson<T>(rel: string): T {
   return JSON.parse(readFileSync(join(root, rel), "utf8")) as T;

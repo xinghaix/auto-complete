@@ -2,7 +2,7 @@
 
 [中文](PROVIDERS.md) · [Documentation index](README.en.md)
 
-Auto Complete has no account system. It sends a trimmed prefix/suffix to a user-configured HTTP endpoint and parses the response as inline completion text. Implementations live in `core/.../client/HttpCompletionClient.kt` and `packages/core-ts/src/httpClient.ts`.
+Auto Complete has no account system. It sends a trimmed prefix/suffix to a user-configured HTTP endpoint and parses the response as inline completion text. Implementations live in `packages/completion/engine-jvm/.../client/HttpCompletionClient.kt` and `packages/completion/engine-ts/src/httpClient.ts`.
 
 ## Connection model
 

@@ -6,7 +6,7 @@
 
 Auto Complete 是独立的双宿主内联补全项目。它参考开源 [Kilo Code / kilocode](https://github.com/Kilo-Org/kilocode) 与 [kilocode-legacy](https://github.com/Kilo-Org/kilocode-legacy) 的经典补全行为和设计思路，并在本仓库中以 Kotlin/JVM 与 TypeScript 重新实现。
 
-当前交付不再是“JetBrains 已交付、VS Code 计划中”：仓库已包含 JetBrains `plugin` + Kotlin `core`、VS Code `hosts/vscode` + `packages/core-ts`、共享 `packages/settings-ui` 与 `packages/shared-spec`。两个宿主不通过 Extension Host、RPC 或 `kilo serve` 互相调用。
+当前交付不再是“JetBrains 已交付、VS Code 计划中”：仓库已包含 JetBrains `plugin` + Kotlin `core`、VS Code `apps/vscode/extension` + `packages/completion/engine-ts`、共享 `packages/settings/ui` 与 `packages/completion/contracts`。两个宿主不通过 Extension Host、RPC 或 `kilo serve` 互相调用。
 
 ## 参考用途
 
@@ -22,13 +22,13 @@ Auto Complete 是独立的双宿主内联补全项目。它参考开源 [Kilo Co
 
 | 行为域 | Kotlin/JVM | TypeScript |
 |---|---|---|
-| 主流水线 | `core/.../engine/CompletionEngine.kt` | `packages/core-ts/src/engine.ts` |
-| HTTP 与模板 | `core/.../client/HttpCompletionClient.kt` | `packages/core-ts/src/httpClient.ts` |
-| cache / skip / filter | `core/.../{cache,skip,filter}/` | `packages/core-ts/src/{cache,contextualSkip,suggestionFilter}.ts` |
-| prompt 与语言映射 | `core/.../prompt/`、`util/LanguageMap.kt` | `packages/core-ts/src/prompt*`、`languageMap.ts` |
-| JetBrains 宿主 | `plugin/.../ide`、`bridge`、`config`、`ui` | — |
-| VS Code 宿主 | — | `hosts/vscode/src/` |
-| 共用契约 | `packages/shared-spec/`：schema、templates、language map、UiBridge、fixtures | 同左 |
+| 主流水线 | `packages/completion/engine-jvm/.../engine/CompletionEngine.kt` | `packages/completion/engine-ts/src/engine.ts` |
+| HTTP 与模板 | `packages/completion/engine-jvm/.../client/HttpCompletionClient.kt` | `packages/completion/engine-ts/src/httpClient.ts` |
+| cache / skip / filter | `packages/completion/engine-jvm/.../{cache,skip,filter}/` | `packages/completion/engine-ts/src/{cache,contextualSkip,suggestionFilter}.ts` |
+| prompt 与语言映射 | `packages/completion/engine-jvm/.../prompt/`、`util/LanguageMap.kt` | `packages/completion/engine-ts/src/prompt*`、`languageMap.ts` |
+| JetBrains 宿主 | `apps/jetbrains/plugin/.../ide`、`bridge`、`config`、`ui` | — |
+| VS Code 宿主 | — | `apps/vscode/extension/src/` |
+| 共用契约 | `packages/completion/contracts/`：schema、templates、language map、UiBridge、fixtures | 同左 |
 
 `shared-spec` 是跨端对齐的文档/fixture 契约。改动补全行为、模板或设置字段时，应同时检查两端实现和 fixture 测试；不要假设宿主在运行时自动读取每一份 JSON。
 

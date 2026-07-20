@@ -9,8 +9,17 @@
   "engines": {
     "vscode": "^1.85.0"
   },
-  "categories": ["Machine Learning", "Other"],
-  "keywords": ["ai", "completion", "inline", "fim", "ollama"],
+  "categories": [
+    "Machine Learning",
+    "Other"
+  ],
+  "keywords": [
+    "ai",
+    "completion",
+    "inline",
+    "fim",
+    "ollama"
+  ],
   "activationEvents": [
     "onStartupFinished"
   ],
@@ -71,7 +80,14 @@
         },
         "autoComplete.promptTemplate": {
           "type": "string",
-          "enum": ["AUTO", "CODESTRAL_API", "QWEN", "DEEPSEEK", "STARCODER", "CHAT"],
+          "enum": [
+            "AUTO",
+            "CODESTRAL_API",
+            "QWEN",
+            "DEEPSEEK",
+            "STARCODER",
+            "CHAT"
+          ],
           "default": "AUTO",
           "description": "Prompt template (AUTO detects from model name)"
         },
@@ -148,7 +164,12 @@
         },
         "autoComplete.logLevel": {
           "type": "string",
-          "enum": ["debug", "info", "warn", "error"],
+          "enum": [
+            "debug",
+            "info",
+            "warn",
+            "error"
+          ],
           "default": "info"
         },
         "autoComplete.logPromptBodies": {
@@ -161,7 +182,11 @@
         },
         "autoComplete.uiTheme": {
           "type": "string",
-          "enum": ["auto", "light", "dark"],
+          "enum": [
+            "auto",
+            "light",
+            "dark"
+          ],
           "default": "auto",
           "description": "Settings panel theme (auto follows IDE, or force light/dark)"
         },
@@ -194,12 +219,20 @@
     "typecheck": "tsc -p tsconfig.json --noEmit"
   },
   "dependencies": {
-    "@auto-complete/core-ts": "file:../../packages/core-ts"
+    "@auto-complete/core-ts": "file:../../../packages/completion/engine-ts"
   },
   "devDependencies": {
     "@types/node": "^22.10.0",
     "@types/vscode": "^1.85.0",
     "esbuild": "^0.25.0",
     "typescript": "^5.7.2"
-  }
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/xinghaix/auto-complete.git"
+  },
+  "bugs": {
+    "url": "https://github.com/xinghaix/auto-complete/issues"
+  },
+  "homepage": "https://github.com/xinghaix/auto-complete#readme"
 }

@@ -26,8 +26,8 @@ The repository already has the baseline pieces for an open-source preview: Apach
 
 | Host | Artifact | Recommended distribution |
 |---|---|---|
-| JetBrains | `plugin/build/distributions/auto-complete-<version>.zip` | GitHub Release; Install from Disk |
-| VS Code | `hosts/vscode/dist-vsix/auto-complete-<version>.vsix` | GitHub Release; Install from VSIX |
+| JetBrains | `apps/jetbrains/plugin/build/distributions/auto-complete-<version>.zip` | GitHub Release; Install from Disk |
+| VS Code | `apps/vscode/extension/dist-vsix/auto-complete-<version>.vsix` | GitHub Release; Install from VSIX |
 
 Use an annotated `v<version>` tag, for example:
 

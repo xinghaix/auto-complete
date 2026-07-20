@@ -102,7 +102,7 @@ Recent-file context increases code sent to an endpoint; leave it off unless the 
 | `notifyOnFatalError` | `true` | Notify on fatal configuration errors such as 401/403 |
 | `showCostApprox` | `false` | Show approximate token usage when returned by the provider |
 
-Logs never contain API keys or authorization headers. JetBrains also writes accepted log entries to `idea.log`; VS Code also writes to the **Auto Complete** OutputChannel. See the [UiBridge protocol](../packages/shared-spec/bridge-protocol.md) for fields.
+Logs never contain API keys or authorization headers. JetBrains also writes accepted log entries to `idea.log`; VS Code also writes to the **Auto Complete** OutputChannel. See the [UiBridge protocol](../packages/completion/contracts/bridge-protocol.md) for fields.
 
 ## Validation and remote endpoints
 

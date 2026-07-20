@@ -37,7 +37,7 @@ JetBrains 兼容性为 **IntelliJ Platform 2024.2+ / build 242+**。JCEF 是 Web
 | 最近文件上下文 | JetBrains 会收集已打开文件片段；VS Code 当前没有向 TS engine 提供最近文件片段。 |
 | 设置入口 | JetBrains 只有 JCEF 工具窗口入口，没有 Swing Configurable；VS Code 有 Webview 面板并镜像部分常用项到原生 Settings。 |
 | 秘钥与配置命名 | 两宿主功能等价但持久化 key/name 细节不同；不要手工复制内部存储文件。 |
-| 发布自动化 | CI 构建/测试，但不签名、不发布 Marketplace、不创建 Release，也不上传 VSIX artifact。 |
+| 发布自动化 | CI 构建/测试；推送 `v*` tag 时自动创建不存在的同名 GitHub Release 并上传 ZIP/VSIX。签名和 Marketplace 仍未自动化。 |
 | Agent / Next Edit | 不在产品范围。 |
 
 这些项不应被 README、发布说明或 Marketplace 文案隐藏。任何声称“跨宿主完全相同”的改动都必须补齐实现和测试。

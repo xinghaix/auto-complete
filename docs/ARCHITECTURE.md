@@ -22,13 +22,13 @@ Auto Complete 是自带模型端点的 AI 内联代码补全项目。用户提�
 
 ```text
 auto-complete/
-├── core/                     Kotlin/JVM 补全引擎（无 IntelliJ UI 依赖）
-├── plugin/                   JetBrains 宿主：Inline Completion、JCEF、PasswordSafe、IDE HTTP 支持
+├── packages/completion/engine-jvm/                     Kotlin/JVM 补全引擎（无 IntelliJ UI 依赖）
+├── apps/jetbrains/plugin/                   JetBrains 宿主：Inline Completion、JCEF、PasswordSafe、IDE HTTP 支持
 ├── packages/
 │   ├── shared-spec/          设置、模板、语言映射、UiBridge 协议和 golden fixtures
 │   ├── core-ts/              TypeScript 补全引擎
 │   └── settings-ui/          Vue 3 设置与日志界面，供两个宿主嵌入
-├── hosts/vscode/             VS Code 扩展：Inline provider、SecretStorage、Webview、OutputChannel
+├── apps/vscode/extension/             VS Code 扩展：Inline provider、SecretStorage、Webview、OutputChannel
 ├── docs/                     面向用户和贡献者的文档
 └── scripts/package-local.sh  构建 JetBrains zip 与 VSIX 的本地打包脚本
 ```
@@ -39,8 +39,8 @@ Gradle 项目只包含 `core` 和 `plugin`（见 `settings.gradle.kts`）；根 
 
 | 层 | JetBrains | VS Code |
 |---|---|---|
-| 内联入口 | `plugin/.../ide/AutoCompleteInlineProvider.kt` | `hosts/vscode/src/inline/provider.ts` |
-| 引擎 | `core/.../engine/CompletionEngine.kt` | `packages/core-ts/src/engine.ts` |
+| 内联入口 | `apps/jetbrains/plugin/.../ide/AutoCompleteInlineProvider.kt` | `apps/vscode/extension/src/inline/provider.ts` |
+| 引擎 | `packages/completion/engine-jvm/.../engine/CompletionEngine.kt` | `packages/completion/engine-ts/src/engine.ts` |
 | 密钥 | `PasswordSafe` | `SecretStorage` |
 | 设置和日志 UI | `settings-ui` 经 JCEF `JbUiBridge` 嵌入同一个 **Auto Complete** 工具窗口 | `settings-ui` 经 Webview `VsCodeUiBridge` 打开设置面板；原始日志同时写 OutputChannel |
 | 持久化普通设置 | `PersistentStateComponent` | `globalState` 与 VS Code configuration 镜像 |
@@ -66,7 +66,7 @@ JetBrains 的最低平台版本为 **2024.2 / build 242**。JCEF 设置页是唯
   → 日志、状态栏和 UI Bridge 更新
 ```
 
-JetBrains 入口会读取文档来形成 prefix/suffix，但出站请求由 `PromptBuilder` 裁剪；它**不等于**默认上传整文件。VS Code 当前的注释/字符串提示固定为 `false`（见 `hosts/vscode/src/inline/provider.ts`），因此这两个开关在 VS Code 主路径尚未执行语义识别；该限制应在宿主文档中明确，而不是承诺与 JetBrains 完全等价。
+JetBrains 入口会读取文档来形成 prefix/suffix，但出站请求由 `PromptBuilder` 裁剪；它**不等于**默认上传整文件。VS Code 当前的注释/字符串提示固定为 `false`（见 `apps/vscode/extension/src/inline/provider.ts`），因此这两个开关在 VS Code 主路径尚未执行语义识别；该限制应在宿主文档中明确，而不是承诺与 JetBrains 完全等价。
 
 ## 引擎行为
 
@@ -84,7 +84,7 @@ JetBrains 入口会读取文档来形成 prefix/suffix，但出站请求由 `Pro
 
 ## Provider 与请求模板
 
-`HttpCompletionClient`（JVM）和 `packages/core-ts/src/httpClient.ts`（TS）依据模型名或用户选择解析模板：
+`HttpCompletionClient`（JVM）和 `packages/completion/engine-ts/src/httpClient.ts`（TS）依据模型名或用户选择解析模板：
 
 | 模板 | 默认相对路径 | 传输形式 |
 |---|---|---|
@@ -100,12 +100,12 @@ JetBrains 入口会读取文档来形成 prefix/suffix，但出站请求由 `Pro
 
 默认值强调输入路径与隐私：不启用最近文件上下文、不记录 prompt 正文、JetBrains 遵循 `.gitignore`（VS Code 当前只可靠地应用额外 glob）、最大文件 512 KB、补全硬超时 3000 ms。用户开启 `logPromptBodies` 后，日志会记录截断 prompt，属于高敏设置。
 
-UiBridge 的请求/响应 envelope、日志批处理、主题/语言推送与安全规则由 [packages/shared-spec/bridge-protocol.md](../packages/shared-spec/bridge-protocol.md) 定义。
+UiBridge 的请求/响应 envelope、日志批处理、主题/语言推送与安全规则由 [packages/completion/contracts/bridge-protocol.md](../packages/completion/contracts/bridge-protocol.md) 定义。
 
 ## 验证边界
 
-- Kotlin：`core/src/test` 覆盖引擎、缓存、跳过、模板、HTTP fixtures、设置校验；`plugin/src/test` 覆盖 profile、i18n 和 UI 状态。
-- TypeScript：`packages/core-ts/test/fixtures.test.ts` 对照 shared-spec golden fixtures；settings UI 有 i18n、挂载和 HTML entry 测试。
+- Kotlin：`packages/completion/engine-jvm/src/test` 覆盖引擎、缓存、跳过、模板、HTTP fixtures、设置校验；`apps/jetbrains/plugin/src/test` 覆盖 profile、i18n 和 UI 状态。
+- TypeScript：`packages/completion/engine-ts/test/fixtures.test.ts` 对照 shared-spec golden fixtures；settings UI 有 i18n、挂载和 HTML entry 测试。
 - CI：JDK 21 job 运行 `:core:test :plugin:test` 并构建 zip；Node 22 job 运行 `npm run test:js` 和 `npm run build:js`。
 
 构建、安装和打包说明见 [RELEASE.md](RELEASE.md)。

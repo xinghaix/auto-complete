@@ -86,4 +86,4 @@ settings 变更会重新加载缓存并刷新状态。用户调整端点、模�
 4. 使用假 HTTP 服务验证取消后不会展示响应。
 5. 分别验证 FIM 和 chat 模板的路径及解析。
 
-相关单元/fixture 测试位于 `core/src/test`、`plugin/src/test`、`packages/core-ts/test` 和 `packages/settings-ui/src/*.test.ts`。
+相关单元/fixture 测试位于 `packages/completion/engine-jvm/src/test`、`apps/jetbrains/plugin/src/test`、`packages/completion/engine-ts/test` 和 `packages/settings/ui/src/*.test.ts`。

@@ -2,7 +2,7 @@
 
 [中文](CONTRIBUTING.zh.md) · [English](CONTRIBUTING.md)
 
-Auto Complete 是双宿主、自备端点的内联代码补全项目：JetBrains 使用 Kotlin `core` + `plugin`；VS Code 使用 `packages/core-ts` + `hosts/vscode`；两个宿主共同嵌入 `packages/settings-ui`，通过 `packages/shared-spec` 对齐行为。
+Auto Complete 是双宿主、自备端点的内联代码补全项目：JetBrains 使用 Kotlin `core` + `plugin`；VS Code 使用 `packages/completion/engine-ts` + `apps/vscode/extension`；两个宿主共同嵌入 `packages/settings/ui`，通过 `packages/completion/contracts` 对齐行为。
 
 项目独立实现、参考 Kilo Code 的补全行为。请保持轻量补全边界：不引入 JetBrains→VS Code 桥接、`kilo serve` 运行时、账号体系、Agent 或 Next Edit 产品。
 
@@ -28,8 +28,8 @@ npm run build:js
 
 ```bash
 ./scripts/package-local.sh
-# JetBrains ZIP: plugin/build/distributions/auto-complete-*.zip
-# VS Code VSIX: hosts/vscode/dist-vsix/auto-complete-*.vsix
+# JetBrains ZIP: apps/jetbrains/plugin/build/distributions/auto-complete-*.zip
+# VS Code VSIX: apps/vscode/extension/dist-vsix/auto-complete-*.vsix
 ```
 
 只构建一个宿主时使用 `SKIP_JB=1` 或 `SKIP_VSCODE=1`。打包脚本不等于完整测试：它只显式执行 `:core:test`。
@@ -38,12 +38,12 @@ npm run build:js
 
 | 路径 | 职责 |
 |---|---|
-| `core/src/main/kotlin` | 纯 Kotlin 补全流水线、HTTP、prompt/cache/skip/filter/backoff |
-| `plugin/src/main/kotlin` | JetBrains 内联入口、JCEF bridge、PasswordSafe 设置、IDE HTTP 集成 |
-| `packages/core-ts/src` | TypeScript 双实现补全流水线 |
-| `packages/settings-ui/src` | Vue 3 共用设置/日志 UI 与 i18n |
-| `packages/shared-spec` | schema、模板、语言映射、bridge 协议、golden fixtures |
-| `hosts/vscode/src` | VS Code provider、设置持久化、SecretStorage、Webview bridge |
+| `packages/completion/engine-jvm/src/main/kotlin` | 纯 Kotlin 补全流水线、HTTP、prompt/cache/skip/filter/backoff |
+| `apps/jetbrains/plugin/src/main/kotlin` | JetBrains 内联入口、JCEF bridge、PasswordSafe 设置、IDE HTTP 集成 |
+| `packages/completion/engine-ts/src` | TypeScript 双实现补全流水线 |
+| `packages/settings/ui/src` | Vue 3 共用设置/日志 UI 与 i18n |
+| `packages/completion/contracts` | schema、模板、语言映射、bridge 协议、golden fixtures |
+| `apps/vscode/extension/src` | VS Code provider、设置持久化、SecretStorage、Webview bridge |
 
 ## 变更规则
 

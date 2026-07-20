@@ -2,7 +2,7 @@
 
 [English](README.md) · [中文](README.zh.md) · [完整文档](../../docs/README.md)
 
-VS Code 宿主使用 `packages/core-ts` 的 TypeScript 补全引擎，通过 Webview 嵌入共用的 `packages/settings-ui`。它与 JetBrains 宿主独立运行，不依赖 JetBrains 插件、Extension Host bridge 或 `kilo serve`。
+VS Code 宿主使用 `packages/completion/engine-ts` 的 TypeScript 补全引擎，通过 Webview 嵌入共用的 `packages/settings/ui`。它与 JetBrains 宿主独立运行，不依赖 JetBrains 插件、Extension Host bridge 或 `kilo serve`。
 
 ## 要求与安装
 
@@ -19,7 +19,7 @@ npm run build:js
 npm run package:vscode
 ```
 
-产物在 `hosts/vscode/dist-vsix/auto-complete-*.vsix`。安装：**Extensions → … → Install from VSIX…**，然后重载窗口。
+产物在 `apps/vscode/extension/dist-vsix/auto-complete-*.vsix`。安装：**Extensions → … → Install from VSIX…**，然后重载窗口。
 
 一次打包 JetBrains ZIP + VSIX：
 
@@ -27,7 +27,7 @@ npm run package:vscode
 ./scripts/package-local.sh
 ```
 
-本地开发也可从 `hosts/vscode/` 打开项目后按 F5；构建入口为 `npm run build -w auto-complete`。
+本地开发也可从 `apps/vscode/extension/` 打开项目后按 F5；构建入口为 `npm run build -w auto-complete`。
 
 ## 配置与命令
 

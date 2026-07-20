@@ -36,7 +36,7 @@ npm run build:js
 This runs Kotlin/JetBrains tests, TypeScript/settings-UI tests, the JS build, and the JetBrains distribution build. The ZIP is written to:
 
 ```text
-plugin/build/distributions/auto-complete-<version>.zip
+apps/jetbrains/plugin/build/distributions/auto-complete-<version>.zip
 ```
 
 For JetBrains development:
@@ -61,8 +61,8 @@ It builds shared `settings-ui`, runs `:core:test`, builds the JetBrains ZIP, the
 
 | Artifact | Installation |
 |---|---|
-| `plugin/build/distributions/auto-complete-*.zip` | JetBrains: Settings/Preferences → Plugins → ⚙ → Install Plugin from Disk… → restart |
-| `hosts/vscode/dist-vsix/auto-complete-*.vsix` | VS Code: Extensions → … → Install from VSIX… → reload window |
+| `apps/jetbrains/plugin/build/distributions/auto-complete-*.zip` | JetBrains: Settings/Preferences → Plugins → ⚙ → Install Plugin from Disk… → restart |
+| `apps/vscode/extension/dist-vsix/auto-complete-*.vsix` | VS Code: Extensions → … → Install from VSIX… → reload window |
 
 Build one host only:
 
@@ -89,15 +89,15 @@ SKIP_VSCODE=1 ./scripts/package-local.sh  # JetBrains only
 - **JVM (JDK 21):** `./gradlew :core:test :plugin:test --stacktrace`, `./gradlew :plugin:buildPlugin --stacktrace`, then ZIP artifact upload.
 - **JS (Node 22):** `npm install`, `npm run test:js`, and `npm run build:js`.
 
-CI does not currently sign packages, publish Marketplace artifacts, create GitHub Releases, or upload a VSIX artifact. Do not document those as active automation.
+CI builds and tests on `main`/PRs. A pushed `v*` tag downloads the successful ZIP/VSIX artifacts after the JVM and JS jobs, then creates a GitHub Release. If that tag already has a release, the workflow skips publication and never overwrites or uploads duplicates. Marketplace publishing and signing remain manual.
 
 ## Versioning and release checklist
 
-1. Update `pluginVersion` in `gradle.properties` and keep the version intent consistent with `hosts/vscode/package.json` and the root Node workspace.
+1. Update `pluginVersion` in `gradle.properties` and keep the version intent consistent with `apps/vscode/extension/package.json` and the root Node workspace.
 2. Add user-visible notes under `[Unreleased]` in `CHANGELOG.md`.
 3. Run full verification, then dual-host packaging.
 4. Install artifacts manually on target JetBrains/VS Code versions and smoke test.
-5. Create an annotated `v<version>` tag; attach the ZIP to a GitHub Release and attach VSIX when distributing VS Code.
+5. Create and push an annotated `v<version>` tag; after tests pass, CI creates the matching GitHub Release and attaches ZIP and VSIX. An existing release for the tag is safely skipped.
 6. Configure Marketplace/signing tokens only when explicitly requested; tokens must come from environment or CI secrets, never the repository.
 
 Suggested tag:

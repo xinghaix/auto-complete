@@ -3,8 +3,12 @@ name: CI
 on:
   push:
     branches: [main, master]
+    tags: ["v*"]
   pull_request:
     branches: [main, master]
+
+permissions:
+  contents: read
 
 jobs:
   jvm:
@@ -26,15 +30,15 @@ jobs:
       - name: Unit tests
         run: ./gradlew :core:test :plugin:test --stacktrace
 
-      - name: Build plugin zip
+      - name: Build plugin ZIP
         run: ./gradlew :plugin:buildPlugin --stacktrace
 
-      - name: Upload distribution
+      - name: Upload ZIP distribution
         if: success()
         uses: actions/upload-artifact@v4
         with:
           name: auto-complete-zip
-          path: plugin/build/distributions/*.zip
+          path: apps/jetbrains/plugin/build/distributions/*.zip
           if-no-files-found: error
 
   js:
@@ -52,8 +56,72 @@ jobs:
       - name: Install
         run: npm install
 
-      - name: JS tests (core-ts + settings-ui i18n)
+      # settings-ui tests inspect the real Vite output, so generate it before test:js.
+      - name: Build settings UI for artifact tests
+        run: npm run build:settings-ui
+
+      - name: JS tests (core-ts + settings-ui)
         run: npm run test:js
 
       - name: Build JS packages
         run: npm run build:js
+
+      - name: Package VS Code extension
+        run: npm run package:vscode
+
+      - name: Upload VSIX distribution
+        if: success()
+        uses: actions/upload-artifact@v4
+        with:
+          name: auto-complete-vsix
+          path: apps/vscode/extension/dist-vsix/*.vsix
+          if-no-files-found: error
+
+  release:
+    name: Publish GitHub Release
+    needs: [jvm, js]
+    runs-on: ubuntu-latest
+    # A tag always runs the full test/build matrix first. Branch and PR builds never publish.
+    if: github.event_name == 'push' && startsWith(github.ref, 'refs/tags/v')
+    permissions:
+      contents: write
+    concurrency:
+      group: release-${{ github.ref }}
+      cancel-in-progress: false
+    steps:
+      - name: Download ZIP artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: auto-complete-zip
+          path: release-assets
+
+      - name: Download VSIX artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: auto-complete-vsix
+          path: release-assets
+
+      - name: Check whether this tag already has a release
+        id: existing_release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TAG: ${{ github.ref_name }}
+        run: |
+          if gh release view "$TAG" --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
+            echo "exists=true" >> "$GITHUB_OUTPUT"
+            echo "Release for $TAG already exists; publication will be skipped."
+          else
+            echo "exists=false" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Create release and upload packages
+        if: steps.existing_release.outputs.exists == 'false'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TAG: ${{ github.ref_name }}
+        run: |
+          VERSION="${TAG#v}"
+          gh release create "$TAG" release-assets/*.zip release-assets/*.vsix \
+            --repo "$GITHUB_REPOSITORY" \
+            --title "Auto Complete $VERSION" \
+            --generate-notes

@@ -6,9 +6,9 @@ Guidance for agents and contributors working in `auto-complete`.
 
 Auto Complete is a dual-host, bring-your-own-endpoint AI inline completion product:
 
-- **JetBrains:** `plugin/` host + Kotlin/JVM `core/` engine.
-- **VS Code:** `hosts/vscode/` host + TypeScript `packages/core-ts/` engine.
-- **Shared:** `packages/shared-spec/` contracts/fixtures and Vue `packages/settings-ui/` embedded through each host bridge.
+- **JetBrains:** `apps/jetbrains/plugin/` host + Kotlin/JVM `packages/completion/engine-jvm/` engine.
+- **VS Code:** `apps/vscode/extension/` host + TypeScript `packages/completion/engine-ts/` engine.
+- **Shared:** `packages/completion/contracts/` contracts/fixtures and Vue `packages/settings/ui/` embedded through each host bridge.
 
 The hosts run independently. JetBrains must never use a VS Code Extension Host, `kilo serve`, or an RPC bridge to obtain completion. The project is an independent implementation informed by Kilo Code behaviour; see `docs/SOURCES.md` and `NOTICE`.
 

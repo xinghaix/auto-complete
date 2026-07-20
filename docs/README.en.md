@@ -31,10 +31,10 @@ Auto Complete is a dual-host AI inline-completion project: JetBrains uses Kotlin
 
 ## Specifications and host-specific documents
 
-- [Shared-spec README](../packages/shared-spec/README.md) / [中文](../packages/shared-spec/README.zh.md)
-- [UiBridge protocol](../packages/shared-spec/bridge-protocol.md) / [中文](../packages/shared-spec/bridge-protocol.zh.md)
-- [VS Code extension README](../hosts/vscode/README.md) / [中文](../hosts/vscode/README.zh.md)
+- [Shared-spec README](../packages/completion/contracts/README.md) / [中文](../packages/completion/contracts/README.zh.md)
+- [UiBridge protocol](../packages/completion/contracts/bridge-protocol.md) / [中文](../packages/completion/contracts/bridge-protocol.zh.md)
+- [VS Code extension README](../apps/vscode/extension/README.md) / [中文](../apps/vscode/extension/README.zh.md)
 
 ## Sources of truth
 
-Documentation is grounded in executable configuration and source: `settings.gradle.kts`, the root `package.json`, `plugin/src/main/resources/META-INF/plugin.xml`, `hosts/vscode/package.json`, both `CompletionEngine` implementations, and `.github/workflows/ci.yml`. If text conflicts with code, correct the text: the current tree is dual-host, not single-host with VS Code deferred.
+Documentation is grounded in executable configuration and source: `settings.gradle.kts`, the root `package.json`, `apps/jetbrains/plugin/src/main/resources/META-INF/plugin.xml`, `apps/vscode/extension/package.json`, both `CompletionEngine` implementations, and `.github/workflows/ci.yml`. If text conflicts with code, correct the text: the current tree is dual-host, not single-host with VS Code deferred.

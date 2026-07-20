@@ -2,7 +2,7 @@
 
 [中文](CONTRIBUTING.zh.md) · [English](CONTRIBUTING.md)
 
-Auto Complete is a dual-host, bring-your-own-endpoint inline-completion project: JetBrains uses Kotlin `core` + `plugin`; VS Code uses `packages/core-ts` + `hosts/vscode`; both embed `packages/settings-ui` and align through `packages/shared-spec`.
+Auto Complete is a dual-host, bring-your-own-endpoint inline-completion project: JetBrains uses Kotlin `core` + `plugin`; VS Code uses `packages/completion/engine-ts` + `apps/vscode/extension`; both embed `packages/settings/ui` and align through `packages/completion/contracts`.
 
 It is an independent implementation informed by Kilo Code behaviour. Keep contributions within the lightweight completion boundary: no JetBrains-to-VS-Code bridge, `kilo serve` runtime, account system, Agent, or Next Edit product.
 
@@ -28,8 +28,8 @@ Create local installable packages:
 
 ```bash
 ./scripts/package-local.sh
-# JetBrains ZIP: plugin/build/distributions/auto-complete-*.zip
-# VS Code VSIX: hosts/vscode/dist-vsix/auto-complete-*.vsix
+# JetBrains ZIP: apps/jetbrains/plugin/build/distributions/auto-complete-*.zip
+# VS Code VSIX: apps/vscode/extension/dist-vsix/auto-complete-*.vsix
 ```
 
 For one host, use `SKIP_JB=1` or `SKIP_VSCODE=1`. The package script does not replace full tests: it explicitly runs only `:core:test`.
@@ -38,12 +38,12 @@ For one host, use `SKIP_JB=1` or `SKIP_VSCODE=1`. The package script does not re
 
 | Path | Responsibility |
 |---|---|
-| `core/src/main/kotlin` | Pure Kotlin completion pipeline, HTTP client, prompt/cache/skip/filter/backoff |
-| `plugin/src/main/kotlin` | JetBrains inline provider, JCEF bridge, PasswordSafe settings, IDE HTTP integration |
-| `packages/core-ts/src` | TypeScript dual completion pipeline |
-| `packages/settings-ui/src` | Vue 3 shared Settings + Logs UI and i18n |
-| `packages/shared-spec` | Schema, templates, language map, bridge protocol, golden fixtures |
-| `hosts/vscode/src` | VS Code provider, settings persistence, SecretStorage, Webview bridge |
+| `packages/completion/engine-jvm/src/main/kotlin` | Pure Kotlin completion pipeline, HTTP client, prompt/cache/skip/filter/backoff |
+| `apps/jetbrains/plugin/src/main/kotlin` | JetBrains inline provider, JCEF bridge, PasswordSafe settings, IDE HTTP integration |
+| `packages/completion/engine-ts/src` | TypeScript dual completion pipeline |
+| `packages/settings/ui/src` | Vue 3 shared Settings + Logs UI and i18n |
+| `packages/completion/contracts` | Schema, templates, language map, bridge protocol, golden fixtures |
+| `apps/vscode/extension/src` | VS Code provider, settings persistence, SecretStorage, Webview bridge |
 
 ## Rules for changes
 

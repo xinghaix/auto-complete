@@ -9,7 +9,7 @@ const here = dirname(fileURLToPath(import.meta.url));
 const distHtml = join(here, "../dist/index.html");
 const pluginHtml = join(
   here,
-  "../../../plugin/src/main/resources/settings-ui/index.html",
+  "../../../apps/jetbrains/plugin/src/main/resources/settings-ui/index.html",
 );
 
 describe("ensureScriptAfterRoot", () => {

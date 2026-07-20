@@ -82,12 +82,12 @@ intellijPlatform {
     instrumentCode.set(false)
 }
 
-val settingsUiDist = rootProject.layout.projectDirectory.dir("packages/settings-ui/dist")
+val settingsUiDist = rootProject.layout.projectDirectory.dir("packages/settings/ui/dist")
 val settingsUiResource = layout.projectDirectory.dir("src/main/resources/settings-ui")
 
 val copySettingsUi by tasks.registering(Copy::class) {
     group = "build"
-    description = "Copy packages/settings-ui/dist into plugin resources for JCEF"
+    description = "Copy packages/settings/ui/dist into plugin resources for JCEF"
     onlyIf { settingsUiDist.asFile.resolve("index.html").exists() }
     from(settingsUiDist)
     into(settingsUiResource)

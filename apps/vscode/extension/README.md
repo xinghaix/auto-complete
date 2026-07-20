@@ -2,7 +2,7 @@
 
 [English](README.md) · [中文](README.zh.md) · [Documentation](../../docs/README.en.md)
 
-The VS Code host uses the TypeScript completion engine in `packages/core-ts` and embeds shared `packages/settings-ui` in a Webview. It runs independently from JetBrains and does not use a JetBrains plugin, an Extension Host bridge, or `kilo serve`.
+The VS Code host uses the TypeScript completion engine in `packages/completion/engine-ts` and embeds shared `packages/settings/ui` in a Webview. It runs independently from JetBrains and does not use a JetBrains plugin, an Extension Host bridge, or `kilo serve`.
 
 ## Requirements and installation
 
@@ -19,7 +19,7 @@ npm run build:js
 npm run package:vscode
 ```
 
-The artifact is `hosts/vscode/dist-vsix/auto-complete-*.vsix`. Install it with **Extensions → … → Install from VSIX…**, then reload the window.
+The artifact is `apps/vscode/extension/dist-vsix/auto-complete-*.vsix`. Install it with **Extensions → … → Install from VSIX…**, then reload the window.
 
 To package a JetBrains ZIP and VSIX together:
 
@@ -27,7 +27,7 @@ To package a JetBrains ZIP and VSIX together:
 ./scripts/package-local.sh
 ```
 
-For local development, open `hosts/vscode/` and press F5. The extension build entry is `npm run build -w auto-complete`.
+For local development, open `apps/vscode/extension/` and press F5. The extension build entry is `npm run build -w auto-complete`.
 
 ## Configure and use
 

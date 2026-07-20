@@ -16,11 +16,11 @@ await esbuild.build({
   sourcemap: true,
   // Resolve workspace TypeScript package source
   alias: {
-    "@auto-complete/core-ts": join(root, "../../packages/core-ts/src/index.ts"),
+    "@auto-complete/core-ts": join(root, "../../../packages/completion/engine-ts/src/index.ts"),
   },
 });
 
-const uiDist = join(root, "../../packages/settings-ui/dist");
+const uiDist = join(root, "../../../packages/settings/ui/dist");
 const dest = join(root, "dist/webview");
 if (existsSync(uiDist)) {
   // Replace webview tree so stale hashed assets are not packaged into .vsix

@@ -31,10 +31,10 @@ Auto Complete 是面向 **JetBrains 与 VS Code** 的双宿主 AI 内联代码�
 
 ## 规格与宿主专用文档
 
-- [共享规格 README](../packages/shared-spec/README.md) / [中文](../packages/shared-spec/README.zh.md)
-- [UiBridge 协议](../packages/shared-spec/bridge-protocol.md) / [中文](../packages/shared-spec/bridge-protocol.zh.md)
-- [VS Code 扩展 README](../hosts/vscode/README.md) / [中文](../hosts/vscode/README.zh.md)
+- [共享规格 README](../packages/completion/contracts/README.md) / [中文](../packages/completion/contracts/README.zh.md)
+- [UiBridge 协议](../packages/completion/contracts/bridge-protocol.md) / [中文](../packages/completion/contracts/bridge-protocol.zh.md)
+- [VS Code 扩展 README](../apps/vscode/extension/README.md) / [中文](../apps/vscode/extension/README.zh.md)
 
 ## 事实来源
 
-文档以可执行配置和代码为准：`settings.gradle.kts`、根 `package.json`、`plugin/src/main/resources/META-INF/plugin.xml`、`hosts/vscode/package.json`、两个 `CompletionEngine` 实现及 `.github/workflows/ci.yml`。若文字和代码冲突，应先修正文档；当前树是双宿主实现，不能写成单宿主或把 VS Code 归为未来功能。
+文档以可执行配置和代码为准：`settings.gradle.kts`、根 `package.json`、`apps/jetbrains/plugin/src/main/resources/META-INF/plugin.xml`、`apps/vscode/extension/package.json`、两个 `CompletionEngine` 实现及 `.github/workflows/ci.yml`。若文字和代码冲突，应先修正文档；当前树是双宿主实现，不能写成单宿主或把 VS Code 归为未来功能。

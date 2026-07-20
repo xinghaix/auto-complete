@@ -2,7 +2,7 @@
 
 [English](PROVIDERS.en.md) · [文档索引](README.md)
 
-Auto Complete 不绑定账号体系。它向用户配置的 HTTP endpoint 发送已裁剪的 prefix/suffix，并把响应解析为内联补全文本。主实现位于 `core/.../client/HttpCompletionClient.kt` 与 `packages/core-ts/src/httpClient.ts`。
+Auto Complete 不绑定账号体系。它向用户配置的 HTTP endpoint 发送已裁剪的 prefix/suffix，并把响应解析为内联补全文本。主实现位于 `packages/completion/engine-jvm/.../client/HttpCompletionClient.kt` 与 `packages/completion/engine-ts/src/httpClient.ts`。
 
 ## 连接模型
 

@@ -44,12 +44,12 @@ coverage/
 # Node / JS packages — install & build locally
 node_modules/
 **/node_modules/
-packages/*/dist/
-hosts/vscode/dist/
-hosts/vscode/dist-vsix/
-packages/settings-ui/dist/
+packages/**/dist/
+apps/vscode/extension/dist/
+apps/vscode/extension/dist-vsix/
+packages/settings/ui/dist/
 # Copied into the plugin at package time (copySettingsUi); not source of truth
-plugin/src/main/resources/settings-ui/
+apps/jetbrains/plugin/src/main/resources/settings-ui/
 *.vsix
 
 # Agent / session scratch (never publish)

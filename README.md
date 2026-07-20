@@ -8,9 +8,9 @@
 
 | 宿主 | 运行时引擎 | 当前交付 |
 |---|---|---|
-| JetBrains | Kotlin/JVM `core/` + `plugin/` | ZIP，可从磁盘安装 |
-| VS Code | TypeScript `packages/core-ts/` + `hosts/vscode/` | VSIX，可从磁盘安装 |
-| 共用界面与规格 | Vue `packages/settings-ui/` + `packages/shared-spec/` | 两端嵌入；共享模板、设置契约和 fixture |
+| JetBrains | Kotlin/JVM `packages/completion/engine-jvm/` + `apps/jetbrains/plugin/` | ZIP，可从磁盘安装 |
+| VS Code | TypeScript `packages/completion/engine-ts/` + `apps/vscode/extension/` | VSIX，可从磁盘安装 |
+| 共用界面与规格 | Vue `packages/settings/ui/` + `packages/completion/contracts/` | 两端嵌入；共享模板、设置契约和 fixture |
 
 JetBrains 与 VS Code 不通过 Extension Host、RPC 或 `kilo serve` 互相调用。你配置自己的 `baseUrl`、模型和可选 API key，插件以 ghost text 提示补全。
 
@@ -52,7 +52,7 @@ JetBrains 与 VS Code 不通过 Extension Host、RPC 或 `kilo serve` 互相调�
 3. 运行 **Auto Complete: Open Settings Panel**，创建 profile 并测试连接。
 4. **Auto Complete: Show Logs** 会打开设置面板日志页和 OutputChannel。
 
-详细说明：[hosts/vscode/README.zh.md](hosts/vscode/README.zh.md)。
+详细说明：[apps/vscode/extension/README.zh.md](apps/vscode/extension/README.zh.md)。
 
 ## 本地构建与验证
 
@@ -81,8 +81,8 @@ JetBrains 开发沙箱：
 
 | 产物 | 路径 |
 |---|---|
-| JetBrains ZIP | `plugin/build/distributions/auto-complete-*.zip` |
-| VS Code VSIX | `hosts/vscode/dist-vsix/auto-complete-*.vsix` |
+| JetBrains ZIP | `apps/jetbrains/plugin/build/distributions/auto-complete-*.zip` |
+| VS Code VSIX | `apps/vscode/extension/dist-vsix/auto-complete-*.vsix` |
 
 仅一端：`SKIP_JB=1 ./scripts/package-local.sh` 或 `SKIP_VSCODE=1 ./scripts/package-local.sh`。
 

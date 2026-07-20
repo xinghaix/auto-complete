@@ -26,8 +26,8 @@
 
 | 宿主 | 产物 | 建议分发方式 |
 |---|---|---|
-| JetBrains | `plugin/build/distributions/auto-complete-<version>.zip` | GitHub Release，Install from Disk |
-| VS Code | `hosts/vscode/dist-vsix/auto-complete-<version>.vsix` | GitHub Release，Install from VSIX |
+| JetBrains | `apps/jetbrains/plugin/build/distributions/auto-complete-<version>.zip` | GitHub Release，Install from Disk |
+| VS Code | `apps/vscode/extension/dist-vsix/auto-complete-<version>.vsix` | GitHub Release，Install from VSIX |
 
 建议使用带注释 tag `v<version>`：
 

@@ -102,7 +102,7 @@ JetBrains 提供 `AutoComplete.Trigger`（默认 Ctrl+Shift+Space，macOS 为 Cm
 | `notifyOnFatalError` | `true` | 401/403 等 fatal 配置错误时提示 |
 | `showCostApprox` | `false` | 在 provider 返回 usage 时显示近似 token 用量 |
 
-日志不会记录 API key 或认证头。JetBrains 同时把接受到的日志写入 `idea.log`；VS Code 同时写入 **Auto Complete** OutputChannel。完整日志字段见 [UiBridge 协议](../packages/shared-spec/bridge-protocol.md)。
+日志不会记录 API key 或认证头。JetBrains 同时把接受到的日志写入 `idea.log`；VS Code 同时写入 **Auto Complete** OutputChannel。完整日志字段见 [UiBridge 协议](../packages/completion/contracts/bridge-protocol.md)。
 
 ## 校验与远程端点
 
