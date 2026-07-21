@@ -155,6 +155,7 @@ let mockState = {
   ],
   logLevel: "info",
   uiTheme: "auto" as "auto" | "light" | "dark",
+  uiLocale: "auto",
   enableInComments: true,
   enableInStrings: true,
   firstLineOnlyWhenMidLine: true,

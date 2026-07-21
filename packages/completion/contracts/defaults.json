@@ -35,9 +35,9 @@
   "enableInStrings": true,
   "disabledLanguages": [],
   "firstLineOnlyWhenMidLine": true,
-  "acceptOnTab": true,
   "sendFilePath": true,
   "respectGitignore": true,
+  "uiLocale": "auto",
   "ignoreGlobs": [
     "**/.git/**",
     "**/node_modules/**",
@@ -60,7 +60,6 @@
   "enableRecentFileContext": false,
   "recentFileLimit": 3,
   "recentFileMaxChars": 1200,
-  "allowRemote": true,
   "logPromptBodies": false,
   "logLevel": "info",
   "logRetention": 1000,

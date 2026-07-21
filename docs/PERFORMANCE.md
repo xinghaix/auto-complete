@@ -8,7 +8,7 @@
 
 | 项目 | 当前默认/限制 | 代码依据 |
 |---|---:|---|
-| 自动触发防抖 | `150 / 300 / 1000 ms`（最小/初始/最大） | `EngineSettings` / `core-ts` types |
+| 自动触发防抖 | `150 / 300 / 1000 ms`（最小/初始/最大） | `EngineSettings` / `packages/completion/engine-ts` types |
 | 补全硬超时 | `3000 ms`，范围 `500..30000` | `ProviderConfig` |
 | 设置探测硬超时 | `15000 ms`，范围 `1000..120000` | `ProviderConfig` |
 | 输出上限 | `128 tokens`，范围 `16..1024` | profile 设置 |
@@ -27,7 +27,7 @@
 
 1. 总开关、自动触发开关和 JetBrains snooze；
 2. 禁用语言、注释/字符串提示、最大文件大小；
-3. **JetBrains 的** `.gitignore` 与额外 glob；VS Code 当前只有额外 glob 会实际送入引擎；
+3. 两宿主的 **`.gitignore`**（项目/workspace 根）与额外 glob；
 4. 设置校验结果和是否存在可用 profile；
 5. suggestion history 命中；
 6. 上下文 skip 规则；

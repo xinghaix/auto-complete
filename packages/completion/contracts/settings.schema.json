@@ -36,9 +36,14 @@
       "default": []
     },
     "firstLineOnlyWhenMidLine": { "type": "boolean", "default": true },
-    "acceptOnTab": { "type": "boolean", "default": true },
     "sendFilePath": { "type": "boolean", "default": true },
     "respectGitignore": { "type": "boolean", "default": true },
+    "uiLocale": {
+      "type": "string",
+      "enum": ["auto", "en", "zh", "ja", "ko"],
+      "default": "auto",
+      "description": "Settings panel language: auto follows IDE, or force a catalog locale"
+    },
     "ignoreGlobs": {
       "type": "array",
       "items": { "type": "string" },
@@ -65,7 +70,6 @@
     "enableRecentFileContext": { "type": "boolean", "default": false },
     "recentFileLimit": { "type": "integer", "minimum": 0, "default": 3 },
     "recentFileMaxChars": { "type": "integer", "minimum": 1, "default": 1200 },
-    "allowRemote": { "type": "boolean", "default": true },
     "logPromptBodies": { "type": "boolean", "default": false },
     "logLevel": {
       "type": "string",

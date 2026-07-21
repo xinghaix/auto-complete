@@ -3,6 +3,7 @@ export * from "./promptTemplate.js";
 export * from "./promptBuilder.js";
 export * from "./suggestionFilter.js";
 export * from "./contextualSkip.js";
+export * from "./contextProbe.js";
 export * from "./cache.js";
 export * from "./settingsValidation.js";
 export * from "./languageMap.js";

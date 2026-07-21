@@ -22,7 +22,7 @@ function loadJson<T>(rel: string): T {
   return JSON.parse(readFileSync(join(root, rel), "utf8")) as T;
 }
 
-describe("shared-spec HTTP fixtures", () => {
+describe("contracts HTTP fixtures", () => {
   it("parses chat completion", () => {
     const fix = loadJson<{
       response: unknown;
@@ -78,7 +78,7 @@ describe("shared-spec HTTP fixtures", () => {
   });
 });
 
-describe("shared-spec prompt budget", () => {
+describe("contracts prompt budget", () => {
   it("matches golden cases", () => {
     const fix = loadJson<{
       cases: Array<{
@@ -116,7 +116,7 @@ describe("shared-spec prompt budget", () => {
   });
 });
 
-describe("shared-spec cache", () => {
+describe("contracts cache", () => {
   it("matches golden cases", () => {
     const fix = loadJson<{
       cases: Array<{

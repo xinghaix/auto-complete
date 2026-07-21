@@ -8,7 +8,7 @@ Inline completion runs on the typing hot path. The priority is to avoid interrup
 
 | Item | Current default/limit | Code source |
 |---|---:|---|
-| Automatic debounce | `150 / 300 / 1000 ms` (min/initial/max) | `EngineSettings` / core-ts types |
+| Automatic debounce | `150 / 300 / 1000 ms` (min/initial/max) | `EngineSettings` / `packages/completion/engine-ts` types |
 | Completion hard timeout | `3000 ms`, `500..30000` | `ProviderConfig` |
 | Settings-probe hard timeout | `15000 ms`, `1000..120000` | `ProviderConfig` |
 | Output limit | `128 tokens`, `16..1024` | profile settings |
@@ -27,7 +27,7 @@ Before debounce and HTTP, `CompletionEngine` checks:
 
 1. master switch, automatic trigger, and JetBrains snooze;
 2. disabled language, comment/string hints, and file-size limit;
-3. **JetBrains** `.gitignore` and extra globs; VS Code currently injects only extra globs into its engine;
+3. **`.gitignore`** (project/workspace root) and extra globs on both hosts;
 4. validation and whether an active profile is usable;
 5. suggestion-history hit;
 6. contextual skip rules;

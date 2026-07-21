@@ -62,6 +62,11 @@ export type GlobalPrefs = {
   showStatusBar: boolean;
   /** Settings panel theme preference (auto | light | dark). */
   uiTheme: UiTheme;
+  /**
+   * Settings panel UI locale. `auto` follows IDE language; otherwise a fixed
+   * catalog id (en | zh | ja | ko).
+   */
+  uiLocale: string;
 };
 
 const DEFAULT_GLOBAL: GlobalPrefs = {
@@ -102,6 +107,7 @@ const DEFAULT_GLOBAL: GlobalPrefs = {
   recentFileMaxChars: 1200,
   showStatusBar: true,
   uiTheme: "auto",
+  uiLocale: "auto",
 };
 
 function normalizeUiTheme(raw: unknown): UiTheme {
@@ -182,7 +188,10 @@ export function getGlobalPrefs(context: vscode.ExtensionContext): GlobalPrefs {
       stored.firstLineOnlyWhenMidLine ?? DEFAULT_GLOBAL.firstLineOnlyWhenMidLine,
     ),
     sendFilePath: c.get("sendFilePath", stored.sendFilePath ?? DEFAULT_GLOBAL.sendFilePath),
-    respectGitignore: stored.respectGitignore ?? DEFAULT_GLOBAL.respectGitignore,
+    respectGitignore: c.get(
+      "respectGitignore",
+      stored.respectGitignore ?? DEFAULT_GLOBAL.respectGitignore,
+    ),
     ignoreGlobs: stored.ignoreGlobs ?? DEFAULT_GLOBAL.ignoreGlobs,
     disabledLanguages: stored.disabledLanguages ?? DEFAULT_GLOBAL.disabledLanguages,
     logLevel: c.get("logLevel", stored.logLevel ?? DEFAULT_GLOBAL.logLevel),
@@ -191,8 +200,14 @@ export function getGlobalPrefs(context: vscode.ExtensionContext): GlobalPrefs {
       stored.logPromptBodies ?? DEFAULT_GLOBAL.logPromptBodies,
     ),
     logRetention: stored.logRetention ?? DEFAULT_GLOBAL.logRetention,
-    notifyOnFatalError: stored.notifyOnFatalError ?? DEFAULT_GLOBAL.notifyOnFatalError,
-    showCostApprox: stored.showCostApprox ?? DEFAULT_GLOBAL.showCostApprox,
+    notifyOnFatalError: c.get(
+      "notifyOnFatalError",
+      stored.notifyOnFatalError ?? DEFAULT_GLOBAL.notifyOnFatalError,
+    ),
+    showCostApprox: c.get(
+      "showCostApprox",
+      stored.showCostApprox ?? DEFAULT_GLOBAL.showCostApprox,
+    ),
     maxPrefixChars: c.get("maxPrefixChars", stored.maxPrefixChars ?? DEFAULT_GLOBAL.maxPrefixChars),
     maxSuffixChars: c.get("maxSuffixChars", stored.maxSuffixChars ?? DEFAULT_GLOBAL.maxSuffixChars),
     debounceMinMs: c.get("debounceMinMs", stored.debounceMinMs ?? DEFAULT_GLOBAL.debounceMinMs),
@@ -205,15 +220,26 @@ export function getGlobalPrefs(context: vscode.ExtensionContext): GlobalPrefs {
     cacheSize: stored.cacheSize ?? DEFAULT_GLOBAL.cacheSize,
     lruSize: stored.lruSize ?? DEFAULT_GLOBAL.lruSize,
     maxFileSizeKb: c.get("maxFileSizeKb", stored.maxFileSizeKb ?? DEFAULT_GLOBAL.maxFileSizeKb),
-    enableRecentFileContext:
+    enableRecentFileContext: c.get(
+      "enableRecentFileContext",
       stored.enableRecentFileContext ?? DEFAULT_GLOBAL.enableRecentFileContext,
+    ),
     recentFileLimit: stored.recentFileLimit ?? DEFAULT_GLOBAL.recentFileLimit,
     recentFileMaxChars: stored.recentFileMaxChars ?? DEFAULT_GLOBAL.recentFileMaxChars,
     showStatusBar: c.get("showStatusBar", stored.showStatusBar ?? DEFAULT_GLOBAL.showStatusBar),
     uiTheme: normalizeUiTheme(
       c.get("uiTheme", stored.uiTheme ?? DEFAULT_GLOBAL.uiTheme),
     ),
+    uiLocale: normalizeUiLocale(
+      c.get("uiLocale", stored.uiLocale ?? DEFAULT_GLOBAL.uiLocale),
+    ),
   };
+}
+
+function normalizeUiLocale(raw: unknown): string {
+  const v = typeof raw === "string" ? raw.trim().toLowerCase() : "";
+  if (v === "en" || v === "zh" || v === "ja" || v === "ko") return v;
+  return "auto";
 }
 
 export async function saveGlobalPrefs(
@@ -244,6 +270,11 @@ export async function saveGlobalPrefs(
   await cfg.update("maxFileSizeKb", next.maxFileSizeKb, target);
   await cfg.update("showStatusBar", next.showStatusBar, target);
   await cfg.update("uiTheme", next.uiTheme, target);
+  await cfg.update("uiLocale", next.uiLocale, target);
+  await cfg.update("respectGitignore", next.respectGitignore, target);
+  await cfg.update("enableRecentFileContext", next.enableRecentFileContext, target);
+  await cfg.update("notifyOnFatalError", next.notifyOnFatalError, target);
+  await cfg.update("showCostApprox", next.showCostApprox, target);
 }
 
 export async function getActiveProfileId(context: vscode.ExtensionContext): Promise<string> {
@@ -485,6 +516,7 @@ export async function toSnapshot(context: vscode.ExtensionContext) {
     notifyOnFatalError: global.notifyOnFatalError,
     showCostApprox: global.showCostApprox,
     uiTheme: global.uiTheme,
+    uiLocale: global.uiLocale,
   };
 }
 

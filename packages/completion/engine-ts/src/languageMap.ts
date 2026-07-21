@@ -53,13 +53,13 @@ const plaintextIds = new Set(["text", "textmate", "plaintext", "plain text"]);
 let byExt = byExtDefault;
 let aliases = aliasesDefault;
 
-/** Optional load from shared-spec language-map.json when available. */
+/** Optional load from packages/completion/contracts language-map.json when available. */
 export function loadLanguageMapFromSpec(specPath?: string): void {
   try {
     const here = dirname(fileURLToPath(import.meta.url));
     const path =
       specPath ??
-      join(here, "../../../shared-spec/language-map.json");
+      join(here, "../../contracts/language-map.json");
     const raw = JSON.parse(readFileSync(path, "utf8")) as {
       byExt?: Record<string, string>;
       aliases?: Record<string, string>;

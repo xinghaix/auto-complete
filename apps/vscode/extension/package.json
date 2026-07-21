@@ -190,6 +190,38 @@
           "default": "auto",
           "description": "Settings panel theme (auto follows IDE, or force light/dark)"
         },
+        "autoComplete.uiLocale": {
+          "type": "string",
+          "enum": [
+            "auto",
+            "en",
+            "zh",
+            "ja",
+            "ko"
+          ],
+          "default": "auto",
+          "description": "Settings panel language (auto follows IDE display language)"
+        },
+        "autoComplete.respectGitignore": {
+          "type": "boolean",
+          "default": true,
+          "description": "Honour workspace .gitignore when skipping paths"
+        },
+        "autoComplete.enableRecentFileContext": {
+          "type": "boolean",
+          "default": false,
+          "description": "Include snippets from recent open editors in the prompt"
+        },
+        "autoComplete.notifyOnFatalError": {
+          "type": "boolean",
+          "default": true,
+          "description": "Show a notification on fatal auth/config HTTP errors"
+        },
+        "autoComplete.showCostApprox": {
+          "type": "boolean",
+          "default": false,
+          "description": "Append token usage to log lines when the provider returns usage"
+        },
         "autoComplete.fimPath": {
           "type": "string",
           "default": "",

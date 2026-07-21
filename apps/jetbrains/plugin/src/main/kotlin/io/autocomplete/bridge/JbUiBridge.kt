@@ -238,6 +238,13 @@ class JbUiBridge {
                         else -> "auto"
                     }
             }
+            (obj["uiLocale"] as? String)?.let { raw ->
+                uiLocale =
+                    when (raw.trim().lowercase()) {
+                        "en", "zh", "ja", "ko" -> raw.trim().lowercase()
+                        else -> "auto"
+                    }
+            }
             val list = obj["profiles"] as? List<*>
             if (list != null) {
                 val next = mutableListOf<ProviderProfile>()
@@ -370,6 +377,7 @@ class JbUiBridge {
             "notifyOnFatalError" to s.notifyOnFatalError,
             "showCostApprox" to s.showCostApprox,
             "uiTheme" to s.uiTheme,
+            "uiLocale" to s.uiLocale,
         )
     }
 

@@ -62,6 +62,11 @@ export type Snapshot = {
   showCostApprox?: boolean;
   /** Settings panel theme preference (not IDE editor theme). */
   uiTheme?: UiTheme;
+  /**
+   * Settings panel UI locale. `auto` follows IDE language; otherwise
+   * `en` | `zh` | `ja` | `ko`. Not the IDE UI language.
+   */
+  uiLocale?: string;
 };
 
 export type ProbeResult = {

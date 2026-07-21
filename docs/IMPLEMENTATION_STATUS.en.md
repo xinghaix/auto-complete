@@ -12,7 +12,7 @@
 | Engine | Kotlin `CompletionEngine`, cancellable async HTTP, cache, skip, filter, backoff, prompt budget | TypeScript dual engine with the same main pipeline and shared fixtures |
 | Providers | OpenAI FIM, Qwen/DeepSeek/StarCoder token FIM, pseudo-FIM chat, template/connection/model probes | Equivalent template categories and HTTP-client semantics |
 | Settings | Multi-profile, PasswordSafe, PersistentState, JCEF UiBridge, IDE proxy/trust-store support | Multi-profile, SecretStorage, globalState/config mirror, Webview UiBridge |
-| Shared UI/spec | — | Vue 3 `settings-ui` (en/zh/ja/ko), `shared-spec` schema/templates/language map/bridge/fixtures |
+| Shared UI/spec | — | `packages/settings/ui` (Vue 3, en/zh/ja/ko; npm: `@auto-complete/settings-ui`), `packages/completion/contracts` schema/templates/language map/bridge/fixtures (npm: `@auto-complete/shared-spec`) |
 | CI | JDK 21 tests + `buildPlugin` + ZIP artifact | Node 22 JS tests + JS build |
 
 JetBrains support is **IntelliJ Platform 2024.2+ / build 242+**. JCEF is required for the Web settings panel, but `com.intellij.modules.jcef` is optional on newer IDEs; older platforms discover available JCEF reflectively. See [COMPATIBILITY.md](COMPATIBILITY.md). The VS Code extension declares `^1.85.0`.
@@ -28,19 +28,25 @@ JetBrains support is **IntelliJ Platform 2024.2+ / build 242+**. JCEF is require
 - logs, output filtering, optional path/recent-file context;
 - profile CRUD, isolated secrets, secret-free export/import.
 
-## Known differences and incomplete parity
+## Cross-host strategy
+
+**Converge by default:** same schema, same settings-ui, same engine gate semantics (enable, debounce, ignore, comment/string, recent files, logging, fatal notify).  
+**Allow differences only where the platform forces them:** storage medium, settings entry chrome, secret APIs, command/keymap registration, VS Code native Settings mirror.
+
+## Known differences (allowed platform gaps)
 
 | Item | Current fact |
 |---|---|
-| Comment/string detection | JetBrains supplies `ContextProbe` hints. The VS Code provider currently fixes `inComment=false` and `inString=false`, so those switches are not syntax-enforced there yet. |
-| `.gitignore` | JetBrains loads it during project attachment. VS Code currently does not inject workspace `.gitignore` into the TS engine, so its extra globs are the reliable path filter. |
-| Recent-file context | JetBrains collects open-file snippets. VS Code currently supplies no recent-file snippets to the TS engine. |
-| Settings entry | JetBrains has only the JCEF tool-window entry, no Swing Configurable. VS Code has a Webview and mirrors selected common settings to native Settings. |
-| Secret/config naming | Both hosts provide equivalent concepts but internal persistence keys/names differ; do not manually copy storage files. |
-| Publishing automation | CI builds/tests; a pushed `v*` tag creates a same-tag GitHub Release only when one does not already exist, then uploads ZIP/VSIX. Signing and Marketplace remain manual. |
+| Comment/string detection | Both hosts use a cheap heuristic `ContextProbe` (JB Kotlin / VS Code TS `inspectContext`). |
+| `.gitignore` | Both inject workspace/project-root `.gitignore` (JB on attach; VS Code via `VsCodeProjectContext` refresh). |
+| Recent-file context | Both support it; JB uses open files, VS Code open/visible editors (limit / maxChars). |
+| Settings entry | JetBrains: JCEF tool window (no Swing Configurable). VS Code: Webview + partial native Settings mirror. |
+| Secret/config storage | Conceptually equivalent; internal keys differ — do not hand-copy storage; use export/import. |
+| Action surface | JetBrains has snooze (status bar / action). VS Code uses Toggle/commands; no equivalent snooze field. |
+| Publishing automation | CI builds/tests; `v*` tags may upload ZIP/VSIX. Signing and Marketplace stay manual. |
 | Agent / Next Edit | Out of scope. |
 
-README, release notes, and Marketplace copy must not hide these gaps. Any claim of full host parity requires implementation and tests.
+Do not describe storage-path differences as feature differences. Full behavioural parity claims require implementation and tests.
 
 ## Verification commands
 

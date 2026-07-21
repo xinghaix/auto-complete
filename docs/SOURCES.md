@@ -6,7 +6,7 @@
 
 Auto Complete 是独立的双宿主内联补全项目。它参考开源 [Kilo Code / kilocode](https://github.com/Kilo-Org/kilocode) 与 [kilocode-legacy](https://github.com/Kilo-Org/kilocode-legacy) 的经典补全行为和设计思路，并在本仓库中以 Kotlin/JVM 与 TypeScript 重新实现。
 
-当前交付不再是“JetBrains 已交付、VS Code 计划中”：仓库已包含 JetBrains `plugin` + Kotlin `core`、VS Code `apps/vscode/extension` + `packages/completion/engine-ts`、共享 `packages/settings/ui` 与 `packages/completion/contracts`。两个宿主不通过 Extension Host、RPC 或 `kilo serve` 互相调用。
+当前交付不再是“JetBrains 已交付、VS Code 计划中”：仓库已包含 JetBrains `apps/jetbrains/plugin`（Gradle `:plugin`）+ Kotlin `packages/completion/engine-jvm`（Gradle `:core`）、VS Code `apps/vscode/extension` + `packages/completion/engine-ts`、共享 `packages/settings/ui` 与 `packages/completion/contracts`。两个宿主不通过 Extension Host、RPC 或 `kilo serve` 互相调用。
 
 ## 参考用途
 
@@ -30,7 +30,7 @@ Auto Complete 是独立的双宿主内联补全项目。它参考开源 [Kilo Co
 | VS Code 宿主 | — | `apps/vscode/extension/src/` |
 | 共用契约 | `packages/completion/contracts/`：schema、templates、language map、UiBridge、fixtures | 同左 |
 
-`shared-spec` 是跨端对齐的文档/fixture 契约。改动补全行为、模板或设置字段时，应同时检查两端实现和 fixture 测试；不要假设宿主在运行时自动读取每一份 JSON。
+`packages/completion/contracts`（npm：`@auto-complete/shared-spec`）是跨端对齐的文档/fixture 契约。改动补全行为、模板或设置字段时，应同时检查两端实现和 fixture 测试；不要假设宿主在运行时自动读取每一份 JSON。
 
 ## 不移植的能力
 

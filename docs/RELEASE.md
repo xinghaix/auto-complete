@@ -57,7 +57,7 @@ npm install              # 首次或依赖更新后
 # 或 npm run package:local
 ```
 
-脚本会构建共享 `settings-ui`，运行 `:core:test`，构建 JetBrains zip，再构建 `core-ts`、VS Code extension 并创建 VSIX。产物为：
+脚本会构建共享 `packages/settings/ui`，运行 Gradle `:core:test`，构建 JetBrains zip，再构建 `packages/completion/engine-ts`、VS Code extension 并创建 VSIX。产物为：
 
 | 产物 | 安装方式 |
 |---|---|

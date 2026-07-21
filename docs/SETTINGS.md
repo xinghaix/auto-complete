@@ -2,7 +2,19 @@
 
 [English](SETTINGS.en.md) · [文档索引](README.md)
 
-设置分为**全局偏好**和**已保存配置（Provider profile）**。JetBrains 与 VS Code 均使用同一套概念，但普通设置的持久化位置不同；API 密钥始终不进入普通设置文件。
+设置分为**全局偏好**和**已保存配置（Provider profile）**。JetBrains 与 VS Code 使用**同一套设置键、默认值与 settings-ui**；普通设置的持久化介质不同，API 密钥始终不进入普通设置文件。
+
+## 跨宿主原则：尽量趋同，允许少量差异
+
+| 必须趋同 | 允许差异（宿主平台能力） |
+|---|---|
+| 设置 schema / snapshot 字段名与默认值 | 存储介质（XML vs globalState/SecretStorage） |
+| 设置面板（`packages/settings/ui`）与 UiBridge 语义 | 设置入口形态（JCEF 工具窗口 vs Webview 面板） |
+| 引擎门控：启用、防抖、忽略规则、注释/字符串、最近文件开关 | 密钥保险箱 API（PasswordSafe vs SecretStorage） |
+| 导出/导入（无密钥 JSON） | 命令/快捷键与 snooze 的 IDE 注册方式 |
+| `uiTheme` / `uiLocale`（仅设置面板） | VS Code 可将部分项镜像到原生 Settings |
+
+不要在宿主间手工复制内部存储文件；导出/导入走 UiBridge 无密钥 JSON。声称「跨宿主完全相同」时，必须确认实现与 [IMPLEMENTATION_STATUS.md](IMPLEMENTATION_STATUS.md) 一致。
 
 ## 存储与宿主差异
 
@@ -24,11 +36,12 @@
 | `enableInComments` / `enableInStrings` | `true` | 是否允许在注释/字符串中补全 |
 | `firstLineOnlyWhenMidLine` | `true` | 光标位于一行中间时只显示首行建议 |
 | `sendFilePath` | `true` | 是否把文件路径加入 prompt |
-| `respectGitignore` | `true` | JetBrains 将项目 `.gitignore` 纳入跳过规则；VS Code 当前只保存该偏好，尚未把 workspace `.gitignore` 注入引擎 |
+| `respectGitignore` | `true` | 将项目 / workspace 根 `.gitignore` 纳入跳过规则（两宿主均注入引擎） |
 | `ignoreGlobs` | 见下 | 额外忽略的路径模式，每行一条 |
 | `disabledLanguages` | 空 | 禁用的语言 ID（逗号或换行分隔） |
-| `showStatusBar` | `true` | 显示状态栏入口 |
-| `uiTheme` | `auto` | 设置面板主题：跟随 IDE、白色或暗黑 |
+| `showStatusBar` | `true` | 显示状态栏入口（运行时可切换） |
+| `uiTheme` | `auto` | 设置面板主题：跟随 IDE、白色或暗黑（不改 IDE 主题） |
+| `uiLocale` | `auto` | 设置面板语言：跟随 IDE，或固定 en/zh/ja/ko（不改 IDE 界面语言） |
 
 默认 ignore globs：
 
@@ -45,7 +58,7 @@
 
 JetBrains 提供 `AutoComplete.Trigger`（默认 Ctrl+Shift+Space，macOS 为 Cmd+Shift+Space）、开关、取消、30 分钟 snooze、打开设置/日志等动作；快捷键由 IDE Keymap 管理。VS Code 提供同名语义的 Trigger、Toggle Enabled、Open Settings Panel、Show Logs 和 Set API Key 命令。
 
-> 当前 VS Code provider 尚未进行注释/字符串语义探测，传给 TS 引擎的两个 context hint 固定为 `false`。因此这两个全局开关在 VS Code 的实际触发路径尚未生效；JetBrains 会通过 `ContextProbe` 提供提示。
+> 注释/字符串门控依赖轻量启发式探测（非完整解析器）。两宿主在请求路径上均填充 `inComment` / `inString`。
 
 ## 已保存配置（profiles）
 
@@ -100,7 +113,7 @@ JetBrains 提供 `AutoComplete.Trigger`（默认 Ctrl+Shift+Space，macOS 为 Cm
 | `logRetention` | `1000` | 内存 ring buffer 条数；旧条目会被丢弃 |
 | `logPromptBodies` | `false` | 记录截断后的 prompt 内容；高敏，默认关闭 |
 | `notifyOnFatalError` | `true` | 401/403 等 fatal 配置错误时提示 |
-| `showCostApprox` | `false` | 在 provider 返回 usage 时显示近似 token 用量 |
+| `showCostApprox` | `false` | 在 provider 返回 usage 时，在日志中追加 token 用量（非费用计费） |
 
 日志不会记录 API key 或认证头。JetBrains 同时把接受到的日志写入 `idea.log`；VS Code 同时写入 **Auto Complete** OutputChannel。完整日志字段见 [UiBridge 协议](../packages/completion/contracts/bridge-protocol.md)。
 

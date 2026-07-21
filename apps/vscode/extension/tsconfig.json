@@ -13,7 +13,7 @@
     "sourceMap": true,
     "noEmit": true,
     "paths": {
-      "@auto-complete/core-ts": ["../../../packages/completion/engine-ts/src/index.ts"]
+      "@auto-complete/core-ts": ["../../../packages/completion/engine-ts/dist/index.d.ts"]
     }
   },
   "include": ["src/**/*"]

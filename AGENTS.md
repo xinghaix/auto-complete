@@ -6,9 +6,9 @@ Guidance for agents and contributors working in `auto-complete`.
 
 Auto Complete is a dual-host, bring-your-own-endpoint AI inline completion product:
 
-- **JetBrains:** `apps/jetbrains/plugin/` host + Kotlin/JVM `packages/completion/engine-jvm/` engine.
-- **VS Code:** `apps/vscode/extension/` host + TypeScript `packages/completion/engine-ts/` engine.
-- **Shared:** `packages/completion/contracts/` contracts/fixtures and Vue `packages/settings/ui/` embedded through each host bridge.
+- **JetBrains:** `apps/jetbrains/plugin/` host (Gradle `:plugin`) + Kotlin/JVM `packages/completion/engine-jvm/` engine (Gradle `:core`).
+- **VS Code:** `apps/vscode/extension/` host (npm `auto-complete`) + TypeScript `packages/completion/engine-ts/` engine (npm `@auto-complete/core-ts`).
+- **Shared:** `packages/completion/contracts/` contracts/fixtures (npm `@auto-complete/shared-spec`) and Vue `packages/settings/ui/` (npm `@auto-complete/settings-ui`) embedded through each host bridge.
 
 The hosts run independently. JetBrains must never use a VS Code Extension Host, `kilo serve`, or an RPC bridge to obtain completion. The project is an independent implementation informed by Kilo Code behaviour; see `docs/SOURCES.md` and `NOTICE`.
 
@@ -46,7 +46,7 @@ Open-source preview:
 - Keep `com.intellij.modules.jcef` optional. Load JCEF through `SettingsJcefHost` reflection; do not place `JBCefBrowser` types on `SettingsWebPanel`.
 - JetBrains minimum remains 2024.2 / `pluginSinceBuild=242` unless compatibility docs and tests are deliberately updated.
 - No Agent/Next Edit product scope in the completion path.
-- Do not claim cross-host parity where the code differs. Current gaps are documented in `docs/IMPLEMENTATION_STATUS.md`.
+- Prefer cross-host **behavioural** parity (schema, settings-ui, engine gates). Allow only platform-forced differences (storage, chrome, secret APIs, commands). Document allowed gaps in `docs/IMPLEMENTATION_STATUS.md` and the principle in `docs/SETTINGS.md`.
 
 ## Local verification
 

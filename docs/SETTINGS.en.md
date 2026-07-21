@@ -2,7 +2,19 @@
 
 [中文](SETTINGS.md) · [Documentation index](README.en.md)
 
-Settings consist of **global preferences** and saved **provider profiles**. JetBrains and VS Code share these concepts but persist ordinary settings differently. API keys never go into ordinary settings files.
+Settings consist of **global preferences** and saved **provider profiles**. JetBrains and VS Code share the **same setting keys, defaults, and settings-ui**; only the persistence medium differs. API keys never go into ordinary settings files.
+
+## Cross-host principle: converge by default, allow a few differences
+
+| Must converge | Allowed differences (platform) |
+|---|---|
+| Settings schema / snapshot field names and defaults | Storage medium (XML vs globalState / SecretStorage) |
+| Settings panel (`packages/settings/ui`) and UiBridge semantics | Settings entry shape (JCEF tool window vs Webview panel) |
+| Engine gates: enable, debounce, ignore rules, comment/string, recent-file switches | Secret store APIs (PasswordSafe vs SecretStorage) |
+| Export/import (secret-free JSON) | Commands, keymaps, and snooze registration |
+| `uiTheme` / `uiLocale` (settings panel only) | VS Code may mirror a subset into native Settings |
+
+Do not hand-copy internal storage files between hosts; use UiBridge secret-free export/import. Claims of full host parity must match [IMPLEMENTATION_STATUS.en.md](IMPLEMENTATION_STATUS.en.md).
 
 ## Storage and host differences
 
@@ -24,11 +36,12 @@ Snapshots and exports expose only `hasApiKey`, never `apiKey`. Import discards s
 | `enableInComments` / `enableInStrings` | `true` | Allow completion in comments/strings |
 | `firstLineOnlyWhenMidLine` | `true` | Show only the first line when the cursor is mid-line |
 | `sendFilePath` | `true` | Add the file path to the prompt |
-| `respectGitignore` | `true` | JetBrains includes project `.gitignore` patterns in skip rules; VS Code currently stores the preference but does not inject workspace `.gitignore` into its engine |
+| `respectGitignore` | `true` | Include project/workspace-root `.gitignore` in skip rules (both hosts inject into the engine) |
 | `ignoreGlobs` | below | Extra ignored path patterns, one per line |
 | `disabledLanguages` | empty | Disabled language IDs, comma/newline separated |
-| `showStatusBar` | `true` | Show the status-bar entry |
-| `uiTheme` | `auto` | Settings panel theme: follow IDE, light, or dark |
+| `showStatusBar` | `true` | Show the status-bar entry (toggleable at runtime) |
+| `uiTheme` | `auto` | Settings panel theme: follow IDE, light, or dark (does not change the IDE theme) |
+| `uiLocale` | `auto` | Settings panel language: follow IDE, or force en/zh/ja/ko (does not change the IDE UI language) |
 
 Default ignore globs:
 
@@ -45,7 +58,7 @@ Default ignore globs:
 
 JetBrains exposes `AutoComplete.Trigger` (Ctrl+Shift+Space by default, Cmd+Shift+Space on macOS), toggle, cancel, 30-minute snooze, and open-settings/logs actions; key bindings belong to the IDE Keymap. VS Code provides equivalent Trigger, Toggle Enabled, Open Settings Panel, Show Logs, and Set API Key commands.
 
-> The current VS Code provider does not perform syntax-aware comment/string detection: it passes both context hints as `false` to the TS engine. These two settings therefore do not yet enforce that distinction on the VS Code hot path. JetBrains supplies hints through `ContextProbe`.
+> Comment/string gates use a lightweight heuristic probe (not a full parser). Both hosts populate `inComment` / `inString` on the request path.
 
 ## Saved profiles
 
@@ -100,7 +113,7 @@ Recent-file context increases code sent to an endpoint; leave it off unless the 
 | `logRetention` | `1000` | In-memory ring-buffer entries; oldest are discarded |
 | `logPromptBodies` | `false` | Log truncated prompt bodies; sensitive and off by default |
 | `notifyOnFatalError` | `true` | Notify on fatal configuration errors such as 401/403 |
-| `showCostApprox` | `false` | Show approximate token usage when returned by the provider |
+| `showCostApprox` | `false` | Append token usage to log lines when the provider returns usage (not a cost estimate) |
 
 Logs never contain API keys or authorization headers. JetBrains also writes accepted log entries to `idea.log`; VS Code also writes to the **Auto Complete** OutputChannel. See the [UiBridge protocol](../packages/completion/contracts/bridge-protocol.md) for fields.
 

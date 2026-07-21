@@ -2,7 +2,9 @@
 
 [English](README.md) · [中文](README.zh.md)
 
-`shared-spec` 保存 JetBrains Kotlin 引擎、VS Code TypeScript 引擎和共用 Web 设置界面之间的**行为契约与测试数据**。它不代表两个引擎在运行时动态加载所有 JSON；实现变更仍需同时检查两端代码。
+磁盘路径：`packages/completion/contracts` · npm 包名：`@auto-complete/shared-spec`。
+
+本目录保存 JetBrains Kotlin 引擎、VS Code TypeScript 引擎和共用 Web 设置界面之间的**行为契约与测试数据**。它不代表两个引擎在运行时动态加载所有 JSON；实现变更仍需同时检查两端代码。TypeScript golden 测试（`packages/completion/engine-ts/test`）会读取此处的 `testdata/**`；Kotlin 引擎以并行单元测试对齐行为，而不是在运行时加载每一份 JSON fixture。
 
 | 文件/目录 | 作用 |
 |---|---|
@@ -16,7 +18,7 @@
 修改设置 key、模板、语言规则或共享行为时：
 
 1. 更新此处的契约/fixture（若该项属于共享语义）；
-2. 更新 Kotlin `core` 与 TypeScript `core-ts` 的实现或明确记录有意差异；
+2. 更新 Kotlin `packages/completion/engine-jvm`（Gradle `:core`）与 TypeScript `packages/completion/engine-ts`（npm `@auto-complete/core-ts`）的实现，或明确记录有意差异；
 3. 运行两端相关测试；
 4. 更新用户文档，尤其是 `docs/SETTINGS*`、`docs/PROVIDERS*`、`docs/IMPLEMENTATION_STATUS*`。
 

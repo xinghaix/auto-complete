@@ -49,7 +49,7 @@ type BridgeResponse = {
 | `probeAllTemplates` | `{ profileId? }` | `probeAllResult` | |
 | `listModels` | `{ profileId? }` | `modelsResult` | |
 | `subscribeLogs` | `{ level? }` | `logSubscribed` | Then push `logBatch` |
-| `unsubscribeLogs` | — | `logUnsubscribed` | **Reserved**; JetBrains handles it, current VS Code bridge does not dispatch it |
+| `unsubscribeLogs` | — | `logUnsubscribed` | Both hosts accept it (VS Code no-op while the panel stays open) |
 | `clearLogs` | — | `logsCleared` | |
 | `getLogLevel` | — | `logLevel` | |
 | `setLogLevel` | `{ level }` | `logLevel` | **Reserved**; update through `applySettings` today |
@@ -64,17 +64,17 @@ type BridgeResponse = {
 | `snapshot` | full snapshot (no keys); normally returned in response to a request |
 | `logEntry` | **Reserved**; current hosts batch logs rather than push individual entries |
 | `logBatch` | `{ entries: LogEntry[] }` — active push path, typically every 100–200ms |
-| `themeChanged` | **Reserved**; hosts provide initial theme through `getPlatform` |
-| `localeChanged` | **Reserved**; hosts provide initial locale through `getPlatform` |
-| `settingsChanged` | **Reserved**; current UI refreshes from apply/snapshot responses |
+| `themeChanged` | `{ theme }` — IDE color scheme change (VS Code pushes while panel open; JB via `getPlatform` refresh) |
+| `localeChanged` | `{ locale }` — IDE UI language tag (VS Code pushes on open; JB via `getPlatform`) |
+| `settingsChanged` | optional full snapshot; UI also refreshes from apply/snapshot responses |
 
 ## Security (locked)
 
 1. **`snapshot` never returns API key plaintext** — only `hasApiKey: boolean` per profile.
 2. Secrets travel only via `setSecret` once; host writes to SecretStorage / PasswordSafe; UI must clear the input.
 3. Export JSON must strip secrets.
-4. Completion HTTP runs only in **core** (core-ts / core-jvm). Web UI must not `fetch` user `baseUrl`.
-5. Test connection / template probes go **Bridge → host → core**.
+4. Completion HTTP runs only in the engines (`packages/completion/engine-ts` / `packages/completion/engine-jvm`). Web UI must not `fetch` user `baseUrl`.
+5. Test connection / template probes go **Bridge → host → engine client**.
 6. CSP: VS Code Webview strict; JB prefers local packaged assets.
 
 ## LogEntry shape

@@ -2,7 +2,7 @@
 
 [中文](CONTRIBUTING.zh.md) · [English](CONTRIBUTING.md)
 
-Auto Complete is a dual-host, bring-your-own-endpoint inline-completion project: JetBrains uses Kotlin `core` + `plugin`; VS Code uses `packages/completion/engine-ts` + `apps/vscode/extension`; both embed `packages/settings/ui` and align through `packages/completion/contracts`.
+Auto Complete is a dual-host, bring-your-own-endpoint inline-completion project: JetBrains uses Kotlin `packages/completion/engine-jvm` (Gradle `:core`) + `apps/jetbrains/plugin` (Gradle `:plugin`); VS Code uses `packages/completion/engine-ts` + `apps/vscode/extension`; both embed `packages/settings/ui` and align through `packages/completion/contracts`.
 
 It is an independent implementation informed by Kilo Code behaviour. Keep contributions within the lightweight completion boundary: no JetBrains-to-VS-Code bridge, `kilo serve` runtime, account system, Agent, or Next Edit product.
 
@@ -36,19 +36,19 @@ For one host, use `SKIP_JB=1` or `SKIP_VSCODE=1`. The package script does not re
 
 ## Code layout
 
-| Path | Responsibility |
-|---|---|
-| `packages/completion/engine-jvm/src/main/kotlin` | Pure Kotlin completion pipeline, HTTP client, prompt/cache/skip/filter/backoff |
-| `apps/jetbrains/plugin/src/main/kotlin` | JetBrains inline provider, JCEF bridge, PasswordSafe settings, IDE HTTP integration |
-| `packages/completion/engine-ts/src` | TypeScript dual completion pipeline |
-| `packages/settings/ui/src` | Vue 3 shared Settings + Logs UI and i18n |
-| `packages/completion/contracts` | Schema, templates, language map, bridge protocol, golden fixtures |
-| `apps/vscode/extension/src` | VS Code provider, settings persistence, SecretStorage, Webview bridge |
+| Path | Module / package name | Responsibility |
+|---|---|---|
+| `packages/completion/engine-jvm/src/main/kotlin` | Gradle `:core` | Pure Kotlin completion pipeline, HTTP client, prompt/cache/skip/filter/backoff |
+| `apps/jetbrains/plugin/src/main/kotlin` | Gradle `:plugin` | JetBrains inline provider, JCEF bridge, PasswordSafe settings, IDE HTTP integration |
+| `packages/completion/engine-ts/src` | npm `@auto-complete/core-ts` | TypeScript dual completion pipeline |
+| `packages/settings/ui/src` | npm `@auto-complete/settings-ui` | Vue 3 shared Settings + Logs UI and i18n |
+| `packages/completion/contracts` | npm `@auto-complete/shared-spec` | Schema, templates, language map, bridge protocol, golden fixtures |
+| `apps/vscode/extension/src` | npm `auto-complete` | VS Code provider, settings persistence, SecretStorage, Webview bridge |
 
 ## Rules for changes
 
 1. Read `AGENTS.md` and the relevant `docs/` page before changing a subsystem.
-2. Keep core algorithms host-neutral; do not add IntelliJ APIs to `core` or VS Code APIs to `core-ts`.
+2. Keep core algorithms host-neutral; do not add IntelliJ APIs to `packages/completion/engine-jvm` (`:core`) or VS Code APIs to `packages/completion/engine-ts` (`@auto-complete/core-ts`).
 3. Preserve cancellable requests and generation checks; do not run provider HTTP from JCEF/Webview.
 4. Keep API keys in PasswordSafe/SecretStorage. Never add keys, personal endpoints, or raw prompt samples to source, docs, tests, or fixtures.
 5. Update both host implementations and shared fixtures when changing a shared engine behaviour, template, or settings key—or document an intentional host difference in `docs/IMPLEMENTATION_STATUS.md`.

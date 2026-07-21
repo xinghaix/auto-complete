@@ -33,6 +33,11 @@ class AutoCompleteSettingsService : PersistentStateComponent<AutoCompleteSetting
          * Does not change the IDE Look and Feel — only the JCEF settings UI.
          */
         var uiTheme: String = "auto",
+        /**
+         * Settings panel UI locale: `auto` (follow IDE) or a fixed catalog id
+         * (`en` / `zh` / `ja` / `ko`). Does not change the IDE UI language.
+         */
+        var uiLocale: String = "auto",
         /** Active profile id; empty when no saved profiles. */
         var activeProfileId: String = "",
         /** Named connection profiles (provider / endpoint / model / timeouts…). */

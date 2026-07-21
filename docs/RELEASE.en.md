@@ -57,7 +57,7 @@ npm install              # first time or after dependency changes
 # or npm run package:local
 ```
 
-It builds shared `settings-ui`, runs `:core:test`, builds the JetBrains ZIP, then builds `core-ts`, the VS Code extension, and a VSIX.
+It builds shared `packages/settings/ui`, runs Gradle `:core:test`, builds the JetBrains ZIP, then builds `packages/completion/engine-ts`, the VS Code extension, and a VSIX.
 
 | Artifact | Installation |
 |---|---|

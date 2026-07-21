@@ -6,7 +6,7 @@
 
 Auto Complete is an independent dual-host inline-completion project. It uses open-source [Kilo Code / kilocode](https://github.com/Kilo-Org/kilocode) and [kilocode-legacy](https://github.com/Kilo-Org/kilocode-legacy) as references for classic completion behaviour and design, then reimplements that behaviour in this repository in Kotlin/JVM and TypeScript.
 
-The current tree is not “JetBrains shipped, VS Code planned”: it contains JetBrains `plugin` plus Kotlin `core`, VS Code `apps/vscode/extension` plus `packages/completion/engine-ts`, shared `packages/settings/ui`, and `packages/completion/contracts`. The hosts do not call each other through an Extension Host, RPC, or `kilo serve`.
+The current tree is not “JetBrains shipped, VS Code planned”: it contains JetBrains `apps/jetbrains/plugin` (Gradle `:plugin`) plus Kotlin `packages/completion/engine-jvm` (Gradle `:core`), VS Code `apps/vscode/extension` plus `packages/completion/engine-ts`, shared `packages/settings/ui`, and `packages/completion/contracts`. The hosts do not call each other through an Extension Host, RPC, or `kilo serve`.
 
 ## Reference use
 
@@ -30,7 +30,7 @@ The historical v5 JetBrains shell sent complete documents through RPC to a VS Co
 | VS Code host | — | `apps/vscode/extension/src/` |
 | Shared contract | `packages/completion/contracts/`: schema, templates, language map, UiBridge, fixtures | same |
 
-`shared-spec` is a cross-host documentation/fixture contract. When changing completion behaviour, templates, or settings keys, review both host implementations and fixture tests; do not assume every JSON file is automatically loaded at runtime.
+`packages/completion/contracts` (npm: `@auto-complete/shared-spec`) is the cross-host documentation/fixture contract. When changing completion behaviour, templates, or settings keys, review both host implementations and fixture tests; do not assume every JSON file is automatically loaded at runtime.
 
 ## Explicit non-goals
 

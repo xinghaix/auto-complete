@@ -90,6 +90,9 @@ export type MessageKey =
   | "themeLight"
   | "themeDark"
   | "helpTheme"
+  | "helpLanguage"
+  | "helpImportExport"
+  | "helpOverrideBudget"
   | "templateAuto"
   | "templateCodestral"
   | "templateQwen"
@@ -216,7 +219,7 @@ export const en: Messages = {
   logRetention: "Log retention",
   logPromptBodies: "Log full prompts (sensitive)",
   notifyFatal: "Notify on fatal auth errors",
-  showCost: "Show approx. usage in logs",
+  showCost: "Show token usage in logs",
   confirmDelete: "Delete this saved configuration?",
   noProfiles: "(none)",
   platform: "Host",
@@ -230,7 +233,13 @@ export const en: Messages = {
   themeAuto: "Auto (follow IDE)",
   themeLight: "Light",
   themeDark: "Dark",
-  helpTheme: "Settings panel appearance. Auto follows the IDE color scheme.",
+  helpTheme: "Settings panel appearance only — does not change the IDE theme. Auto follows the IDE color scheme.",
+  helpLanguage:
+    "Settings panel language only — does not change the IDE UI language. Auto follows the IDE display language. Preference is saved.",
+  helpImportExport:
+    "Export copies settings JSON (no API keys) to the clipboard. Import pastes JSON and applies it; re-enter keys after import.",
+  helpOverrideBudget:
+    "When enabled, this profile uses its own prefix/suffix limits instead of the Performance tab values.",
   templateAuto: "Auto",
   templateCodestral: "(fim) OpenAI FIM",
   templateQwen: "(fim) Qwen",
@@ -271,7 +280,7 @@ export const en: Messages = {
   helpLogRetention: "In-memory ring buffer size (events). Oldest dropped when full. Range 50–10000.",
   helpLogPromptBodies: "Highly sensitive: records truncated prompt bodies in the log buffer.",
   logsHint: "Same buffer as the engine (connection tests, completions). Batch-refreshed from the host.",
-  moreActions: "More",
+  moreActions: "Import / export",
   tabGeneral: "General",
   sectionGeneral: "General",
   confirmDeleteInline: "Delete this configuration?",
@@ -357,7 +366,7 @@ export const zh: Messages = {
   logRetention: "日志条数",
   logPromptBodies: "记录完整提示词（敏感）",
   notifyFatal: "严重鉴权错误时通知",
-  showCost: "日志中显示近似用量",
+  showCost: "日志中显示 token 用量",
   confirmDelete: "删除此已保存配置？",
   noProfiles: "（无）",
   platform: "宿主",
@@ -371,7 +380,12 @@ export const zh: Messages = {
   themeAuto: "自动（跟随 IDE）",
   themeLight: "白色",
   themeDark: "暗黑",
-  helpTheme: "设置面板外观。自动时跟随 IDE 明暗色。",
+  helpTheme: "仅设置面板外观，不会改变 IDE 主题。自动时跟随 IDE 明暗色。",
+  helpLanguage:
+    "仅设置面板语言，不会改变 IDE 界面语言。自动时跟随 IDE 显示语言。选择会保存。",
+  helpImportExport:
+    "导出将设置 JSON（不含 API 密钥）复制到剪贴板。导入粘贴 JSON 并应用；导入后需重新填写密钥。",
+  helpOverrideBudget: "启用后，本配置使用自己的前缀/后缀上限，而不使用「性能」页的全局值。",
   templateAuto: "自动",
   templateCodestral: "(fim) OpenAI FIM",
   templateQwen: "(fim) Qwen",
@@ -410,7 +424,7 @@ export const zh: Messages = {
   helpLogRetention: "内存环形缓冲条数。满则丢弃最旧。默认 1000，范围 50–10000。",
   helpLogPromptBodies: "高敏：在日志缓冲区记录截断后的 prompt 全文。",
   logsHint: "与引擎共用缓冲区（测连接、补全等），由宿主批量推送。",
-  moreActions: "更多",
+  moreActions: "导入 / 导出",
   tabGeneral: "基础设置",
   sectionGeneral: "通用",
   confirmDeleteInline: "确认删除此配置？",
@@ -497,7 +511,7 @@ export const ja: Messages = {
   logRetention: "ログ保持件数",
   logPromptBodies: "プロンプト全文を記録（機密）",
   notifyFatal: "致命的な認証エラーを通知",
-  showCost: "ログに概算使用量を表示",
+  showCost: "ログにトークン使用量を表示",
   confirmDelete: "この保存済み設定を削除しますか？",
   noProfiles: "（なし）",
   platform: "ホスト",
@@ -512,7 +526,13 @@ export const ja: Messages = {
   themeAuto: "自動（IDE に合わせる）",
   themeLight: "ライト",
   themeDark: "ダーク",
-  helpTheme: "設定パネルの外観。自動は IDE の配色に従います。",
+  helpTheme: "設定パネルの外観のみ。IDE テーマは変わりません。自動は IDE の配色に従います。",
+  helpLanguage:
+    "設定パネルの言語のみ。IDE の UI 言語は変わりません。自動は IDE 表示言語に従います。選択は保存されます。",
+  helpImportExport:
+    "エクスポートは API キーなしの設定 JSON をクリップボードへ。インポートは JSON を適用；キーは再入力が必要です。",
+  helpOverrideBudget:
+    "有効時、このプロファイルはパフォーマンスタブではなく独自の前後文字上限を使います。",
   templateAuto: "自動",
   templateCodestral: "(fim) OpenAI FIM",
   templateQwen: "(fim) Qwen",
@@ -552,7 +572,7 @@ export const ja: Messages = {
   helpLogRetention: "メモリリングバッファ件数。満杯で古いものから破棄。50–10000。",
   helpLogPromptBodies: "機密: 切り詰めプロンプト本文をログに記録。",
   logsHint: "エンジンと共有のログ（接続テスト・補完）。ホストからバッチ配信。",
-  moreActions: "その他",
+  moreActions: "インポート / エクスポート",
   tabGeneral: "一般",
   sectionGeneral: "一般",
   confirmDeleteInline: "この構成を削除しますか？",
@@ -639,7 +659,7 @@ export const ko: Messages = {
   logRetention: "로그 보관 수",
   logPromptBodies: "전체 프롬프트 기록(민감)",
   notifyFatal: "치명적 인증 오류 알림",
-  showCost: "로그에 대략 사용량 표시",
+  showCost: "로그에 토큰 사용량 표시",
   confirmDelete: "이 저장된 구성을 삭제할까요?",
   noProfiles: "(없음)",
   platform: "호스트",
@@ -653,7 +673,13 @@ export const ko: Messages = {
   themeAuto: "자동(IDE 따름)",
   themeLight: "라이트",
   themeDark: "다크",
-  helpTheme: "설정 패널 모양. 자동은 IDE 색 구성표를 따릅니다.",
+  helpTheme: "설정 패널 모양만 변경합니다. IDE 테마는 바뀌지 않습니다. 자동은 IDE 색 구성표를 따릅니다.",
+  helpLanguage:
+    "설정 패널 언어만 변경합니다. IDE UI 언어는 바뀌지 않습니다. 자동은 IDE 표시 언어를 따르며 선택은 저장됩니다.",
+  helpImportExport:
+    "내보내기는 API 키 없는 설정 JSON을 클립보드에 복사합니다. 가져오기는 JSON을 적용하며 키는 다시 입력해야 합니다.",
+  helpOverrideBudget:
+    "켜면 이 구성은 성능 탭 대신 자체 접두사/접미사 한도를 사용합니다.",
   templateAuto: "자동",
   templateCodestral: "(fim) OpenAI FIM",
   templateQwen: "(fim) Qwen",
@@ -693,7 +719,7 @@ export const ko: Messages = {
   helpLogRetention: "메모리 링 버퍼 크기. 가득 차면 오래된 항목 삭제. 50–10000.",
   helpLogPromptBodies: "민감: 잘린 프롬프트 본문을 로그에 기록.",
   logsHint: "엔진과 동일한 로그 버퍼. 호스트가 일괄 푸시합니다.",
-  moreActions: "더 보기",
+  moreActions: "가져오기 / 내보내기",
   tabGeneral: "일반",
   sectionGeneral: "일반",
   confirmDeleteInline: "이 구성을 삭제하시겠습니까?",

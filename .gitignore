@@ -47,6 +47,8 @@ node_modules/
 packages/**/dist/
 apps/vscode/extension/dist/
 apps/vscode/extension/dist-vsix/
+# Copied from repo-root LICENSE at package time (package-vsix.mjs); not source of truth
+apps/vscode/extension/LICENSE
 packages/settings/ui/dist/
 # Copied into the plugin at package time (copySettingsUi); not source of truth
 apps/jetbrains/plugin/src/main/resources/settings-ui/

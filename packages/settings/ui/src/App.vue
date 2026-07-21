@@ -5,6 +5,7 @@ import CheckRow from "./components/CheckRow.vue";
 import GroupCard from "./components/GroupCard.vue";
 import PropertyRow from "./components/PropertyRow.vue";
 import ModelCombo from "./components/ModelCombo.vue";
+import ProfileCombo from "./components/ProfileCombo.vue";
 import SelectCombo from "./components/SelectCombo.vue";
 import {
   applyDocumentLocale,
@@ -24,6 +25,7 @@ import {
   ignoreGlobsFromSnapshot,
   normalizeHostTheme,
   normalizeTab,
+  normalizeUiLocale,
   normalizeUiTheme,
   numOr,
   validateForm,
@@ -87,7 +89,6 @@ const modelStatusKind = ref<"ok" | "err" | "warn" | "">("");
 const logs = ref<LogEntry[]>([]);
 const logFilter = ref("info");
 const renameValue = ref("");
-const profileMenuOpen = ref(false);
 const advancedOpen = ref(false);
 const deleteConfirming = ref(false);
 const saveState = ref<SaveState>("idle");
@@ -239,7 +240,6 @@ function applySnapshot(s: Snapshot) {
     clearProbeStatus();
   }
   activeId.value = id;
-  profileMenuOpen.value = false;
   const p = list.find((x) => x.id === id) ?? list[0];
   if (p) {
     form.value = { ...p };
@@ -276,6 +276,15 @@ function applySnapshot(s: Snapshot) {
   notifyOnFatalError.value = s.notifyOnFatalError !== false;
   showCostApprox.value = s.showCostApprox === true;
   uiTheme.value = normalizeUiTheme(s.uiTheme);
+  const loc = normalizeUiLocale(s.uiLocale);
+  if (loc === "auto") {
+    localeFollowIde.value = true;
+    // IDE locale applied via loadPlatform / localeChanged push
+  } else {
+    localeFollowIde.value = false;
+    locale.value = loc as Locale;
+    applyDocumentLocale(loc as Locale);
+  }
   loaded.value = true;
 }
 
@@ -310,7 +319,6 @@ function patchForm(partial: Partial<Profile>) {
 }
 
 async function onSelectProfile(id: string) {
-  profileMenuOpen.value = false;
   if (!id || id === activeId.value) return;
   const res = await bridge.request("selectProfile", { profileId: id });
   if (res.ok && res.payload) applySnapshot(res.payload as Snapshot);
@@ -442,11 +450,57 @@ function onLanguageChange(value: string) {
       ideLocaleTag.value || (typeof navigator !== "undefined" ? navigator.language : "en"),
     );
     void loadPlatform();
+    scheduleSave();
     return;
   }
   localeFollowIde.value = false;
   locale.value = value as Locale;
   applyDocumentLocale(value as Locale);
+  scheduleSave();
+}
+
+async function onExport() {
+  try {
+    const res = await bridge.request("exportSettings");
+    if (!res.ok) {
+      saveState.value = "error";
+      saveMsg.value = res.error || tr("exportFailed");
+      return;
+    }
+    const json = (res.payload as { json?: string } | undefined)?.json ?? "";
+    if (!json) {
+      saveState.value = "error";
+      saveMsg.value = tr("exportFailed");
+      return;
+    }
+    await navigator.clipboard.writeText(json);
+    saveState.value = "saved";
+    saveMsg.value = tr("exportOk");
+  } catch (e) {
+    saveState.value = "error";
+    saveMsg.value = e instanceof Error ? e.message : tr("exportFailed");
+  }
+}
+
+async function onImport() {
+  const raw = window.prompt(tr("importPrompt"));
+  if (raw == null) return;
+  const json = raw.trim();
+  if (!json) return;
+  try {
+    const res = await bridge.request("importSettings", { json });
+    if (!res.ok) {
+      saveState.value = "error";
+      saveMsg.value = res.error || tr("importFailed");
+      return;
+    }
+    await load();
+    saveState.value = "saved";
+    saveMsg.value = tr("importOk");
+  } catch (e) {
+    saveState.value = "error";
+    saveMsg.value = e instanceof Error ? e.message : tr("importFailed");
+  }
 }
 
 function onThemeChange(value: string) {
@@ -504,6 +558,7 @@ async function doSave() {
     notifyOnFatalError: notifyOnFatalError.value,
     showCostApprox: showCostApprox.value,
     uiTheme: uiTheme.value,
+    uiLocale: localeFollowIde.value ? "auto" : locale.value,
   };
   saveState.value = "saving";
   saveMsg.value = tr("saving");
@@ -523,16 +578,6 @@ function scheduleSave() {
   saveTimer = setTimeout(() => void doSave(), AUTOSAVE_DELAY);
 }
 
-function onProfileMenuDoc(ev: MouseEvent) {
-  const el = ev.target as HTMLElement | null;
-  if (el?.closest?.(".profile-combo")) return;
-  profileMenuOpen.value = false;
-}
-
-function onProfileMenuKey(ev: KeyboardEvent) {
-  if (ev.key === "Escape") profileMenuOpen.value = false;
-}
-
 function onHostOpenTab(ev: Event) {
   const tabName = (ev as CustomEvent<{ tab?: string }>).detail?.tab;
   if (tabName) openTab(tabName);
@@ -548,16 +593,6 @@ watch([uiTheme, ideTheme], ([pref, host]) => {
 
 watch(apiKey, (v) => {
   apiKeyPending.value = v;
-});
-
-watch(profileMenuOpen, (open) => {
-  if (open) {
-    document.addEventListener("mousedown", onProfileMenuDoc);
-    document.addEventListener("keydown", onProfileMenuKey);
-  } else {
-    document.removeEventListener("mousedown", onProfileMenuDoc);
-    document.removeEventListener("keydown", onProfileMenuKey);
-  }
 });
 
 watch(saveState, (st) => {
@@ -651,8 +686,6 @@ onMounted(() => {
 onUnmounted(() => {
   window.removeEventListener("ac-open-tab", onHostOpenTab as EventListener);
   delete window.__acSetTab;
-  document.removeEventListener("mousedown", onProfileMenuDoc);
-  document.removeEventListener("keydown", onProfileMenuKey);
   if (saveTimer) clearTimeout(saveTimer);
   if (saveStatusTimer) clearTimeout(saveStatusTimer);
   if (modelStatusTimer) clearTimeout(modelStatusTimer);
@@ -668,24 +701,10 @@ function onRenameKey(e: KeyboardEvent) {
     target.blur();
   } else if (e.key === "Escape") {
     e.preventDefault();
-    profileMenuOpen.value = false;
     const current = profiles.value.find((p) => p.id === activeId.value)?.name ?? "";
     renameValue.value = current;
     target.blur();
-  } else if (e.key === "ArrowDown") {
-    e.preventDefault();
-    profileMenuOpen.value = true;
   }
-}
-
-function toggleProfileMenu(e: MouseEvent) {
-  e.preventDefault();
-  profileMenuOpen.value = !profileMenuOpen.value;
-}
-
-function pickProfile(id: string, e: MouseEvent) {
-  e.preventDefault();
-  void onSelectProfile(id);
 }
 
 function clearLogs() {
@@ -755,46 +774,18 @@ function copyLogs() {
       <template v-if="tab === 'config'">
         <GroupCard :title="tr('sectionProvider')" :measure-key="locale">
           <template #toolbar>
-            <div class="profile-combo" role="group" :aria-label="tr('profiles')">
-              <input
-                type="text"
-                class="profile-combo-input"
-                v-model="renameValue"
-                :disabled="!activeId"
-                :aria-label="tr('profiles')"
-                :placeholder="tr('noProfiles')"
-                spellcheck="false"
-                @blur="commitRename()"
-                @keydown="onRenameKey"
-              />
-              <button
-                type="button"
-                class="profile-combo-toggle"
-                :disabled="profiles.length === 0"
-                :aria-label="tr('profiles')"
-                aria-haspopup="listbox"
-                :aria-expanded="profileMenuOpen"
-                @mousedown="toggleProfileMenu"
-              >
-                ▾
-              </button>
-              <ul v-if="profileMenuOpen" class="profile-combo-menu" role="listbox">
-                <li
-                  v-for="p in profiles"
-                  :key="p.id"
-                  role="option"
-                  :aria-selected="p.id === activeId"
-                >
-                  <button
-                    type="button"
-                    :class="{ active: p.id === activeId }"
-                    @mousedown="pickProfile(p.id, $event)"
-                  >
-                    {{ p.name }}
-                  </button>
-                </li>
-              </ul>
-            </div>
+            <ProfileCombo
+              :model-value="activeId"
+              :options="profiles"
+              :rename-value="renameValue"
+              :disabled="!activeId"
+              :aria-label="tr('profiles')"
+              :placeholder="tr('noProfiles')"
+              @update:rename-value="(v) => (renameValue = v)"
+              @select="(id) => void onSelectProfile(id)"
+              @commit-rename="void commitRename()"
+              @rename-keydown="onRenameKey"
+            />
             <button type="button" class="btn btn-secondary" @click="onCreate()">
               {{ tr("newProfile") }}
             </button>
@@ -849,6 +840,7 @@ function copyLogs() {
                   {{ tr("clearKey") }}
                 </button>
               </div>
+              <p class="row-help">{{ tr("secretHint") }}</p>
             </PropertyRow>
             <PropertyRow :label="tr('model')" :help="tr('helpModel')" required>
               <ModelCombo
@@ -1023,12 +1015,14 @@ function copyLogs() {
               <CheckRow
                 :model-value="!!form.overrideContextBudget"
                 :label="tr('overrideBudget')"
+                :help="tr('helpOverrideBudget')"
                 @update:model-value="(v) => patchForm({ overrideContextBudget: v })"
               />
               <PropertyRow :label="tr('maxPrefix')">
                 <input
                   type="number"
                   :value="form.maxPrefixChars ?? 8000"
+                  :disabled="!form.overrideContextBudget"
                   @input="
                     patchForm({ maxPrefixChars: Number(($event.target as HTMLInputElement).value) })
                   "
@@ -1038,6 +1032,7 @@ function copyLogs() {
                 <input
                   type="number"
                   :value="form.maxSuffixChars ?? 2000"
+                  :disabled="!form.overrideContextBudget"
                   @input="
                     patchForm({ maxSuffixChars: Number(($event.target as HTMLInputElement).value) })
                   "
@@ -1140,13 +1135,12 @@ function copyLogs() {
       <!-- General -->
       <template v-if="tab === 'general'">
         <GroupCard :title="tr('sectionGeneral')" :measure-key="locale">
-          <PropertyRow :label="tr('language')">
+          <PropertyRow :label="tr('language')" :help="tr('helpLanguage')">
             <SelectCombo
               :model-value="languageSelectValue"
               :options="languageOptions"
               @update:model-value="onLanguageChange"
             />
-            <p class="row-help">{{ tr("secretHint") }}</p>
           </PropertyRow>
           <PropertyRow :label="tr('theme')" :help="tr('helpTheme')">
             <SelectCombo
@@ -1154,6 +1148,17 @@ function copyLogs() {
               :options="themeOptions"
               @update:model-value="onThemeChange"
             />
+          </PropertyRow>
+          <PropertyRow :label="tr('moreActions')">
+            <div class="hstack">
+              <button type="button" class="btn btn-secondary" @click="void onExport()">
+                {{ tr("export") }}
+              </button>
+              <button type="button" class="btn btn-secondary" @click="void onImport()">
+                {{ tr("import") }}
+              </button>
+            </div>
+            <p class="row-help">{{ tr("helpImportExport") }}</p>
           </PropertyRow>
         </GroupCard>
       </template>
