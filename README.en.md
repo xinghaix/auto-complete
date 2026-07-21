@@ -16,17 +16,11 @@
 
 <p align="center">
   <a href="https://plugins.jetbrains.com/plugin/33040-auto-complete">
-    <img alt="Get Auto Complete from JetBrains Marketplace" src="https://img.shields.io/badge/JetBrains%20Marketplace-Auto%20Complete-orange?style=for-the-badge&logo=jetbrains" />
+    <img alt="Get from JetBrains Marketplace" src="https://img.shields.io/jetbrains/plugin/v/33040-auto-complete.svg?label=JetBrains%20Marketplace&style=for-the-badge" />
   </a>
 </p>
 
-```html
-<!-- Optional embed on a custom site (replace #yourelement with your element id) -->
-<script src="https://plugins.jetbrains.com/assets/scripts/mp-widget.js"></script>
-<script>
-  MarketplaceWidget.setupMarketplaceWidget('card', 33040, "#yourelement");
-</script>
-```
+> GitHub README **cannot** run the Marketplace JS card widget; the badge above links to the store page. For the official embed on **your own site**, see [docs/MARKETPLACE.en.md](docs/MARKETPLACE.en.md).
 
 ## Features
 

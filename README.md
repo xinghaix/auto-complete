@@ -14,20 +14,13 @@
 
 **许可：** Apache-2.0 · **阶段：** 开源预览
 
-<!-- JetBrains Marketplace card (plugin id 33040). Renders on pages that load the widget script. -->
 <p align="center">
   <a href="https://plugins.jetbrains.com/plugin/33040-auto-complete">
-    <img alt="Get Auto Complete from JetBrains Marketplace" src="https://img.shields.io/badge/JetBrains%20Marketplace-Auto%20Complete-orange?style=for-the-badge&logo=jetbrains" />
+    <img alt="Get from JetBrains Marketplace" src="https://img.shields.io/jetbrains/plugin/v/33040-auto-complete.svg?label=JetBrains%20Marketplace&style=for-the-badge" />
   </a>
 </p>
 
-```html
-<!-- Optional embed on a custom site (replace #yourelement with your element id) -->
-<script src="https://plugins.jetbrains.com/assets/scripts/mp-widget.js"></script>
-<script>
-  MarketplaceWidget.setupMarketplaceWidget('card', 33040, "#yourelement");
-</script>
-```
+> GitHub README **不能**运行 Marketplace 的 JS 卡片脚本；上面用徽章跳转商店页。若要在**自有网站**嵌入官方卡片，见 [docs/MARKETPLACE.md](docs/MARKETPLACE.md)。
 
 ## 能做什么
 
