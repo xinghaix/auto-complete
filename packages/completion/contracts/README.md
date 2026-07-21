@@ -15,6 +15,6 @@ Shared **rules and fixtures** for both engines and the settings UI. Not “every
 | `bridge-protocol.md` | Settings UI ↔ host messages |
 | `testdata/**` | HTTP / prompt / cache samples |
 
-When shared semantics change: update here → both engines → tests → user docs.
+When shared semantics change: update here → both engines → tests → `docs/GUIDE` when user-visible.
 
 **Never** put real keys, auth headers, private endpoints, or user code in samples.

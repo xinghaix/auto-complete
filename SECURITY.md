@@ -30,4 +30,4 @@ Include the affected version or commit, host (JetBrains/VS Code), impact, minima
 
 This project runs in two hosts. Please identify the host and IDE/extension version in reports. JetBrains networking follows IDE proxy/trust-store integration; VS Code uses its extension networking path. Provider data policies, TLS interception, endpoint access controls, and network egress policies remain the user's responsibility.
 
-For a complete description of what settings can transmit, see [docs/SETTINGS.en.md](docs/SETTINGS.en.md) and [docs/PROVIDERS.en.md](docs/PROVIDERS.en.md).
+What settings can transmit: [docs/GUIDE.en.md](docs/GUIDE.en.md) (privacy + settings sections).

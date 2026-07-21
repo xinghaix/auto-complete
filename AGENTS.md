@@ -10,9 +10,9 @@ Auto Complete is a dual-host, bring-your-own-endpoint AI inline completion produ
 - **VS Code:** `apps/vscode/extension/` host (npm `auto-complete`) + TypeScript `packages/completion/engine-ts/` engine (npm `@auto-complete/core-ts`).
 - **Shared:** `packages/completion/contracts/` contracts/fixtures (npm `@auto-complete/shared-spec`) and Vue `packages/settings/ui/` (npm `@auto-complete/settings-ui`) embedded through each host bridge.
 
-The hosts run independently. JetBrains must never use a VS Code Extension Host, `kilo serve`, or an RPC bridge to obtain completion. The project is an independent implementation informed by Kilo Code behaviour; see `docs/SOURCES.md` and `NOTICE`.
+The hosts run independently. JetBrains must never use a VS Code Extension Host, `kilo serve`, or an RPC bridge to obtain completion. The project is an independent implementation informed by Kilo Code behaviour; see `NOTICE`.
 
-User-facing documentation is paired Chinese/English: root `README.md` / `README.en.md`, then `docs/README.md` / `docs/README.en.md`.
+User-facing docs (Chinese/English pairs): root `README.md` / `README.en.md`, then **`docs/GUIDE.md` / `docs/GUIDE.en.md`**. Maintainer build/sign/release: **`docs/DEV.md` / `docs/DEV.en.md`**. Index: `docs/README.md`.
 
 ## Stage and distribution
 
@@ -25,16 +25,10 @@ Open-source preview:
 
 ## Required reading before meaningful changes
 
-1. `docs/ARCHITECTURE.md`
-2. `docs/SETTINGS.md`
-3. `docs/PROVIDERS.md`
-4. `docs/PERFORMANCE.md`
-5. `docs/RELEASE.md`
-6. `docs/MARKETPLACE.md`
-7. `docs/COMPATIBILITY.md`
-8. `docs/SOURCES.md`
-9. `docs/IMPLEMENTATION_STATUS.md`
-10. `CONTRIBUTING.md`
+1. `docs/GUIDE.md` (user-facing behaviour, settings, providers)
+2. `docs/DEV.md` (layout, build, sign, release, allowed host gaps)
+3. `CONTRIBUTING.md`
+4. `packages/completion/contracts/bridge-protocol.md` when changing UiBridge
 
 ## Hard constraints
 
@@ -46,9 +40,9 @@ Open-source preview:
 - Settings UI must not directly call user provider HTTP: use UI Bridge → host → engine client.
 - Preserve cancellation and generation checks; cancellation is a normal path.
 - Keep `com.intellij.modules.jcef` optional. Load JCEF through `SettingsJcefHost` reflection; do not place `JBCefBrowser` types on `SettingsWebPanel`.
-- JetBrains minimum remains 2024.2 / `pluginSinceBuild=242` unless compatibility docs and tests are deliberately updated.
+- JetBrains minimum remains 2024.2 / `pluginSinceBuild=242` unless `docs/GUIDE.md` / `docs/DEV.md` and tests are deliberately updated.
 - No Agent/Next Edit product scope in the completion path.
-- Prefer cross-host **behavioural** parity (schema, settings-ui, engine gates). Allow only platform-forced differences (storage, chrome, secret APIs, commands). Document allowed gaps in `docs/IMPLEMENTATION_STATUS.md` and the principle in `docs/SETTINGS.md`.
+- Prefer cross-host **behavioural** parity (schema, settings-ui, engine gates). Allow only platform-forced differences (storage, chrome, secret APIs, commands). Document intentional gaps in `docs/DEV.md` (allowed host gaps) and user-visible notes in `docs/GUIDE.md`.
 - **Settings UI changes must be dual-host checked** (JetBrains JCEF + VS Code Webview). See “Dual-host UI checklist” below.
 
 ## Dual-host UI checklist
@@ -66,7 +60,7 @@ Open-source preview:
    - JetBrains: `./gradlew :plugin:runIde` or install ZIP from `package-local.sh`
    - VS Code: F5 / Install from VSIX
    - Smoke: open each tab, open dropdowns/modals, import/export, theme light/dark, language switch
-6. If a behaviour cannot be equal, document the intentional gap in `docs/IMPLEMENTATION_STATUS.md` — do not ship a “works only on one host” control silently.
+6. If a behaviour cannot be equal, document the intentional gap in `docs/DEV.md` — do not ship a “works only on one host” control silently.
 
 ## After every fix: local repackage
 

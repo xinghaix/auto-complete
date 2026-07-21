@@ -8,6 +8,7 @@
 
 ### Changed
 
+- Docs restructured for end users: **`docs/GUIDE`** (install/config/providers) + **`docs/DEV`** (build/sign/release); removed fragmented SETTINGS/PROVIDERS/PERFORMANCE/ARCHITECTURE/… pages
 - JetBrains install docs prioritize [Marketplace plugin 33040](https://plugins.jetbrains.com/plugin/33040-auto-complete); signed ZIP is the fallback
 - CI ships **signed** JetBrains ZIP only (`*-signed.zip`); unsigned ZIPs are no longer release artifacts
 - Marketplace widget id `33040` documented for site embeds
@@ -37,7 +38,7 @@
 - README / ARCHITECTURE document dual-host layout (JetBrains + VS Code)
 - `[jetbrains]` Settings are **Web-only** (no Swing settings form); JCEF via optional module + reflection
 - `[jetbrains]` JCEF host loaded reflectively; `com.intellij.modules.jcef` is **optional** (2024.2 platform JCEF + 2026 jcef plugin)
-- `[jetbrains]` Minimum IDE **2024.2** (`since-build` **242**); see `docs/COMPATIBILITY.md`
+- `[jetbrains]` Minimum IDE **2024.2** (`since-build` **242**); see `docs/GUIDE.md`
 - `[settings-ui]` full-width tool-window layout; drop redundant title/host top bar (keep tabs only)
 - `[settings-ui]` fuse saved-profile select + rename into one toolbar row
 

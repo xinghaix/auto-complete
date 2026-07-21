@@ -2,66 +2,41 @@
 
 [中文](CONTRIBUTING.zh.md) · [English](CONTRIBUTING.md)
 
-Auto Complete 是双宿主、自备端点的内联代码补全项目：JetBrains 使用 Kotlin `packages/completion/engine-jvm`（Gradle `:core`）+ `apps/jetbrains/plugin`（Gradle `:plugin`）；VS Code 使用 `packages/completion/engine-ts` + `apps/vscode/extension`；两个宿主共同嵌入 `packages/settings/ui`，通过 `packages/completion/contracts` 对齐行为。
+双宿主内联补全：JetBrains（`:core` + `:plugin`）与 VS Code（`engine-ts` + extension）共用 `settings/ui` 与 `contracts`。独立实现；不引入 JB↔VS Code 桥、`kilo serve`、账号或 Agent/Next Edit。
 
-项目独立实现、参考 Kilo Code 的补全行为。请保持轻量补全边界：不引入 JetBrains→VS Code 桥接、`kilo serve` 运行时、账号体系、Agent 或 Next Edit 产品。
+## 开发
 
-## 开发环境
-
-需要 **JDK 21**、**Node.js 18+** 和 npm。
+需要 **JDK 21**、**Node 18+**。命令与签名见 **[docs/DEV.md](docs/DEV.md)**。
 
 ```bash
 npm install
 ./gradlew :core:test :plugin:test
 npm run test:js
 npm run build:js
-./gradlew :plugin:buildPlugin
-```
-
-启动隔离 JetBrains IDE：
-
-```bash
-./gradlew :plugin:runIde
-```
-
-本地创建安装包：
-
-```bash
 ./scripts/package-local.sh
-# JetBrains 签名 ZIP: apps/jetbrains/plugin/build/distributions/*-signed.zip
-#   （需 CERTIFICATE_CHAIN + PRIVATE_KEY；见 docs/MARKETPLACE.md）
-# VS Code VSIX: apps/vscode/extension/dist-vsix/auto-complete-*.vsix
 ```
 
-用户侧 JetBrains 安装优先 [Marketplace](https://plugins.jetbrains.com/plugin/33040-auto-complete)。只构建一个宿主时使用 `SKIP_JB=1` 或 `SKIP_VSCODE=1`。打包脚本不等于完整测试：它只显式执行 `:core:test`。
+## 目录
 
-## 代码目录
+| 路径 | 职责 |
+|---|---|
+| `packages/completion/engine-jvm` | Kotlin 引擎（`:core`） |
+| `apps/jetbrains/plugin` | JetBrains 宿主 |
+| `packages/completion/engine-ts` | TypeScript 引擎 |
+| `apps/vscode/extension` | VS Code 宿主 |
+| `packages/settings/ui` | 共用设置页 |
+| `packages/completion/contracts` | 契约 / fixtures |
 
-| 路径 | 模块 / 包名 | 职责 |
-|---|---|---|
-| `packages/completion/engine-jvm/src/main/kotlin` | Gradle `:core` | 纯 Kotlin 补全流水线、HTTP、prompt/cache/skip/filter/backoff |
-| `apps/jetbrains/plugin/src/main/kotlin` | Gradle `:plugin` | JetBrains 内联入口、JCEF bridge、PasswordSafe 设置、IDE HTTP 集成 |
-| `packages/completion/engine-ts/src` | npm `@auto-complete/core-ts` | TypeScript 双实现补全流水线 |
-| `packages/settings/ui/src` | npm `@auto-complete/settings-ui` | Vue 3 共用设置/日志 UI 与 i18n |
-| `packages/completion/contracts` | npm `@auto-complete/shared-spec` | schema、模板、语言映射、bridge 协议、golden fixtures |
-| `apps/vscode/extension/src` | npm `auto-complete` | VS Code provider、设置持久化、SecretStorage、Webview bridge |
+## 规则（摘要）
 
-## 变更规则
+1. 先读 `AGENTS.md` 与相关文档（用户行为 → `docs/GUIDE.md`；构建 → `docs/DEV.md`）。  
+2. 引擎保持宿主无关；不向 core 塞 IDE API。  
+3. 保留取消与 generation 校验；设置页不直连 provider HTTP。  
+4. 密钥只进 PasswordSafe / SecretStorage；禁止提交密钥、私人 endpoint、家目录路径等（见 `AGENTS.md`）。  
+5. 改共享行为时两端 + fixtures 一起改；故意差异写在 `docs/DEV.md` 的「允许的平台差异」。  
+6. 用户可见变更同步中英文用户文档（`README` / `GUIDE`）。  
+7. 设置 UI 变更双端检查（JCEF + Webview），见 `AGENTS.md` 清单。  
 
-1. 修改子系统前阅读 `AGENTS.md` 和相关 `docs/` 文档。
-2. 核心算法保持宿主无关；不要向 `packages/completion/engine-jvm`（`:core`）加 IntelliJ API，也不要向 `packages/completion/engine-ts`（`@auto-complete/core-ts`）加 VS Code API。
-3. 保留可取消请求与 generation 校验；JCEF/Webview 不得直接发送 provider HTTP。
-4. API key 只进 PasswordSafe/SecretStorage。不得把 key、个人 endpoint 或原始 prompt 样例写入源码、文档、测试或 fixture。禁止提交家目录路径、私人邮箱、局域网 IP、机器主机名、本机 clone 的绝对路径（见 `AGENTS.md` 隐私规则）。
-5. 修改共享引擎行为、模板或设置 key 时，同时更新两端实现和 shared fixtures；若故意不一致，必须在 `docs/IMPLEMENTATION_STATUS.md` 说明。
-6. 用户可见的架构、设置、Provider、兼容性或分发变动必须同步中英文文档。
-7. 引擎/客户端/设置变更要补聚焦测试，并在 PR 前运行受影响的 JVM/JS 测试。
-8. **设置 / Web UI（`packages/settings/ui`）：** 将 JetBrains JCEF 与 VS Code Webview 视为两个目标平台，两端都要检查（或写明无法检查的原因）。产品流程不要用 `window.prompt` / `confirm` / `alert`，改用面板内模态框；http(s) 链接优先走 bridge `openExternal`。详见 `AGENTS.md` 中的双宿主 UI 检查清单。
+## PR
 
-## Pull Request
-
-- 变更聚焦，说明用户影响和宿主范围。
-- 用户可见变动写入 `CHANGELOG.md` 的 `[Unreleased]`。
-- 提交信息建议使用 `feat:`、`fix:`、`docs:`、`chore:`、`test:`。
-- 较大设计变更先开 Issue 讨论。
-
-除非维护者明确要求，贡献过程中不要 push、发布、签名或创建 release tag。
+聚焦说明；用户可见项写入 `CHANGELOG.md` `[Unreleased]`；建议 `feat:` / `fix:` / `docs:` 前缀。未要求时不要 push / 发布 / 打 tag。

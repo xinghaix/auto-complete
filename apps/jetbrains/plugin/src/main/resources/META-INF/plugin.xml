@@ -14,7 +14,7 @@
       <li>Single-process Kotlin — no VS Code host bridge</li>
     </ul>
     <p><b>Requires IntelliJ Platform 2024.2+ (build 242+)</b>.
-    Settings need working JCEF. See docs/COMPATIBILITY.md.</p>
+    Settings need working JCEF. See docs/GUIDE.md.</p>
     <p>Apache-2.0 open source. Prefer JetBrains Marketplace (or signed ZIP from GitHub Releases).
     Keys stay in the IDE PasswordSafe.</p>
     ]]></description>

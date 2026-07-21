@@ -30,4 +30,4 @@
 
 项目包含两个宿主；报告请注明宿主和 IDE/扩展版本。JetBrains 网络遵循 IDE 代理/信任库集成，VS Code 使用扩展网络路径。Provider 数据策略、TLS 拦截、endpoint 访问控制和网络出口策略仍由用户负责。
 
-可传输设置的完整说明见 [docs/SETTINGS.md](docs/SETTINGS.md) 和 [docs/PROVIDERS.md](docs/PROVIDERS.md)。
+可传输内容说明见 [docs/GUIDE.md](docs/GUIDE.md)（隐私与设置章节）。

@@ -15,6 +15,6 @@
 | `bridge-protocol.md` | 设置页 ↔ 宿主消息 |
 | `testdata/**` | HTTP / prompt / cache 样例 |
 
-改共享语义时：更新这里 → 更新 Kotlin + TS 实现（或写明有意差异）→ 跑测试 → 更新用户文档。
+改共享语义时：更新这里 → 更新 Kotlin + TS 实现（或写明有意差异）→ 跑测试 → 更新 `docs/GUIDE`（用户可见时）。
 
 **禁止**：样例里出现真实密钥、鉴权头明文、私人 endpoint、用户代码。
