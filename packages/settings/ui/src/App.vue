@@ -427,35 +427,54 @@ async function onFetchModels() {
   }
 }
 
-async function onProbeOne() {
+/** Keep busy UI visible even when the probe returns in <100ms (matches fetch-models feel). */
+const PROBE_BUSY_MIN_MS = 450;
+
+async function runProbe(
+  kind: "one" | "all",
+  work: () => Promise<void>,
+): Promise<void> {
   if (probeBusy.value || connDisabled.value) return;
   probeBusy.value = true;
-  probeBusyKind.value = "one";
+  probeBusyKind.value = kind;
   setProbeStatus("warn", tr("testing"), true);
+  const started = Date.now();
   try {
-    const res = await bridge.request("probeTemplate", {
-      profileId: activeId.value,
-      template: form.value.promptTemplate || "AUTO",
-    });
-    const p = (res.payload ?? {}) as ProbeResult;
-    const line = `${p.template ?? form.value.promptTemplate}: ${p.status} ${p.latencyMs ?? 0}ms ${p.preview ?? p.error ?? ""}`;
-    const ok = p.status === "SUCCESS";
-    setProbeStatus(ok ? "ok" : "err", line);
+    await work();
   } catch (e) {
     setProbeStatus("err", e instanceof Error ? e.message : tr("failed"));
   } finally {
+    const left = PROBE_BUSY_MIN_MS - (Date.now() - started);
+    if (left > 0) await new Promise((r) => setTimeout(r, left));
     probeBusy.value = false;
     probeBusyKind.value = "";
   }
 }
 
+async function onProbeOne() {
+  await runProbe("one", async () => {
+    const res = await bridge.request("probeTemplate", {
+      profileId: activeId.value,
+      template: form.value.promptTemplate || "AUTO",
+    });
+    if (!res.ok) {
+      setProbeStatus("err", res.error || tr("failed"));
+      return;
+    }
+    const p = (res.payload ?? {}) as ProbeResult;
+    const line = `${p.template ?? form.value.promptTemplate}: ${p.status} ${p.latencyMs ?? 0}ms ${p.preview ?? p.error ?? ""}`;
+    const ok = p.status === "SUCCESS";
+    setProbeStatus(ok ? "ok" : "err", line);
+  });
+}
+
 async function onProbeAll() {
-  if (probeBusy.value || connDisabled.value) return;
-  probeBusy.value = true;
-  probeBusyKind.value = "all";
-  setProbeStatus("warn", tr("testing"), true);
-  try {
+  await runProbe("all", async () => {
     const res = await bridge.request("probeAllTemplates", { profileId: activeId.value });
+    if (!res.ok && !res.payload) {
+      setProbeStatus("err", res.error || tr("failed"));
+      return;
+    }
     const results = ((res.payload as { results?: ProbeResult[] })?.results ?? []) as ProbeResult[];
     const text =
       results
@@ -463,12 +482,7 @@ async function onProbeAll() {
         .join("\n") || (res.error ?? tr("failed"));
     const ok = results.some((r) => r.status === "SUCCESS");
     setProbeStatus(ok ? "ok" : "err", text);
-  } catch (e) {
-    setProbeStatus("err", e instanceof Error ? e.message : tr("failed"));
-  } finally {
-    probeBusy.value = false;
-    probeBusyKind.value = "";
-  }
+  });
 }
 
 async function onClearKey() {
@@ -947,7 +961,7 @@ function copyLogs() {
               <div class="hstack">
                 <button
                   type="button"
-                  class="btn btn-ghost"
+                  class="btn btn-secondary"
                   :disabled="probeBusy || connDisabled"
                   :aria-busy="probeBusyKind === 'one'"
                   @click="void onProbeOne()"
@@ -956,7 +970,7 @@ function copyLogs() {
                 </button>
                 <button
                   type="button"
-                  class="btn btn-ghost"
+                  class="btn btn-secondary"
                   :disabled="probeBusy || connDisabled"
                   :aria-busy="probeBusyKind === 'all'"
                   @click="void onProbeAll()"
