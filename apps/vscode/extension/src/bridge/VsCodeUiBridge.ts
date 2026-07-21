@@ -124,6 +124,14 @@ export class VsCodeUiBridge {
         }
         case "importSettings":
           return this.ok(msg, "applyResult", await this.importSettings(msg.payload));
+        case "openExternal": {
+          const url = (msg.payload as { url?: string } | undefined)?.url?.trim() ?? "";
+          if (!/^https?:\/\//i.test(url)) {
+            return this.fail(msg, "invalid url");
+          }
+          await vscode.env.openExternal(vscode.Uri.parse(url));
+          return this.ok(msg, "openExternalResult", { ok: true, url });
+        }
         default:
           return this.fail(msg, `unknown type: ${msg.type}`);
       }

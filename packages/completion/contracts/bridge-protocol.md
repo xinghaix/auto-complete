@@ -56,6 +56,7 @@ type BridgeResponse = {
 | `getPlatform` | — | `platform` | `{ platform, locale, theme }` — **locale is IDE UI language** (VS Code `env.language`, JB `DynamicBundle.getLocale()` BCP-47). settings-ui maps to en/zh/ja/ko. **theme** is IDE color scheme (`light`/`dark`/`high-contrast`); settings-ui `uiTheme` preference (`auto`/`light`/`dark`) decides whether to follow it. |
 | `exportSettings` | — | `exportResult` | No secrets |
 | `importSettings` | `{ json }` | `applyResult` | Merge / replace |
+| `openExternal` | `{ url }` | `openExternalResult` | Open http(s) in system browser (About / docs links). Hosts reject non-http(s). |
 
 ## Host → UI (push)
 

@@ -95,6 +95,13 @@ const saveState = ref<SaveState>("idle");
 const saveMsg = ref("");
 
 const loaded = ref(false);
+
+/** Public GitHub project (About card). Keep in sync with package homepage. */
+const GITHUB_REPO_URL = "https://github.com/xinghaix/auto-complete";
+const GITHUB_ISSUES_URL = "https://github.com/xinghaix/auto-complete/issues";
+/** UI package version; monorepo keeps hosts aligned at release. */
+const appVersion = "0.2.0";
+
 let saveTimer: ReturnType<typeof setTimeout> | null = null;
 let saveStatusTimer: ReturnType<typeof setTimeout> | null = null;
 let modelStatusTimer: ReturnType<typeof setTimeout> | null = null;
@@ -503,6 +510,24 @@ async function onImport() {
   }
 }
 
+/** Open https links via host (JCEF/Webview-safe); fall back to window.open. */
+async function openExternal(url: string) {
+  try {
+    const res = await bridge.request("openExternal", { url });
+    if (res.ok) return;
+  } catch {
+    /* fall through */
+  }
+  try {
+    const w = window.open(url, "_blank", "noopener,noreferrer");
+    if (w) return;
+  } catch {
+    /* fall through */
+  }
+  saveState.value = "error";
+  saveMsg.value = tr("aboutOpenFailed");
+}
+
 function onThemeChange(value: string) {
   const next = normalizeUiTheme(value);
   uiTheme.value = next;
@@ -908,7 +933,7 @@ function copyLogs() {
                 </button>
               </div>
             </PropertyRow>
-            <PropertyRow :label="tr('maxTokens')">
+            <PropertyRow :label="tr('maxTokens')" :help="tr('helpMaxTokens')">
               <input
                 type="number"
                 :value="form.maxTokens ?? 128"
@@ -935,7 +960,7 @@ function copyLogs() {
               </button>
             </div>
             <div v-if="advancedOpen" class="advanced-body">
-              <PropertyRow :label="tr('settingsTimeoutMs')">
+              <PropertyRow :label="tr('settingsTimeoutMs')" :help="tr('helpSettingsTimeout')">
                 <input
                   type="number"
                   :value="form.settingsTimeoutMs ?? 15000"
@@ -946,7 +971,7 @@ function copyLogs() {
                   "
                 />
               </PropertyRow>
-              <PropertyRow :label="tr('temperature')">
+              <PropertyRow :label="tr('temperature')" :help="tr('helpTemperature')">
                 <input
                   type="number"
                   step="0.1"
@@ -962,7 +987,7 @@ function copyLogs() {
                 :help="tr('helpStream')"
                 @update:model-value="(v) => patchForm({ stream: v })"
               />
-              <PropertyRow :label="tr('authHeader')">
+              <PropertyRow :label="tr('authHeader')" :help="tr('helpAuthHeader')">
                 <input
                   type="text"
                   :value="form.authHeaderTemplate ?? 'Authorization: Bearer ***'"
@@ -974,7 +999,7 @@ function copyLogs() {
                   "
                 />
               </PropertyRow>
-              <PropertyRow :label="tr('fimPath')">
+              <PropertyRow :label="tr('fimPath')" :help="tr('helpFimPath')">
                 <input
                   type="text"
                   :value="form.fimPath ?? ''"
@@ -982,7 +1007,7 @@ function copyLogs() {
                   @input="patchForm({ fimPath: ($event.target as HTMLInputElement).value })"
                 />
               </PropertyRow>
-              <PropertyRow :label="tr('chatPath')">
+              <PropertyRow :label="tr('chatPath')" :help="tr('helpChatPath')">
                 <input
                   type="text"
                   :value="form.chatPath ?? '/chat/completions'"
@@ -990,7 +1015,7 @@ function copyLogs() {
                   @input="patchForm({ chatPath: ($event.target as HTMLInputElement).value })"
                 />
               </PropertyRow>
-              <PropertyRow :label="tr('completionsPath')">
+              <PropertyRow :label="tr('completionsPath')" :help="tr('helpCompletionsPath')">
                 <input
                   type="text"
                   :value="form.completionsPath ?? ''"
@@ -1000,7 +1025,7 @@ function copyLogs() {
                   "
                 />
               </PropertyRow>
-              <PropertyRow :label="tr('extraHeaders')">
+              <PropertyRow :label="tr('extraHeaders')" :help="tr('helpExtraHeaders')">
                 <textarea
                   rows="2"
                   :value="form.extraHeadersJson ?? '{}'"
@@ -1018,7 +1043,7 @@ function copyLogs() {
                 :help="tr('helpOverrideBudget')"
                 @update:model-value="(v) => patchForm({ overrideContextBudget: v })"
               />
-              <PropertyRow :label="tr('maxPrefix')">
+              <PropertyRow :label="tr('maxPrefix')" :help="tr('helpMaxPrefix')">
                 <input
                   type="number"
                   :value="form.maxPrefixChars ?? 8000"
@@ -1028,7 +1053,7 @@ function copyLogs() {
                   "
                 />
               </PropertyRow>
-              <PropertyRow :label="tr('maxSuffix')">
+              <PropertyRow :label="tr('maxSuffix')" :help="tr('helpMaxSuffix')">
                 <input
                   type="number"
                   :value="form.maxSuffixChars ?? 2000"
@@ -1049,14 +1074,38 @@ function copyLogs() {
           <CheckRow
             v-model="enabled"
             :label="tr('enabled')"
-            :help="tr('helpBehavior')"
+            :help="tr('helpEnabled')"
           />
-          <CheckRow v-model="autoTrigger" :label="tr('autoTrigger')" />
-          <CheckRow v-model="enableInComments" :label="tr('enableInComments')" />
-          <CheckRow v-model="enableInStrings" :label="tr('enableInStrings')" />
-          <CheckRow v-model="firstLineOnly" :label="tr('firstLineOnly')" />
-          <CheckRow v-model="sendFilePath" :label="tr('sendFilePath')" />
-          <CheckRow v-model="showStatusBar" :label="tr('showStatusBar')" />
+          <CheckRow
+            v-model="autoTrigger"
+            :label="tr('autoTrigger')"
+            :help="tr('helpAutoTrigger')"
+          />
+          <CheckRow
+            v-model="enableInComments"
+            :label="tr('enableInComments')"
+            :help="tr('helpInComments')"
+          />
+          <CheckRow
+            v-model="enableInStrings"
+            :label="tr('enableInStrings')"
+            :help="tr('helpInStrings')"
+          />
+          <CheckRow
+            v-model="firstLineOnly"
+            :label="tr('firstLineOnly')"
+            :help="tr('helpFirstLineOnly')"
+          />
+          <CheckRow
+            v-model="sendFilePath"
+            :label="tr('sendFilePath')"
+            :help="tr('helpSendFilePath')"
+          />
+          <CheckRow
+            v-model="showStatusBar"
+            :label="tr('showStatusBar')"
+            :help="tr('helpShowStatusBar')"
+          />
           <PropertyRow :label="tr('disabledLanguages')" :help="tr('helpDisabledLanguages')">
             <input
               type="text"
@@ -1067,7 +1116,11 @@ function copyLogs() {
           </PropertyRow>
         </GroupCard>
         <GroupCard :title="tr('sectionIgnore')" :measure-key="locale">
-          <CheckRow v-model="respectGitignore" :label="tr('respectGitignore')" />
+          <CheckRow
+            v-model="respectGitignore"
+            :label="tr('respectGitignore')"
+            :help="tr('helpRespectGitignore')"
+          />
           <PropertyRow :label="tr('ignoreGlobs')" :help="tr('helpIgnoreGlobs')">
             <textarea rows="6" v-model="ignoreGlobs" spellcheck="false" />
           </PropertyRow>
@@ -1078,42 +1131,46 @@ function copyLogs() {
       <template v-if="tab === 'performance'">
         <GroupCard :title="tr('sectionDebounce')" :measure-key="locale">
           <p class="hint-block" style="margin: 0 12px 8px">{{ tr("helpDebounce") }}</p>
-          <PropertyRow :label="tr('debounceInitial')">
+          <PropertyRow :label="tr('debounceInitial')" :help="tr('helpDebounceInitial')">
             <input type="number" min="0" v-model.number="debounceInitialMs" />
           </PropertyRow>
-          <PropertyRow :label="tr('debounceMin')">
+          <PropertyRow :label="tr('debounceMin')" :help="tr('helpDebounceMin')">
             <input type="number" min="0" v-model.number="debounceMinMs" />
           </PropertyRow>
-          <PropertyRow :label="tr('debounceMax')">
+          <PropertyRow :label="tr('debounceMax')" :help="tr('helpDebounceMax')">
             <input type="number" min="0" v-model.number="debounceMaxMs" />
           </PropertyRow>
         </GroupCard>
         <GroupCard :title="tr('sectionContext')" :measure-key="locale">
           <p class="hint-block" style="margin: 0 12px 8px">{{ tr("helpContextBudget") }}</p>
-          <PropertyRow :label="tr('maxPrefix')">
+          <PropertyRow :label="tr('maxPrefix')" :help="tr('helpMaxPrefix')">
             <input type="number" min="1" v-model.number="maxPrefixChars" />
           </PropertyRow>
-          <PropertyRow :label="tr('maxSuffix')">
+          <PropertyRow :label="tr('maxSuffix')" :help="tr('helpMaxSuffix')">
             <input type="number" min="1" v-model.number="maxSuffixChars" />
           </PropertyRow>
         </GroupCard>
         <GroupCard :title="tr('sectionEngine')" :measure-key="locale">
-          <PropertyRow :label="tr('cacheSize')">
+          <PropertyRow :label="tr('cacheSize')" :help="tr('helpCacheSize')">
             <input type="number" min="1" v-model.number="cacheSize" />
           </PropertyRow>
-          <PropertyRow :label="tr('lruSize')">
+          <PropertyRow :label="tr('lruSize')" :help="tr('helpLruSize')">
             <input type="number" min="1" v-model.number="lruSize" />
           </PropertyRow>
-          <PropertyRow :label="tr('maxInFlight')">
+          <PropertyRow :label="tr('maxInFlight')" :help="tr('helpMaxInFlight')">
             <input type="number" min="1" v-model.number="maxInFlight" />
           </PropertyRow>
-          <PropertyRow :label="tr('maxFileSize')">
+          <PropertyRow :label="tr('maxFileSize')" :help="tr('helpMaxFileSize')">
             <input type="number" min="1" v-model.number="maxFileSizeKb" />
           </PropertyRow>
         </GroupCard>
         <GroupCard :title="tr('sectionRecent')" :measure-key="locale">
-          <CheckRow v-model="enableRecentFileContext" :label="tr('enableRecent')" />
-          <PropertyRow :label="tr('recentLimit')">
+          <CheckRow
+            v-model="enableRecentFileContext"
+            :label="tr('enableRecent')"
+            :help="tr('helpEnableRecent')"
+          />
+          <PropertyRow :label="tr('recentLimit')" :help="tr('helpRecentLimit')">
             <input
               type="number"
               min="0"
@@ -1121,7 +1178,7 @@ function copyLogs() {
               :disabled="!enableRecentFileContext"
             />
           </PropertyRow>
-          <PropertyRow :label="tr('recentMaxChars')">
+          <PropertyRow :label="tr('recentMaxChars')" :help="tr('helpRecentMaxChars')">
             <input
               type="number"
               min="1"
@@ -1161,13 +1218,34 @@ function copyLogs() {
             <p class="row-help">{{ tr("helpImportExport") }}</p>
           </PropertyRow>
         </GroupCard>
+
+        <GroupCard :title="tr('sectionAbout')" :measure-key="locale">
+          <div class="about-card">
+            <p class="about-title">{{ tr("title") }}</p>
+            <p class="about-meta">
+              <span>{{ tr("aboutVersion") }} {{ appVersion }}</span>
+              <span class="about-dot" aria-hidden="true">·</span>
+              <span>{{ tr("aboutLicense") }}</span>
+            </p>
+            <p class="about-blurb">{{ tr("aboutBlurb") }}</p>
+            <div class="hstack about-actions">
+              <button type="button" class="btn btn-primary" @click="void openExternal(GITHUB_REPO_URL)">
+                {{ tr("aboutOpenGithub") }}
+              </button>
+              <button type="button" class="btn btn-secondary" @click="void openExternal(GITHUB_ISSUES_URL)">
+                {{ tr("aboutOpenIssues") }}
+              </button>
+            </div>
+            <p class="row-help about-url">{{ GITHUB_REPO_URL }}</p>
+          </div>
+        </GroupCard>
       </template>
 
       <!-- Logs -->
       <template v-if="tab === 'logs'">
         <p class="hint-block">{{ tr("logsHint") }}</p>
         <GroupCard :title="tr('sectionLog')" :measure-key="locale">
-          <PropertyRow :label="tr('logLevel')">
+          <PropertyRow :label="tr('logLevel')" :help="tr('helpLogLevel')">
             <SelectCombo v-model="logLevel" :options="levelOptions" />
           </PropertyRow>
           <PropertyRow :label="tr('logRetention')" :help="tr('helpLogRetention')">
@@ -1178,8 +1256,16 @@ function copyLogs() {
             :label="tr('logPromptBodies')"
             :help="tr('helpLogPromptBodies')"
           />
-          <CheckRow v-model="notifyOnFatalError" :label="tr('notifyFatal')" />
-          <CheckRow v-model="showCostApprox" :label="tr('showCost')" />
+          <CheckRow
+            v-model="notifyOnFatalError"
+            :label="tr('notifyFatal')"
+            :help="tr('helpNotifyFatal')"
+          />
+          <CheckRow
+            v-model="showCostApprox"
+            :label="tr('showCost')"
+            :help="tr('helpShowCost')"
+          />
         </GroupCard>
         <div class="logs-bar">
           <label class="logs-bar-filter">

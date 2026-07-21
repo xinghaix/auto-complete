@@ -1035,6 +1035,53 @@ html[data-theme-pref="dark"] .btn-secondary:hover:not(:disabled) {
   white-space: nowrap;
 }
 
+/* ── about (General tab) ── */
+.about-card {
+  padding: 12px 14px 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.about-title {
+  margin: 0;
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--fg);
+}
+
+.about-meta {
+  margin: 0;
+  font-size: 12px;
+  color: var(--muted);
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px 6px;
+}
+
+.about-dot {
+  opacity: 0.55;
+}
+
+.about-blurb {
+  margin: 0;
+  font-size: 12.5px;
+  line-height: 1.5;
+  color: var(--fg);
+  max-width: 42rem;
+}
+
+.about-actions {
+  margin-top: 2px;
+}
+
+.about-url {
+  word-break: break-all;
+  font-family: var(--mono);
+  font-size: 11px;
+}
+
 /* ── logs ── */
 .hint-block {
   margin: 0 0 12px;
