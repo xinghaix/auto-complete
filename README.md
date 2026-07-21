@@ -71,16 +71,27 @@ npm run build:js
 
 开发用 JetBrains 沙箱：`./gradlew :plugin:runIde`
 
-## 本地模型示例（Ollama）
+## 推荐服务与本地示例
+
+行内补全优先选支持 **FIM（中间填充）** 的接口。常用官方选项：
+
+| 服务 | Base URL 示例 | 模板 | 文档 |
+|---|---|---|---|
+| DeepSeek 云 FIM | `https://api.deepseek.com/beta` | `CODESTRAL_API` | [英文](https://api-docs.deepseek.com/guides/fim_completion/) · [中文](https://api-docs.deepseek.com/zh-cn/guides/fim_completion/) |
+| Mistral Codestral FIM | `https://api.mistral.ai/v1` | `CODESTRAL_API` | [FIM API](https://docs.mistral.ai/api/endpoint/fim) |
+| 本地 Ollama | `http://127.0.0.1:11434/v1` | `AUTO` / `QWEN`… | 见本地服务说明 |
+
+完整说明与注意点：[连接与补全模板](docs/PROVIDERS.md)。
 
 ```text
+# Ollama 示例
 Base URL:  http://127.0.0.1:11434/v1
 Model:     qwen2.5-coder:7b
 API Key:   不需要鉴权时留空
 模板:       AUTO（或按服务选 QWEN / CHAT 等）
 ```
 
-用面板里的 **拉取模型 / 测试连接 / 测试模板** 确认服务是否匹配，不要只靠猜。
+用面板里的 **拉取模型 / 测试连接 / 测试模板** 确认是否匹配，不要只靠猜。
 
 ## 隐私
 

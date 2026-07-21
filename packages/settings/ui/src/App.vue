@@ -84,6 +84,10 @@ const probeText = ref("");
 const probeKind = ref<"ok" | "err" | "warn" | "">("");
 const modelOptions = ref<string[]>([]);
 const modelsFetching = ref(false);
+/** Blocks Test template / Try all while a probe is in flight (anti double-click). */
+const probeBusy = ref(false);
+/** Which probe button is running: one | all | "" */
+const probeBusyKind = ref<"" | "one" | "all">("");
 const modelStatusText = ref("");
 const modelStatusKind = ref<"ok" | "err" | "warn" | "">("");
 const logs = ref<LogEntry[]>([]);
@@ -424,27 +428,47 @@ async function onFetchModels() {
 }
 
 async function onProbeOne() {
+  if (probeBusy.value || connDisabled.value) return;
+  probeBusy.value = true;
+  probeBusyKind.value = "one";
   setProbeStatus("warn", tr("testing"), true);
-  const res = await bridge.request("probeTemplate", {
-    profileId: activeId.value,
-    template: form.value.promptTemplate || "AUTO",
-  });
-  const p = (res.payload ?? {}) as ProbeResult;
-  const line = `${p.template ?? form.value.promptTemplate}: ${p.status} ${p.latencyMs ?? 0}ms ${p.preview ?? p.error ?? ""}`;
-  const ok = p.status === "SUCCESS";
-  setProbeStatus(ok ? "ok" : "err", line);
+  try {
+    const res = await bridge.request("probeTemplate", {
+      profileId: activeId.value,
+      template: form.value.promptTemplate || "AUTO",
+    });
+    const p = (res.payload ?? {}) as ProbeResult;
+    const line = `${p.template ?? form.value.promptTemplate}: ${p.status} ${p.latencyMs ?? 0}ms ${p.preview ?? p.error ?? ""}`;
+    const ok = p.status === "SUCCESS";
+    setProbeStatus(ok ? "ok" : "err", line);
+  } catch (e) {
+    setProbeStatus("err", e instanceof Error ? e.message : tr("failed"));
+  } finally {
+    probeBusy.value = false;
+    probeBusyKind.value = "";
+  }
 }
 
 async function onProbeAll() {
+  if (probeBusy.value || connDisabled.value) return;
+  probeBusy.value = true;
+  probeBusyKind.value = "all";
   setProbeStatus("warn", tr("testing"), true);
-  const res = await bridge.request("probeAllTemplates", { profileId: activeId.value });
-  const results = ((res.payload as { results?: ProbeResult[] })?.results ?? []) as ProbeResult[];
-  const text =
-    results
-      .map((r) => `${r.template}: ${r.status} ${r.latencyMs ?? 0}ms ${r.preview ?? r.error ?? ""}`)
-      .join("\n") || (res.error ?? tr("failed"));
-  const ok = results.some((r) => r.status === "SUCCESS");
-  setProbeStatus(ok ? "ok" : "err", text);
+  try {
+    const res = await bridge.request("probeAllTemplates", { profileId: activeId.value });
+    const results = ((res.payload as { results?: ProbeResult[] })?.results ?? []) as ProbeResult[];
+    const text =
+      results
+        .map((r) => `${r.template}: ${r.status} ${r.latencyMs ?? 0}ms ${r.preview ?? r.error ?? ""}`)
+        .join("\n") || (res.error ?? tr("failed"));
+    const ok = results.some((r) => r.status === "SUCCESS");
+    setProbeStatus(ok ? "ok" : "err", text);
+  } catch (e) {
+    setProbeStatus("err", e instanceof Error ? e.message : tr("failed"));
+  } finally {
+    probeBusy.value = false;
+    probeBusyKind.value = "";
+  }
 }
 
 async function onClearKey() {
@@ -921,11 +945,23 @@ function copyLogs() {
                 @update:model-value="(v) => patchForm({ promptTemplate: v })"
               />
               <div class="hstack">
-                <button type="button" class="btn btn-ghost" @click="onProbeOne()">
-                  {{ tr("tryTemplate") }}
+                <button
+                  type="button"
+                  class="btn btn-ghost"
+                  :disabled="probeBusy || connDisabled"
+                  :aria-busy="probeBusyKind === 'one'"
+                  @click="void onProbeOne()"
+                >
+                  {{ probeBusyKind === "one" ? tr("testing") : tr("tryTemplate") }}
                 </button>
-                <button type="button" class="btn btn-ghost" @click="onProbeAll()">
-                  {{ tr("tryAllTemplates") }}
+                <button
+                  type="button"
+                  class="btn btn-ghost"
+                  :disabled="probeBusy || connDisabled"
+                  :aria-busy="probeBusyKind === 'all'"
+                  @click="void onProbeAll()"
+                >
+                  {{ probeBusyKind === "all" ? tr("testing") : tr("tryAllTemplates") }}
                 </button>
               </div>
               <div

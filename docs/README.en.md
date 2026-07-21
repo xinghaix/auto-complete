@@ -10,7 +10,7 @@ Auto Complete is **bring-your-own-endpoint** AI **inline completion** for JetBra
 |---|---|
 | Install / package locally | [Project home](../README.en.md) |
 | JetBrains version & JCEF | [COMPATIBILITY.md](COMPATIBILITY.md) |
-| Endpoint & templates | [PROVIDERS.en.md](PROVIDERS.en.md) |
+| Endpoint, templates & **recommended FIM services** | [PROVIDERS.en.md](PROVIDERS.en.md) |
 | What each setting means | [SETTINGS.en.md](SETTINGS.en.md) |
 | Build, test, release | [RELEASE.en.md](RELEASE.en.md) |
 | Host differences | [IMPLEMENTATION_STATUS.en.md](IMPLEMENTATION_STATUS.en.md) |

@@ -71,16 +71,27 @@ One host only: `SKIP_JB=1` or `SKIP_VSCODE=1`. Full tests are the commands above
 
 JetBrains sandbox: `./gradlew :plugin:runIde`
 
-## Local model example (Ollama)
+## Recommended services & local example
+
+Prefer endpoints with real **FIM (fill-in-the-middle)** for inline completion.
+
+| Service | Example Base URL | Template | Docs |
+|---|---|---|---|
+| DeepSeek cloud FIM | `https://api.deepseek.com/beta` | `CODESTRAL_API` | [EN](https://api-docs.deepseek.com/guides/fim_completion/) · [中文](https://api-docs.deepseek.com/zh-cn/guides/fim_completion/) |
+| Mistral Codestral FIM | `https://api.mistral.ai/v1` | `CODESTRAL_API` | [FIM API](https://docs.mistral.ai/api/endpoint/fim) |
+| Local Ollama | `http://127.0.0.1:11434/v1` | `AUTO` / `QWEN`… | Your local server |
+
+Full notes: [Providers](docs/PROVIDERS.en.md).
 
 ```text
+# Ollama example
 Base URL:  http://127.0.0.1:11434/v1
 Model:     qwen2.5-coder:7b
 API key:   leave empty if the server has no auth
 Template:  AUTO (or QWEN / CHAT as needed)
 ```
 
-Use **Fetch models / Test connection / Test template** in the panel instead of guessing formats.
+Use **Fetch models / Test connection / Test template** instead of guessing formats.
 
 ## Privacy
 

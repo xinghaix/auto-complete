@@ -10,7 +10,7 @@ Auto Complete：自备模型服务的 AI **行内补全**，支持 JetBrains 与
 |---|---|
 | 安装 / 本地打包 | [项目主页](../README.md) |
 | JetBrains 版本与 JCEF | [COMPATIBILITY.md](COMPATIBILITY.md) |
-| 填 endpoint / 选模板 | [PROVIDERS.md](PROVIDERS.md) |
+| 填 endpoint / 选模板 / **推荐 FIM 服务** | [PROVIDERS.md](PROVIDERS.md) |
 | 每个设置是什么意思 | [SETTINGS.md](SETTINGS.md) |
 | 构建、测试、发版 | [RELEASE.md](RELEASE.md) |
 | 两端差在哪 | [IMPLEMENTATION_STATUS.md](IMPLEMENTATION_STATUS.md) |
