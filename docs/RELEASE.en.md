@@ -103,7 +103,7 @@ CI builds and tests on `main`/PRs. A pushed `v*` tag downloads the successful ZI
 Suggested tag:
 
 ```bash
-git tag -a v0.1.1 -m "Auto Complete 0.1.1"
+git tag -a v0.2.0 -m "Auto Complete 0.2.0"
 ```
 
 Do not push, tag, or publish without explicit user direction.

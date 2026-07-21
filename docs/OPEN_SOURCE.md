@@ -32,7 +32,7 @@ The repository already has the baseline pieces for an open-source preview: Apach
 Use an annotated `v<version>` tag, for example:
 
 ```bash
-git tag -a v0.1.1 -m "Auto Complete 0.1.1"
+git tag -a v0.2.0 -m "Auto Complete 0.2.0"
 ```
 
 Release notes should come from the matching `CHANGELOG.md` section and include known host differences and installation paths. Do not claim that Marketplace publishing, signing, VSIX CI upload, or compatibility testing is automated when it is not.

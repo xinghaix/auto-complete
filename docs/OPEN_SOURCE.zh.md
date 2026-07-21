@@ -32,7 +32,7 @@
 建议使用带注释 tag `v<version>`：
 
 ```bash
-git tag -a v0.1.1 -m "Auto Complete 0.1.1"
+git tag -a v0.2.0 -m "Auto Complete 0.2.0"
 ```
 
 Release notes 应来自相应版本的 `CHANGELOG.md`，包含已知宿主差异和安装方式。不要宣称 Marketplace、签名、VSIX CI 上传或跨版本兼容性检查已经自动完成。

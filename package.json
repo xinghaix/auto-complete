@@ -1,7 +1,7 @@
 {
   "name": "auto-complete-monorepo",
   "private": true,
-  "version": "0.1.1",
+  "version": "0.2.0",
   "description": "JetBrains + VS Code dual-host AI inline completion",
   "license": "Apache-2.0",
   "workspaces": [

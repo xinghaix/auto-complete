@@ -2,6 +2,8 @@
 
 ## [Unreleased]
 
+## [0.2.0] - 2026-07-21
+
 ### Added
 
 - Open-source packaging: public README, CONTRIBUTING, SECURITY, CI, issue templates

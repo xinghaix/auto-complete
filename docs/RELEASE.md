@@ -103,7 +103,7 @@ CI 在 `main`/PR 上只构建和测试；推送 `v*` tag 时，在 JVM 和 JS jo
 建议 tag：
 
 ```bash
-git tag -a v0.1.1 -m "Auto Complete 0.1.1"
+git tag -a v0.2.0 -m "Auto Complete 0.2.0"
 ```
 
 没有用户明确要求时，不要 push、打 tag 或发布。
