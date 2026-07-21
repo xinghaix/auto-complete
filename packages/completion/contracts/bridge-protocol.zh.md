@@ -57,6 +57,7 @@ type BridgeResponse = {
 | `exportSettings` | — | `exportResult` | 无 secret 的 JSON |
 | `importSettings` | `{ json }` | `applyResult` | 合并/替换普通设置 |
 | `openExternal` | `{ url }` | `openExternalResult` | 在系统浏览器打开 http(s) 链接（关于页 / 文档）。非 http(s) 会被宿主拒绝。 |
+| `openKeymap` | — | `openKeymapResult` | 打开宿主 IDE 快捷键设置，并尽量定位到手动触发（JB action `AutoComplete.Trigger` / VS Code 命令 `autoComplete.trigger`）。 |
 
 `locale` 是 IDE 界面语言（VS Code `env.language`；JetBrains `DynamicBundle.getLocale()` BCP-47 tag）。settings-ui 映射为 en/zh/ja/ko。`theme` 是 IDE 明暗/高对比主题；`uiTheme` 决定是否跟随。
 

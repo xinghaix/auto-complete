@@ -2,6 +2,10 @@
 
 ## [Unreleased]
 
+### Added
+
+- Settings UI: **Configure in Keymap…** jumps to host keyboard shortcuts for manual trigger (`openKeymap` bridge; JB `AutoComplete.Trigger`, VS Code `autoComplete.trigger`)
+
 ### Changed
 
 - JetBrains install docs prioritize [Marketplace plugin 33040](https://plugins.jetbrains.com/plugin/33040-auto-complete); signed ZIP is the fallback

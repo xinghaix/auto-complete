@@ -351,6 +351,15 @@ async function mockHandle(msg: BridgeRequest): Promise<BridgeResponse> {
         payload: { ok: true, url },
       };
     }
+    case "openKeymap":
+      // Browser mock: no IDE keymap; succeed so UI can show a soft message.
+      return {
+        v: 1,
+        id: msg.id,
+        type: "openKeymapResult",
+        ok: true,
+        payload: { ok: true, mock: true },
+      };
     default:
       return { v: 1, id: msg.id, type: msg.type, ok: true, payload: { ok: true } };
   }

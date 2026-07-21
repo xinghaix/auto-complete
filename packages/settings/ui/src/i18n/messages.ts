@@ -154,6 +154,10 @@ export type MessageKey =
   | "helpExtraHeaders"
   | "helpEnabled"
   | "helpAutoTrigger"
+  | "manualTriggerShortcut"
+  | "helpManualTriggerShortcut"
+  | "openKeymap"
+  | "openKeymapFailed"
   | "helpInComments"
   | "helpInStrings"
   | "helpFirstLineOnly"
@@ -339,6 +343,12 @@ export const en: Messages = {
   helpExtraHeaders: "Extra request headers as a JSON object, e.g. {\"X-Custom\":\"value\"}. Must parse as a plain object, not an array.",
   helpEnabled: "Master switch. When off, automatic and manual completions are disabled until turned on again.",
   helpAutoTrigger: "Request while typing. Manual trigger (IDE shortcut / command) still works when this is off.",
+  manualTriggerShortcut: "Manual trigger shortcut",
+  helpManualTriggerShortcut:
+    "Managed by the IDE Keymap (not this panel). Default: Ctrl/Cmd+Shift+Space. Use the button to open host shortcuts for Trigger.",
+  openKeymap: "Configure in Keymap…",
+  openKeymapFailed:
+    "Could not open IDE shortcuts. JetBrains: Settings → Keymap; VS Code: Keyboard Shortcuts. Search for Auto Complete Trigger.",
   helpInComments: "Allow completions when the cursor is inside a comment. Detection is a fast heuristic, not a full parser.",
   helpInStrings: "Allow completions when the cursor is inside a string literal. Detection is a fast heuristic, not a full parser.",
   helpFirstLineOnly: "If the cursor is mid-line and the model returns multiple lines, show only the first line to reduce editor clutter.",
@@ -524,6 +534,12 @@ export const zh: Messages = {
   helpExtraHeaders: "额外 HTTP 头，JSON 对象，如 {\"X-Custom\":\"value\"}。必须是对象，不能是数组。",
   helpEnabled: "总开关。关闭后自动与手动补全均不请求，直到重新开启。",
   helpAutoTrigger: "输入时自动请求。关闭后仍可通过 IDE 快捷键/命令手动触发。",
+  manualTriggerShortcut: "手动触发快捷键",
+  helpManualTriggerShortcut:
+    "由 IDE 键盘映射管理（不在本面板改绑定）。默认 Ctrl/Cmd+Shift+Space。点按钮打开宿主快捷键设置并定位到触发动作。",
+  openKeymap: "在键盘映射中配置…",
+  openKeymapFailed:
+    "无法打开 IDE 快捷键设置。请手动打开：JetBrains「设置 → 键盘映射」，或 VS Code「键盘快捷方式」，搜索 Auto Complete Trigger。",
   helpInComments: "光标在注释内时是否补全。检测为轻量启发式，非完整语法解析。",
   helpInStrings: "光标在字符串字面量内时是否补全。检测为轻量启发式，非完整语法解析。",
   helpFirstLineOnly: "光标在行中且模型返回多行时，只显示首行，减少编辑器干扰。",
@@ -710,6 +726,12 @@ export const ja: Messages = {
   helpExtraHeaders: "追加 HTTP ヘッダーの JSON オブジェクト。例: {\"X-Custom\":\"value\"}。配列は不可。",
   helpEnabled: "マスタスイッチ。オフだと自動・手動とも補完しません。",
   helpAutoTrigger: "入力中に自動リクエスト。オフでも IDE ショートカット/コマンドで手動可能。",
+  manualTriggerShortcut: "手動トリガーのショートカット",
+  helpManualTriggerShortcut:
+    "IDE キーマップが管理（このパネルでは変更しません）。既定: Ctrl/Cmd+Shift+Space。ボタンでホストのショートカット設定を開き Trigger にフォーカスします。",
+  openKeymap: "Keymap で設定…",
+  openKeymapFailed:
+    "IDE のショートカット設定を開けませんでした。JetBrains「設定 → キーマップ」、VS Code「キーボード ショートカット」で Auto Complete Trigger を検索してください。",
   helpInComments: "コメント内で補完を許可。検出は軽量ヒューリスティックです。",
   helpInStrings: "文字列リテラル内で補完を許可。検出は軽量ヒューリスティックです。",
   helpFirstLineOnly: "行の途中で複数行が返った場合、先頭行のみ表示してノイズを抑えます。",
@@ -895,6 +917,12 @@ export const ko: Messages = {
   helpExtraHeaders: "추가 HTTP 헤더 JSON 객체. 예: {\"X-Custom\":\"value\"}. 배열 불가.",
   helpEnabled: "마스터 스위치. 끄면 자동·수동 완성 모두 중지.",
   helpAutoTrigger: "입력 중 자동 요청. 꺼도 IDE 단축키/명령으로 수동 가능.",
+  manualTriggerShortcut: "수동 트리거 단축키",
+  helpManualTriggerShortcut:
+    "IDE 키맵이 관리합니다(이 패널에서 바인딩을 바꾸지 않음). 기본: Ctrl/Cmd+Shift+Space. 버튼으로 호스트 단축키 설정을 열고 Trigger에 맞춥니다.",
+  openKeymap: "Keymap에서 구성…",
+  openKeymapFailed:
+    "IDE 단축키 설정을 열 수 없습니다. JetBrains: 설정 → 키맵, VS Code: 키보드 단축키에서 Auto Complete Trigger를 검색하세요.",
   helpInComments: "주석 안에서 완성 허용. 감지는 가벼운 휴리스틱입니다.",
   helpInStrings: "문자열 리터럴 안에서 완성 허용. 감지는 가벼운 휴리스틱입니다.",
   helpFirstLineOnly: "줄 중간에서 여러 줄이 오면 첫 줄만 표시해 방해를 줄입니다.",

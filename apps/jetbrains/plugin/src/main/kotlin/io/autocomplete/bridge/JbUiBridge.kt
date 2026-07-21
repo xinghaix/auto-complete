@@ -4,6 +4,8 @@ import com.intellij.DynamicBundle
 import com.intellij.ide.BrowserUtil
 import com.intellij.openapi.application.ApplicationManager
 import com.intellij.openapi.diagnostic.Logger
+import com.intellij.openapi.keymap.impl.ui.EditKeymapsDialog
+import com.intellij.openapi.project.ProjectManager
 import com.intellij.ui.JBColor
 import io.autocomplete.client.HttpCompletionClient
 import io.autocomplete.config.AutoCompleteSettingsService
@@ -166,6 +168,10 @@ class JbUiBridge {
                 val url = payload?.get("url")?.toString()?.trim().orEmpty()
                 openExternalUrl(url)
                 "openExternalResult" to mapOf("ok" to true, "url" to url)
+            }
+            "openKeymap" -> {
+                openManualTriggerKeymap()
+                "openKeymapResult" to mapOf("ok" to true)
             }
             "importSettings" -> {
                 val json = payload?.get("json")?.toString().orEmpty()
@@ -557,6 +563,17 @@ class JbUiBridge {
         require(scheme == "http" || scheme == "https") { "invalid url scheme" }
         ApplicationManager.getApplication().invokeLater {
             BrowserUtil.browse(url)
+        }
+    }
+
+    /**
+     * Open IDE Keymap editor focused on the manual trigger action.
+     * Shortcut ownership stays with the IDE Keymap (not plugin settings XML).
+     */
+    private fun openManualTriggerKeymap() {
+        ApplicationManager.getApplication().invokeLater {
+            val project = ProjectManager.getInstance().openProjects.firstOrNull()
+            EditKeymapsDialog(project, AutoCompleteSettingsService.TRIGGER_ACTION_ID).show()
         }
     }
 

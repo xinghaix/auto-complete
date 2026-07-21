@@ -47,7 +47,7 @@
 
 默认忽略示例：`.git`、`node_modules`、`dist`、`build`、`target`、`.idea`、`.gradle`、`vendor` 等。
 
-JetBrains 还有 snooze（暂停一段时间）；VS Code 主要用开关命令。快捷键在各自 IDE 里配置。
+JetBrains 还有 snooze（暂停一段时间）；VS Code 主要用开关命令。快捷键由 IDE Keymap 管理；「补全行为」页的 **在键盘映射中配置…** 会跳转到宿主快捷键 UI（JB：`AutoComplete.Trigger`；VS Code：`autoComplete.trigger`）。
 
 ## 已保存配置（profile）
 

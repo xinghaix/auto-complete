@@ -132,6 +132,14 @@ export class VsCodeUiBridge {
           await vscode.env.openExternal(vscode.Uri.parse(url));
           return this.ok(msg, "openExternalResult", { ok: true, url });
         }
+        case "openKeymap": {
+          // Focus Keyboard Shortcuts on the manual trigger command.
+          await vscode.commands.executeCommand(
+            "workbench.action.openGlobalKeybindings",
+            "autoComplete.trigger",
+          );
+          return this.ok(msg, "openKeymapResult", { ok: true });
+        }
         default:
           return this.fail(msg, `unknown type: ${msg.type}`);
       }

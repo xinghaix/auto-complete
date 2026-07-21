@@ -582,6 +582,19 @@ async function openExternal(url: string) {
   saveMsg.value = tr("aboutOpenFailed");
 }
 
+/** Jump to host IDE Keymap / Keyboard Shortcuts for manual trigger. */
+async function openKeymap() {
+  try {
+    const res = await bridge.request("openKeymap");
+    if (res.ok) return;
+    saveState.value = "error";
+    saveMsg.value = res.error?.trim() || tr("openKeymapFailed");
+  } catch {
+    saveState.value = "error";
+    saveMsg.value = tr("openKeymapFailed");
+  }
+}
+
 function onThemeChange(value: string) {
   const next = normalizeUiTheme(value);
   uiTheme.value = next;
@@ -1147,6 +1160,14 @@ function copyLogs() {
             :label="tr('autoTrigger')"
             :help="tr('helpAutoTrigger')"
           />
+          <PropertyRow
+            :label="tr('manualTriggerShortcut')"
+            :help="tr('helpManualTriggerShortcut')"
+          >
+            <button type="button" class="btn btn-secondary" @click="void openKeymap()">
+              {{ tr("openKeymap") }}
+            </button>
+          </PropertyRow>
           <CheckRow
             v-model="enableInComments"
             :label="tr('enableInComments')"

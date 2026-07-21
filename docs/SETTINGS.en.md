@@ -47,7 +47,7 @@ Snapshots/exports expose `hasApiKey` only. Re-enter keys after import.
 
 Default ignores cover `.git`, `node_modules`, `dist`, `build`, `target`, `.idea`, `.gradle`, `vendor`, etc.
 
-JetBrains has snooze; VS Code mainly uses toggle commands. Keymaps are IDE-native.
+JetBrains has snooze; VS Code mainly uses toggle commands. Shortcuts are owned by the IDE Keymap; **Configure in Keymap…** on the Completion behavior tab opens the host shortcut UI (JB action `AutoComplete.Trigger`; VS Code command `autoComplete.trigger`).
 
 ## Profiles
 

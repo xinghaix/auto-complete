@@ -57,6 +57,7 @@ type BridgeResponse = {
 | `exportSettings` | — | `exportResult` | No secrets |
 | `importSettings` | `{ json }` | `applyResult` | Merge / replace |
 | `openExternal` | `{ url }` | `openExternalResult` | Open http(s) in system browser (About / docs links). Hosts reject non-http(s). |
+| `openKeymap` | — | `openKeymapResult` | Open the host IDE keyboard-shortcut UI focused on manual trigger (JB action `AutoComplete.Trigger` / VS Code command `autoComplete.trigger`). |
 
 ## Host → UI (push)
 
