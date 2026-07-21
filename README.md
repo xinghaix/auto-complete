@@ -1,82 +1,65 @@
 # Auto Complete
 
-[中文](README.md) · [English](README.en.md) · [完整文档](docs/README.md)
+[中文](README.md) · [English](README.en.md) · [文档目录](docs/README.md)
 
 <p align="center"><img src="docs/assets/logo.svg" width="96" height="96" alt="Auto Complete logo"/></p>
 
-轻量、可自备端点的 **AI 内联代码补全**。项目已包含两个独立宿主：
+**自己接模型服务** 的 AI 行内补全（ghost text）。支持 **JetBrains** 与 **VS Code**，两端各自独立运行，互不调用。
 
-| 宿主 | 运行时引擎 | 当前交付 |
-|---|---|---|
-| JetBrains | Kotlin/JVM `packages/completion/engine-jvm/` + `apps/jetbrains/plugin/` | ZIP，可从磁盘安装 |
-| VS Code | TypeScript `packages/completion/engine-ts/` + `apps/vscode/extension/` | VSIX，可从磁盘安装 |
-| 共用界面与规格 | Vue `packages/settings/ui/` + `packages/completion/contracts/` | 两端嵌入；共享模板、设置契约和 fixture |
+| 用在哪里 | 怎么装 |
+|---|---|
+| JetBrains（IDEA 等） | 安装 ZIP：`Install Plugin from Disk` |
+| VS Code | 安装 VSIX：`Install from VSIX` |
+| 设置界面 | 两端共用同一套 Web 设置页（JCEF / Webview） |
 
-JetBrains 与 VS Code 不通过 Extension Host、RPC 或 `kilo serve` 互相调用。你配置自己的 `baseUrl`、模型和可选 API key，插件以 ghost text 提示补全。
+**许可：** Apache-2.0 · **阶段：** 开源预览（可从 GitHub Release 或本地打包安装）
 
-**许可：** Apache-2.0 · **阶段：** 开源预览。
+## 能做什么
 
-## 特性
+- 对接 OpenAI 兼容接口（Ollama、vLLM、各类网关等）
+- 多种补全模板（FIM / Chat），可按模型名自动选择
+- 多套「已保存配置」（endpoint、模型、超时等）
+- 输入防抖、取消过时请求、缓存与错误退避
+- 只发送光标前后有限代码；默认不上传整个仓库
+- 密钥只放在 IDE 安全存储；导出不含密钥
+- 设置界面支持中 / 英 / 日 / 韩
 
-- OpenAI-compatible HTTP endpoint，并支持高级鉴权头、路径与模板覆盖；适用于 Ollama、vLLM、兼容网关等
-- OpenAI FIM、Qwen、DeepSeek、StarCoder 与 Pseudo-FIM Chat 模板；可按模型名自动选择
-- 已保存 profile、模型列表、测试连接、测试模板/尝试全部模板
-- 自适应防抖、取消、generation stale drop、缓存、skip、过滤和错误退避
-- prefix/suffix 预算；默认不发送整个仓库或最近文件上下文
-- JetBrains PasswordSafe / VS Code SecretStorage；导出不含密钥
-- 共用 Settings + Logs Web UI（JetBrains JCEF / VS Code Webview），并提供宿主日志入口
-- 设置 UI 支持 English、中文、日本語、한국어
+两端行为尽量一致；仅因 IDE 本身不同的差异见 [实现状态](docs/IMPLEMENTATION_STATUS.md)。
 
-当前已知宿主差异（VS Code 的 `.gitignore`、最近文件、注释/字符串检测尚未与 JetBrains 对齐）见 [实现状态](docs/IMPLEMENTATION_STATUS.md)。
-
-## 快速安装
+## 安装
 
 ### JetBrains
 
-要求 **IntelliJ Platform 2024.2+（build 242+）**。JCEF 是 Web 设置界面的运行条件；新 IDE 可能需要启用 **Web Browser (JCEF)**。
+需要 **IntelliJ 平台 2024.2+**。设置页依赖 **JCEF**（新版本请启用 *Web Browser (JCEF)*）。
 
-1. 从 GitHub Releases 下载 `auto-complete-*.zip`，或按下文自行构建。
-2. IDE → **Settings/Preferences → Plugins → ⚙ → Install Plugin from Disk…**。
-3. 选择 ZIP 并重启 IDE。
-4. 打开右侧 **Auto Complete** 工具窗口，或使用 Tools 菜单中的 **Auto Complete** 动作。
-5. 创建 profile，填写 Base URL、模型和可选 API key，然后先点 **Test connection**。
+1. 从 [Releases](https://github.com/xinghaix/auto-complete/releases) 下载 `auto-complete-*.zip`，或按下文本地打包。
+2. **设置 → 插件 → 齿轮 → 从磁盘安装插件…** → 选 ZIP → 重启。
+3. 打开 **Auto Complete** 工具窗口。
+4. 新建配置，填 Base URL、模型、可选 API Key → **测试连接**。
 
-详细兼容性：[docs/COMPATIBILITY.md](docs/COMPATIBILITY.md)。
+兼容说明：[docs/COMPATIBILITY.md](docs/COMPATIBILITY.md)
 
 ### VS Code
 
-要求 VS Code `^1.85.0`。
+需要 VS Code **1.85+**。
 
-1. 获取 `auto-complete-*.vsix`，或执行本地打包。
-2. Extensions → … → **Install from VSIX…**，安装后重载窗口。
-3. 运行 **Auto Complete: Open Settings Panel**，创建 profile 并测试连接。
-4. **Auto Complete: Show Logs** 会打开设置面板日志页和 OutputChannel。
+1. 下载 `auto-complete-*.vsix`，或本地打包。
+2. 扩展视图 → **… → 从 VSIX 安装…** → 重载窗口。
+3. 命令面板：**Auto Complete: Open Settings Panel**。
+4. 同样先填配置并测试连接。
 
-详细说明：[apps/vscode/extension/README.zh.md](apps/vscode/extension/README.zh.md)。
+详见 [VS Code 说明](apps/vscode/extension/README.zh.md)。
 
-## 本地构建与验证
+## 本地构建
 
-需要 **JDK 21**、**Node.js 18+** 和 npm。根目录执行：
+需要 **JDK 21**、**Node.js 18+**。
 
 ```bash
 npm install
 ./gradlew :core:test :plugin:test
 npm run test:js
 npm run build:js
-./gradlew :plugin:buildPlugin
-```
-
-JetBrains 开发沙箱：
-
-```bash
-./gradlew :plugin:runIde
-```
-
-打包两个宿主：
-
-```bash
 ./scripts/package-local.sh
-# 或 npm run package:local
 ```
 
 | 产物 | 路径 |
@@ -84,36 +67,35 @@ JetBrains 开发沙箱：
 | JetBrains ZIP | `apps/jetbrains/plugin/build/distributions/auto-complete-*.zip` |
 | VS Code VSIX | `apps/vscode/extension/dist-vsix/auto-complete-*.vsix` |
 
-仅一端：`SKIP_JB=1 ./scripts/package-local.sh` 或 `SKIP_VSCODE=1 ./scripts/package-local.sh`。
+只打一端：`SKIP_JB=1` 或 `SKIP_VSCODE=1`。完整测试请用上面命令，打包脚本只跑部分测试。
 
-> 打包脚本只显式运行 `:core:test`；发布前仍应运行上方完整的 JVM 与 JS 测试。
+开发用 JetBrains 沙箱：`./gradlew :plugin:runIde`
 
-## 本地 endpoint 示例
+## 本地模型示例（Ollama）
 
 ```text
-Base URL: http://127.0.0.1:11434/v1
-Model:    qwen2.5-coder:7b
-API key:  服务没有鉴权时留空
-Template: AUTO（或按服务选择 QWEN / CHAT 等）
+Base URL:  http://127.0.0.1:11434/v1
+Model:     qwen2.5-coder:7b
+API Key:   不需要鉴权时留空
+模板:       AUTO（或按服务选 QWEN / CHAT 等）
 ```
 
-模型与 endpoint 对模板支持不同。使用 **Fetch models**、**Test connection** 和 **Test template**，不要只靠模型名称猜测请求格式。
+用面板里的 **拉取模型 / 测试连接 / 测试模板** 确认服务是否匹配，不要只靠猜。
 
-## 隐私与安全
+## 隐私
 
-- API key 仅存入 IDE 安全存储，不会写入普通配置、导出或日志。
-- 默认发送预算裁剪后的当前文件 prefix/suffix；文件路径默认发送，可关闭。
-- 默认不记录 prompt 正文、不附带最近文件、不发送整个仓库。
-- 远程 endpoint 始终由用户自行配置；请审查 provider 的数据策略。
+- 密钥只在 IDE 安全存储，不进普通配置、导出或日志。
+- 默认只发当前文件光标附近的代码；路径默认可发，可关。
+- 默认不记录完整提示词、不附带其它打开文件、不扫全仓库。
+- 你填的远程地址由你负责；请确认服务商的数据处理方式。
 
-安全报告见 [SECURITY.zh.md](SECURITY.zh.md)。
+安全报告：[SECURITY.zh.md](SECURITY.zh.md)
 
-## 文档与贡献
+## 文档
 
-- [文档索引](docs/README.md) / [English index](docs/README.en.md)
-- [架构](docs/ARCHITECTURE.md) · [设置](docs/SETTINGS.md) · [Provider](docs/PROVIDERS.md) · [性能](docs/PERFORMANCE.md)
-- [构建/发布](docs/RELEASE.md) · [实现状态](docs/IMPLEMENTATION_STATUS.md) · [来源与归属](docs/SOURCES.md)
-- [贡献指南](CONTRIBUTING.zh.md) / [Contributing](CONTRIBUTING.md)
-- [变更记录](CHANGELOG.md)
+- [文档目录](docs/README.md) · [架构](docs/ARCHITECTURE.md) · [设置](docs/SETTINGS.md)
+- [连接与模板](docs/PROVIDERS.md) · [性能](docs/PERFORMANCE.md) · [构建发布](docs/RELEASE.md)
+- [实现状态](docs/IMPLEMENTATION_STATUS.md) · [来源说明](docs/SOURCES.md)
+- [贡献](CONTRIBUTING.zh.md) · [变更记录](CHANGELOG.md)
 
-项目借鉴 Kilo Code 的经典补全行为，但为独立实现；详见 [NOTICE](NOTICE) 和 [来源文档](docs/SOURCES.md)。
+行为参考过 Kilo Code 的经典补全思路，实现为本仓库独立代码，见 [NOTICE](NOTICE)。

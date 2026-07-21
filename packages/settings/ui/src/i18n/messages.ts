@@ -84,6 +84,10 @@ export type MessageKey =
   | "exportOk"
   | "jcefFallback"
   | "importPrompt"
+  | "importTitle"
+  | "importPlaceholder"
+  | "importConfirm"
+  | "importEmpty"
   | "language"
   | "theme"
   | "themeAuto"
@@ -264,7 +268,11 @@ export const en: Messages = {
   importOk: "Imported",
   exportOk: "Exported to clipboard",
   jcefFallback: "Web panel unavailable; use IDE Settings → Tools → Auto Complete.",
-  importPrompt: "Paste settings JSON (no secrets):",
+  importPrompt: "Paste settings JSON exported from this plugin. API keys are never included.",
+  importTitle: "Import settings",
+  importPlaceholder: '{ "schemaVersion": 1, "profiles": [ … ] }',
+  importConfirm: "Import",
+  importEmpty: "Paste a non-empty settings JSON first.",
   language: "Language",
   theme: "Theme",
   themeAuto: "Auto (follow IDE)",
@@ -445,7 +453,11 @@ export const zh: Messages = {
   importOk: "已导入",
   exportOk: "已复制到剪贴板",
   jcefFallback: "Web 面板不可用；请使用 IDE 设置 → 工具 → AI 自动补全。",
-  importPrompt: "粘贴设置 JSON（不含密钥）：",
+  importPrompt: "粘贴从此插件导出的设置 JSON。不会包含 API 密钥。",
+  importTitle: "导入设置",
+  importPlaceholder: '{ "schemaVersion": 1, "profiles": [ … ] }',
+  importConfirm: "导入",
+  importEmpty: "请先粘贴非空的设置 JSON。",
   language: "语言",
   theme: "主题",
   themeAuto: "自动（跟随 IDE）",
@@ -627,7 +639,11 @@ export const ja: Messages = {
   exportOk: "クリップボードにコピーしました",
   jcefFallback:
     "Web パネルを利用できません。IDE 設定 → ツール → Auto Complete を使用してください。",
-  importPrompt: "設定 JSON を貼り付け（シークレットなし）:",
+  importPrompt: "このプラグインからエクスポートした設定 JSON を貼り付け。API キーは含まれません。",
+  importTitle: "設定をインポート",
+  importPlaceholder: '{ "schemaVersion": 1, "profiles": [ … ] }',
+  importConfirm: "インポート",
+  importEmpty: "空でない設定 JSON を貼り付けてください。",
   language: "言語",
   theme: "テーマ",
   themeAuto: "自動（IDE に合わせる）",
@@ -808,7 +824,11 @@ export const ko: Messages = {
   importOk: "가져옴",
   exportOk: "클립보드에 복사됨",
   jcefFallback: "웹 패널을 사용할 수 없습니다. IDE 설정 → 도구 → Auto Complete를 사용하세요.",
-  importPrompt: "설정 JSON 붙여넣기(비밀 없음):",
+  importPrompt: "이 플러그인에서 내보낸 설정 JSON을 붙여넣으세요. API 키는 포함되지 않습니다.",
+  importTitle: "설정 가져오기",
+  importPlaceholder: '{ "schemaVersion": 1, "profiles": [ … ] }',
+  importConfirm: "가져오기",
+  importEmpty: "비어 있지 않은 설정 JSON을 먼저 붙여넣으세요.",
   language: "언어",
   theme: "테마",
   themeAuto: "자동(IDE 따름)",

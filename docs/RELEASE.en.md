@@ -1,29 +1,21 @@
-# Build, install, and release
+# Build, install, release
 
-[中文](RELEASE.md) · [Documentation index](README.en.md)
+[中文](RELEASE.md) · [Docs index](README.en.md)
 
-The current version is an open-source preview: build it locally and install through **JetBrains Install Plugin from Disk** or **VS Code Install from VSIX**. Marketplace publishing is not the default flow and CI does not perform it automatically.
+Open-source preview: install local ZIP/VSIX. Marketplace listing and signing are **not** default CI.
 
 ## Prerequisites
 
-| Target | Requirement |
+| Goal | Need |
 |---|---|
-| JetBrains plugin | JDK 21 and network access for IntelliJ Platform/Gradle dependencies |
-| JS, settings UI, VS Code extension | Node.js 18+ and npm |
-| JetBrains runtime | IntelliJ Platform 2024.2+ (build 242+) with working JCEF |
-| VS Code runtime | VS Code `^1.85.0` |
+| Build JetBrains plugin | JDK 21 + network for platform deps |
+| Settings UI / VS Code | Node 18+, npm |
+| Run JetBrains | 2024.2+, working JCEF |
+| Run VS Code | 1.85+ |
 
-Example JDK 21 setup for macOS Homebrew:
+Set `JAVA_HOME` to a JDK 21 install when needed (paths differ by OS).
 
-```bash
-export JAVA_HOME=/opt/homebrew/opt/openjdk@21/libexec/openjdk.jdk/Contents/Home
-```
-
-It is only an example; point `JAVA_HOME` at your JDK 21 installation on Linux or Windows.
-
-## Install dependencies and run full verification
-
-From the repository root:
+## Full verification
 
 ```bash
 npm install
@@ -33,77 +25,37 @@ npm run build:js
 ./gradlew :plugin:buildPlugin
 ```
 
-This runs Kotlin/JetBrains tests, TypeScript/settings-UI tests, the JS build, and the JetBrains distribution build. The ZIP is written to:
-
-```text
-apps/jetbrains/plugin/build/distributions/auto-complete-<version>.zip
-```
-
-For JetBrains development:
+Sandbox IDE (not the same as install-from-zip QA):
 
 ```bash
 ./gradlew :plugin:runIde
 ```
 
-This starts an isolated IDE sandbox; it is not a replacement for installed-ZIP compatibility validation.
-
-## Local dual-host packaging
-
-Use the script to make installable artifacts:
+## Dual-host package
 
 ```bash
-npm install              # first time or after dependency changes
 ./scripts/package-local.sh
-# or npm run package:local
 ```
 
-It builds shared `packages/settings/ui`, runs Gradle `:core:test`, builds the JetBrains ZIP, then builds `packages/completion/engine-ts`, the VS Code extension, and a VSIX.
-
-| Artifact | Installation |
+| Artifact | Install |
 |---|---|
-| `apps/jetbrains/plugin/build/distributions/auto-complete-*.zip` | JetBrains: Settings/Preferences → Plugins → ⚙ → Install Plugin from Disk… → restart |
-| `apps/vscode/extension/dist-vsix/auto-complete-*.vsix` | VS Code: Extensions → … → Install from VSIX… → reload window |
+| `.../distributions/auto-complete-*.zip` | Install Plugin from Disk |
+| `.../dist-vsix/auto-complete-*.vsix` | Install from VSIX |
 
-Build one host only:
+One host: `SKIP_JB=1` or `SKIP_VSCODE=1`.
 
-```bash
-SKIP_JB=1 ./scripts/package-local.sh      # VS Code only
-SKIP_VSCODE=1 ./scripts/package-local.sh  # JetBrains only
-```
+> The package script only forces `:core:test` — **not** a full test substitute.
 
-> The script packages artifacts; it is not full verification. It explicitly runs only `:core:test`, not `:plugin:test` or `npm run test:js`. Run the full commands above before a release.
+## Smoke after install
 
-## First configuration and smoke test
-
-1. Create/select a profile and enter Base URL, model, and optional API key.
-2. Run **Fetch models** (optional) and **Test connection** first.
-3. Select a FIM/chat template; use **Test template** or **Try all templates** when necessary.
-4. In a supported text file, check automatic ghost text, manual trigger, cancellation on typing, native acceptance behaviour, and logs.
-5. On JetBrains, check the JCEF panel on 2024.2 and a newer IDE; newer IDEs may need **Web Browser (JCEF)** enabled. See [COMPATIBILITY.md](COMPATIBILITY.md).
-6. On VS Code, check the settings panel, OutputChannel, SecretStorage key, and VSIX install.
+Create a profile → test connection → type and watch ghost text cancel on continue → check settings UI on both hosts.
 
 ## CI
 
-`.github/workflows/ci.yml` defines two jobs:
+JDK 21 tests + ZIP; Node 22 JS tests + build; `v*` tags create a same-name GitHub Release with artifacts when tests pass (skip if release exists). No Marketplace/signing automation.
 
-- **JVM (JDK 21):** `./gradlew :core:test :plugin:test --stacktrace`, `./gradlew :plugin:buildPlugin --stacktrace`, then ZIP artifact upload.
-- **JS (Node 22):** `npm install`, `npm run test:js`, and `npm run build:js`.
+## Release checklist
 
-CI builds and tests on `main`/PRs. A pushed `v*` tag downloads the successful ZIP/VSIX artifacts after the JVM and JS jobs, then creates a GitHub Release. If that tag already has a release, the workflow skips publication and never overwrites or uploads duplicates. Marketplace publishing and signing remain manual.
+Bump versions → CHANGELOG → full tests + package → real install smoke → annotated `vX.Y.Z` tag when intended → tokens only in CI/env.
 
-## Versioning and release checklist
-
-1. Update `pluginVersion` in `gradle.properties` and keep the version intent consistent with `apps/vscode/extension/package.json` and the root Node workspace.
-2. Add user-visible notes under `[Unreleased]` in `CHANGELOG.md`.
-3. Run full verification, then dual-host packaging.
-4. Install artifacts manually on target JetBrains/VS Code versions and smoke test.
-5. Create and push an annotated `v<version>` tag; after tests pass, CI creates the matching GitHub Release and attaches ZIP and VSIX. An existing release for the tag is safely skipped.
-6. Configure Marketplace/signing tokens only when explicitly requested; tokens must come from environment or CI secrets, never the repository.
-
-Suggested tag:
-
-```bash
-git tag -a v0.2.0 -m "Auto Complete 0.2.0"
-```
-
-Do not push, tag, or publish without explicit user direction.
+Do not push/tag/publish without explicit intent.

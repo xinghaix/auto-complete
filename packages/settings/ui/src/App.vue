@@ -95,6 +95,9 @@ const saveState = ref<SaveState>("idle");
 const saveMsg = ref("");
 
 const loaded = ref(false);
+/** In-panel import dialog (avoid window.prompt — ugly under JCEF). */
+const importModalOpen = ref(false);
+const importJsonText = ref("");
 
 /** Public GitHub project (About card). Keep in sync with package homepage. */
 const GITHUB_REPO_URL = "https://github.com/xinghaix/auto-complete";
@@ -489,11 +492,23 @@ async function onExport() {
   }
 }
 
-async function onImport() {
-  const raw = window.prompt(tr("importPrompt"));
-  if (raw == null) return;
-  const json = raw.trim();
-  if (!json) return;
+function openImportModal() {
+  importJsonText.value = "";
+  importModalOpen.value = true;
+}
+
+function closeImportModal() {
+  importModalOpen.value = false;
+  importJsonText.value = "";
+}
+
+async function confirmImport() {
+  const json = importJsonText.value.trim();
+  if (!json) {
+    saveState.value = "error";
+    saveMsg.value = tr("importEmpty");
+    return;
+  }
   try {
     const res = await bridge.request("importSettings", { json });
     if (!res.ok) {
@@ -501,6 +516,7 @@ async function onImport() {
       saveMsg.value = res.error || tr("importFailed");
       return;
     }
+    closeImportModal();
     await load();
     saveState.value = "saved";
     saveMsg.value = tr("importOk");
@@ -1211,7 +1227,7 @@ function copyLogs() {
               <button type="button" class="btn btn-secondary" @click="void onExport()">
                 {{ tr("export") }}
               </button>
-              <button type="button" class="btn btn-secondary" @click="void onImport()">
+              <button type="button" class="btn btn-secondary" @click="openImportModal()">
                 {{ tr("import") }}
               </button>
             </div>
@@ -1286,5 +1302,39 @@ function copyLogs() {
     <div v-if="saveState !== 'idle'" class="save-status" :class="saveState">
       {{ saveMsg }}
     </div>
+
+    <!-- Import settings: in-panel modal (window.prompt is unusable in JCEF) -->
+    <Teleport to="body">
+      <div
+        v-if="importModalOpen"
+        class="modal-root"
+        role="dialog"
+        aria-modal="true"
+        :aria-label="tr('importTitle')"
+        @keydown.escape.prevent="closeImportModal()"
+      >
+        <div class="modal-backdrop" @mousedown="closeImportModal()" />
+        <div class="modal-panel" @mousedown.stop>
+          <h2 class="modal-title">{{ tr("importTitle") }}</h2>
+          <p class="modal-help">{{ tr("importPrompt") }}</p>
+          <textarea
+            v-model="importJsonText"
+            class="modal-textarea"
+            rows="12"
+            spellcheck="false"
+            autocomplete="off"
+            :placeholder="tr('importPlaceholder')"
+          />
+          <div class="modal-actions">
+            <button type="button" class="btn btn-ghost" @click="closeImportModal()">
+              {{ tr("confirmDeleteCancel") }}
+            </button>
+            <button type="button" class="btn btn-primary" @click="void confirmImport()">
+              {{ tr("importConfirm") }}
+            </button>
+          </div>
+        </div>
+      </div>
+    </Teleport>
   </div>
 </template>

@@ -1,114 +1,93 @@
 # 架构
 
-[English](ARCHITECTURE.en.md) · [文档索引](README.md) · [项目主页](../README.md)
+[English](ARCHITECTURE.en.md) · [文档目录](README.md)
 
-> 本文以当前仓库代码为准，覆盖 JetBrains 与 VS Code 两个已在树内实现的宿主；它们共享行为规格，但**不是**通过彼此的扩展宿主或 RPC 通信。
+用一句话：**两个 IDE 宿主 + 两套同名补全引擎 + 一套 Web 设置页**。两端不通过对方进程或 RPC 通信。
 
-## 目标与边界
+## 做什么 / 不做什么
 
-Auto Complete 是自带模型端点的 AI 内联代码补全项目。用户提供 `baseUrl`、模型和可选 API 密钥；插件显示 ghost text 并在输入继续时取消旧请求。
+**做：** 你提供 `baseUrl`、模型和可选密钥；在编辑器里显示 ghost text；继续输入时取消旧请求。
 
-明确不做：
+**不做：**
 
-- JetBrains 调用 VS Code Extension Host、`kilo serve` 或任何外部桥接进程；
-- 默认发送整个仓库或开启多文件上下文；
-- 在设置 Web UI 中直接向用户端点发 HTTP；
-- 在 JetBrains EDT 上进行网络请求；
-- 把 Agent、Next Edit 或账号体系混入补全主路径。
+- JetBrains 去调 VS Code（或反过来）
+- 默认上传整个仓库或多文件大上下文
+- 设置页直接访问你的模型服务（必须经宿主再发 HTTP）
+- 在 JetBrains 界面线程里做网络请求
+- Agent / Next Edit / 账号体系
 
-项目借鉴 Kilo Code 的经典补全行为，但当前实现是独立的 Kotlin/TypeScript 双引擎实现；来源和许可边界见 [SOURCES.md](SOURCES.md) 与 [NOTICE](../NOTICE)。
+行为参考过 Kilo Code 的经典补全思路；代码是本仓库独立实现，见 [SOURCES.md](SOURCES.md)。
 
-## 仓库结构
-
-```text
-auto-complete/
-├── apps/
-│   ├── jetbrains/plugin/              JetBrains 宿主（Gradle :plugin）：Inline Completion、JCEF、PasswordSafe、IDE HTTP
-│   └── vscode/extension/              VS Code 扩展（npm: auto-complete）：provider、SecretStorage、Webview、OutputChannel
-├── packages/
-│   ├── completion/
-│   │   ├── contracts/                 设置/模板/语言映射/UiBridge 协议与 golden fixtures（npm: @auto-complete/shared-spec）
-│   │   ├── engine-jvm/                Kotlin/JVM 补全引擎（Gradle :core；无 IntelliJ UI 依赖）
-│   │   └── engine-ts/                 TypeScript 补全引擎（npm: @auto-complete/core-ts）
-│   └── settings/ui/                   Vue 3 设置与日志界面，供两个宿主嵌入（npm: @auto-complete/settings-ui）
-├── docs/                              面向用户和贡献者的文档
-└── scripts/package-local.sh           构建 JetBrains zip 与 VSIX 的本地打包脚本
-```
-
-文档里写**磁盘路径**（如 `packages/completion/contracts`）；npm 包名（`@auto-complete/shared-spec`、`@auto-complete/core-ts`、`@auto-complete/settings-ui`）与 Gradle 模块名（`:core`、`:plugin`）单独标注。Gradle 项目只包含 `core` 和 `plugin`（见 `settings.gradle.kts`）；根 `package.json` 管理 Node workspaces。JVM 和 Node 两条构建链并列存在，不能把它们误解为“JetBrains 插件依赖 VS Code 扩展”。
-
-## 宿主与职责
-
-| 层 | JetBrains | VS Code |
-|---|---|---|
-| 内联入口 | `apps/jetbrains/plugin/.../ide/AutoCompleteInlineProvider.kt` | `apps/vscode/extension/src/inline/provider.ts` |
-| 引擎 | `packages/completion/engine-jvm/.../engine/CompletionEngine.kt` | `packages/completion/engine-ts/src/engine.ts` |
-| 密钥 | `PasswordSafe` | `SecretStorage` |
-| 设置和日志 UI | `packages/settings/ui` 经 JCEF `JbUiBridge` 嵌入同一个 **Auto Complete** 工具窗口 | `packages/settings/ui` 经 Webview `VsCodeUiBridge` 打开设置面板；原始日志同时写 OutputChannel |
-| 持久化普通设置 | `PersistentStateComponent` | `globalState` 与 VS Code configuration 镜像 |
-| 网络 | IDE 代理和信任库适配（`IdeHttpSupport`） | TypeScript `fetch` 客户端 |
-
-JetBrains 的最低平台版本为 **2024.2 / build 242**。JCEF 设置页是唯一的 JetBrains 设置界面：2024.2 使用平台可用的 JCEF；较新 IDE 上 `com.intellij.modules.jcef` 是**可选**依赖并通过反射宿主加载。详见 [COMPATIBILITY.md](COMPATIBILITY.md)。VS Code 扩展声明最低 VS Code `^1.85.0`。
-
-## 补全数据流
+## 目录怎么分
 
 ```text
-编辑器事件 / 手动命令
-  → 宿主读取当前文档快照，确定 language、cursor、path、触发类型
-  → CompletionEngine
-      1. gate：启用、snooze、语言、注释/字符串、文件大小、忽略规则、设置校验
-      2. suggestion history / prompt LRU 缓存
-      3. contextual skip
-      4. 自适应 debounce；按文件 scope 取消上一个任务
-      5. PromptBuilder：按 prefix/suffix 字符预算裁剪，可选附带路径和最近文件片段
-      6. HTTP client：按模板构造 FIM 或 chat 请求
-      7. 过滤空结果、重复结果和行中多行结果
-      8. generation 校验，丢弃过期响应
-  → 宿主渲染 InlineCompletionItem / InlineCompletionGrayTextElement
-  → 日志、状态栏和 UI Bridge 更新
+apps/jetbrains/plugin/     JetBrains 插件（内联补全、JCEF、密钥、网络）
+apps/vscode/extension/     VS Code 扩展（同上，Webview）
+packages/completion/
+  engine-jvm/              Kotlin 引擎（Gradle :core）
+  engine-ts/               TypeScript 引擎（npm @auto-complete/core-ts）
+  contracts/               共享规则、模板、协议、测试样例
+packages/settings/ui/      Vue 设置 + 日志页（两端嵌入）
+docs/                      用户与贡献者文档
+scripts/package-local.sh   本地打 ZIP + VSIX
 ```
 
-JetBrains 入口会读取文档来形成 prefix/suffix，但出站请求由 `PromptBuilder` 裁剪；它**不等于**默认上传整文件。两宿主均用启发式探测填充 `inComment` / `inString`（JB `ContextProbe`，VS Code `inspectContext`）。配置语义默认趋同，仅允许平台级差异（见 [SETTINGS.md](SETTINGS.md) 与 [IMPLEMENTATION_STATUS.md](IMPLEMENTATION_STATUS.md)）。
+Gradle 只管 `:core` 与 `:plugin`；Node workspace 管 TS 引擎、设置 UI、VS Code 扩展。两条构建链并列，不是「插件依赖扩展」。
 
-## 引擎行为
+## 谁负责什么
 
-两个引擎均实现并测试以下核心语义：
-
-- generation 编号和可取消任务，避免过期建议写回；
-- 自动触发的自适应防抖，默认 `150 / 300 / 1000 ms`（最小 / 初始 / 最大）；
-- 每个 scope 的 suggestion history，以及按语言、模型、裁剪 prompt 计算键的 LRU；
-- `.gitignore`（两宿主注入项目/workspace 根）与额外 glob 跳过、禁用语言、文件大小限制；
-- 前后缀 prompt 预算（默认 `8000 / 2000` 字符）；
-- FIM 与 chat 模板、请求超时、HTTP 状态分类和退避；
-- 可选 SSE 流式首 token、日志脱敏和 fatal 认证错误通知；
-- 可选最近打开文件片段（默认关闭）。
-
-全局 `maxInFlight` 默认是 1。新请求会取消同一文件的请求；达到全局上限时，引擎会取消另一 scope 的在途任务，而不是无限排队。
-
-## Provider 与请求模板
-
-`HttpCompletionClient`（JVM）和 `packages/completion/engine-ts/src/httpClient.ts`（TS）依据模型名或用户选择解析模板：
-
-| 模板 | 默认相对路径 | 传输形式 |
+| | JetBrains | VS Code |
 |---|---|---|
-| OpenAI FIM / Codestral | `/fim/completions` | `prompt` + `suffix` |
-| Qwen、DeepSeek、StarCoder FIM | `/completions` | 带各自 FIM token 的 `prompt` |
-| Pseudo-FIM Chat | `/chat/completions` | OpenAI-style `messages` |
+| 编辑器入口 | Inline Completion | Inline Completion |
+| 引擎 | Kotlin | TypeScript |
+| 密钥 | PasswordSafe | SecretStorage |
+| 设置 / 日志 | 工具窗口（JCEF） | Webview 面板 + Output |
+| 普通设置存哪 | `autoCompleteSettings.xml` | `globalState`（部分镜像到原生设置） |
+| 网络 | IDE 代理 / 信任库 | 扩展里的 `fetch` |
 
-`AUTO` 从模型名推断模板，推断不到时回退 chat。设置 UI 可拉取 `/models`，测试连接、测试一个模板或依次测试所有模板。测试走 **UI Bridge → 宿主 → 引擎客户端**，不会从 JCEF/Webview 直接发请求。完整协议和路径规则见 [PROVIDERS.md](PROVIDERS.md)。
+JetBrains 最低 **2024.2**；设置页要有可用 JCEF。VS Code 最低 **1.85**。
 
-## 配置、隐私与日志
+## 一次补全怎么走
 
-设置分为全局行为/性能/日志设置和具名 Provider profile。每个 profile 保存端点、模型、模板、超时和可选上下文预算；API key 永远独立存入 PasswordSafe 或 SecretStorage。导出和 UiBridge snapshot 只有 `hasApiKey` 标志，绝不含明文 key。
+```text
+编辑 / 手动触发
+  → 宿主读当前文件片段、语言、路径
+  → 引擎：
+      是否启用、语言/路径/大小是否跳过
+      缓存是否命中
+      防抖；取消同文件旧任务
+      按字符预算裁剪前后文
+      HTTP 请求模型
+      过滤空/重复建议；丢弃过期结果
+  → 显示 ghost text；写日志 / 状态栏
+```
 
-默认值强调输入路径与隐私：不启用最近文件上下文、不记录 prompt 正文、两宿主均遵循 `.gitignore` 与额外 glob、最大文件 512 KB、补全硬超时 3000 ms。用户开启 `logPromptBodies` 后，日志会记录截断 prompt，属于高敏设置。
+默认只发光标附近代码，不是整文件。注释/字符串用轻量探测（两端都有）。设置语义尽量一致，见 [SETTINGS.md](SETTINGS.md)。
 
-UiBridge 的请求/响应 envelope、日志批处理、主题/语言推送与安全规则由 [packages/completion/contracts/bridge-protocol.md](../packages/completion/contracts/bridge-protocol.md) 定义。
+## 引擎共性
 
-## 验证边界
+- 防抖默认约 150 / 300 / 1000 ms
+- 补全超时默认 3 秒；设置页探测更长
+- 前缀/后缀默认 8000 / 2000 字符
+- 全局同时最多 1 个在途请求（默认可改）
+- 可选流式（实验）、可选最近文件片段（默认关）
 
-- Kotlin：`packages/completion/engine-jvm/src/test` 覆盖引擎、缓存、跳过、模板、HTTP fixtures、设置校验；`apps/jetbrains/plugin/src/test` 覆盖 profile、i18n 和 UI 状态。
-- TypeScript：`packages/completion/engine-ts/test/fixtures.test.ts` 对照 `packages/completion/contracts`（npm：`@auto-complete/shared-spec`）golden fixtures；`packages/settings/ui` 有 i18n、挂载和 HTML entry 测试。
-- CI：JDK 21 job 运行 Gradle `:core:test :plugin:test` 并构建 zip；Node 22 job 运行 `npm run test:js` 和 `npm run build:js`。
+## 模型怎么请求
 
-构建、安装和打包说明见 [RELEASE.md](RELEASE.md)。
+引擎按模板拼 URL 和 body（FIM 或 chat）。模板可自动猜，也可手选。设置页的「拉取模型 / 测试」走：**设置 UI → 宿主 → 引擎客户端**，不会在网页里直接请求你的服务。详见 [PROVIDERS.md](PROVIDERS.md)。
+
+## 配置与隐私
+
+- 全局行为 + 多套 profile
+- 密钥不进普通配置、导出、快照
+- 默认：不记完整 prompt、不带最近文件、尊重 `.gitignore`
+
+协议细节：[UiBridge](../packages/completion/contracts/bridge-protocol.zh.md)
+
+## 怎么验证
+
+- JVM：`packages/completion/engine-jvm` 与插件测试
+- JS：`engine-ts`、`settings-ui` 测试
+- CI：JDK 21 + Node 22
+
+构建步骤见 [RELEASE.md](RELEASE.md)。

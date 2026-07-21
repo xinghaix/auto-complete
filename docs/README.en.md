@@ -1,40 +1,41 @@
 # Documentation index
 
-[中文](README.md) · [English](README.en.md) · [Project overview](../README.en.md)
+[中文](README.md) · [English](README.en.md) · [Project home](../README.en.md)
 
-Auto Complete is a dual-host AI inline-completion project: JetBrains uses Kotlin/JVM `packages/completion/engine-jvm` (Gradle `:core`), VS Code uses TypeScript `packages/completion/engine-ts` (npm: `@auto-complete/core-ts`), and both share `packages/completion/contracts` plus Vue `packages/settings/ui`. Hosts run independently; JetBrains does not depend on a VS Code Extension Host or `kilo serve`.
+Auto Complete is **bring-your-own-endpoint** AI **inline completion** for JetBrains and VS Code. Hosts share settings UI and rules but run independently.
 
 ## Start here
 
-- Installation and local dual-host packaging: [project overview](../README.en.md)
-- JetBrains compatibility and JCEF: [COMPATIBILITY.md](COMPATIBILITY.md)
-- Endpoints, model templates, and probes: [PROVIDERS.en.md](PROVIDERS.en.md)
-- Settings, storage, and privacy: [SETTINGS.en.md](SETTINGS.en.md)
-- Build, test, distribution, and release: [RELEASE.en.md](RELEASE.en.md)
+| Goal | Doc |
+|---|---|
+| Install / package locally | [Project home](../README.en.md) |
+| JetBrains version & JCEF | [COMPATIBILITY.md](COMPATIBILITY.md) |
+| Endpoint & templates | [PROVIDERS.en.md](PROVIDERS.en.md) |
+| What each setting means | [SETTINGS.en.md](SETTINGS.en.md) |
+| Build, test, release | [RELEASE.en.md](RELEASE.en.md) |
+| Host differences | [IMPLEMENTATION_STATUS.en.md](IMPLEMENTATION_STATUS.en.md) |
 
-## Paired documentation
+## All docs
 
 | Topic | 中文 | English |
 |---|---|---|
-| Architecture and dual-host boundary | [ARCHITECTURE.md](ARCHITECTURE.md) | [ARCHITECTURE.en.md](ARCHITECTURE.en.md) |
-| Settings, profiles, privacy, and logs | [SETTINGS.md](SETTINGS.md) | [SETTINGS.en.md](SETTINGS.en.md) |
-| Providers, FIM/chat templates, and probes | [PROVIDERS.md](PROVIDERS.md) | [PROVIDERS.en.md](PROVIDERS.en.md) |
-| Hot path, budgets, and performance verification | [PERFORMANCE.md](PERFORMANCE.md) | [PERFORMANCE.en.md](PERFORMANCE.en.md) |
-| Build, install, packages, and release | [RELEASE.md](RELEASE.md) | [RELEASE.en.md](RELEASE.en.md) |
-| JetBrains platform and JCEF | [COMPATIBILITY.md](COMPATIBILITY.md) | same bilingual document |
-| Open-source publishing readiness | [OPEN_SOURCE.zh.md](OPEN_SOURCE.zh.md) | [OPEN_SOURCE.md](OPEN_SOURCE.md) |
-| Sources, attribution, and boundary | [SOURCES.md](SOURCES.md) | [SOURCES.en.md](SOURCES.en.md) |
-| Implementation state and known host differences | [IMPLEMENTATION_STATUS.md](IMPLEMENTATION_STATUS.md) | [IMPLEMENTATION_STATUS.en.md](IMPLEMENTATION_STATUS.en.md) |
+| Architecture | [ARCHITECTURE.md](ARCHITECTURE.md) | [ARCHITECTURE.en.md](ARCHITECTURE.en.md) |
+| Settings & privacy | [SETTINGS.md](SETTINGS.md) | [SETTINGS.en.md](SETTINGS.en.md) |
+| Providers & templates | [PROVIDERS.md](PROVIDERS.md) | [PROVIDERS.en.md](PROVIDERS.en.md) |
+| Performance | [PERFORMANCE.md](PERFORMANCE.md) | [PERFORMANCE.en.md](PERFORMANCE.en.md) |
+| Build & release | [RELEASE.md](RELEASE.md) | [RELEASE.en.md](RELEASE.en.md) |
+| JetBrains compatibility | [COMPATIBILITY.md](COMPATIBILITY.md) | bilingual |
+| Implementation status | [IMPLEMENTATION_STATUS.md](IMPLEMENTATION_STATUS.md) | [IMPLEMENTATION_STATUS.en.md](IMPLEMENTATION_STATUS.en.md) |
+| Sources & attribution | [SOURCES.md](SOURCES.md) | [SOURCES.en.md](SOURCES.en.md) |
 | Contributing | [../CONTRIBUTING.zh.md](../CONTRIBUTING.zh.md) | [../CONTRIBUTING.md](../CONTRIBUTING.md) |
-| Security reporting | [../SECURITY.zh.md](../SECURITY.zh.md) | [../SECURITY.md](../SECURITY.md) |
-| Changelog | [../CHANGELOG.md](../CHANGELOG.md) | [../CHANGELOG.md](../CHANGELOG.md) |
+| Security | [../SECURITY.zh.md](../SECURITY.zh.md) | [../SECURITY.md](../SECURITY.md) |
+| Changelog | [../CHANGELOG.md](../CHANGELOG.md) | same |
 
-## Specifications and host-specific documents
+## Specs for developers
 
-- [Shared-spec README](../packages/completion/contracts/README.md) / [中文](../packages/completion/contracts/README.zh.md)
-- [UiBridge protocol](../packages/completion/contracts/bridge-protocol.md) / [中文](../packages/completion/contracts/bridge-protocol.zh.md)
-- [VS Code extension README](../apps/vscode/extension/README.md) / [中文](../apps/vscode/extension/README.zh.md)
+- [Shared contracts](../packages/completion/contracts/README.md) · [UiBridge protocol](../packages/completion/contracts/bridge-protocol.md)
+- [VS Code extension](../apps/vscode/extension/README.md)
 
-## Sources of truth
+## Note
 
-Documentation is grounded in executable configuration and source: `settings.gradle.kts`, the root `package.json`, `apps/jetbrains/plugin/src/main/resources/META-INF/plugin.xml`, `apps/vscode/extension/package.json`, both `CompletionEngine` implementations, and `.github/workflows/ci.yml`. If text conflicts with code, correct the text: the current tree is dual-host, not single-host with VS Code deferred.
+Docs must match **current code**. If they disagree, fix the docs. Both hosts ship today — do not describe VS Code as “planned only”.

@@ -50,10 +50,11 @@ npm run build:js
 1. 修改子系统前阅读 `AGENTS.md` 和相关 `docs/` 文档。
 2. 核心算法保持宿主无关；不要向 `packages/completion/engine-jvm`（`:core`）加 IntelliJ API，也不要向 `packages/completion/engine-ts`（`@auto-complete/core-ts`）加 VS Code API。
 3. 保留可取消请求与 generation 校验；JCEF/Webview 不得直接发送 provider HTTP。
-4. API key 只进 PasswordSafe/SecretStorage。不得把 key、个人 endpoint 或原始 prompt 样例写入源码、文档、测试或 fixture。
+4. API key 只进 PasswordSafe/SecretStorage。不得把 key、个人 endpoint 或原始 prompt 样例写入源码、文档、测试或 fixture。禁止提交家目录路径、私人邮箱、局域网 IP、机器主机名、本机 clone 的绝对路径（见 `AGENTS.md` 隐私规则）。
 5. 修改共享引擎行为、模板或设置 key 时，同时更新两端实现和 shared fixtures；若故意不一致，必须在 `docs/IMPLEMENTATION_STATUS.md` 说明。
 6. 用户可见的架构、设置、Provider、兼容性或分发变动必须同步中英文文档。
 7. 引擎/客户端/设置变更要补聚焦测试，并在 PR 前运行受影响的 JVM/JS 测试。
+8. **设置 / Web UI（`packages/settings/ui`）：** 将 JetBrains JCEF 与 VS Code Webview 视为两个目标平台，两端都要检查（或写明无法检查的原因）。产品流程不要用 `window.prompt` / `confirm` / `alert`，改用面板内模态框；http(s) 链接优先走 bridge `openExternal`。详见 `AGENTS.md` 中的双宿主 UI 检查清单。
 
 ## Pull Request
 

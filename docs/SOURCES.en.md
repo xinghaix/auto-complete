@@ -1,54 +1,39 @@
-# Sources, attribution, and boundaries
+# Sources and attribution
 
-[中文](SOURCES.md) · [Documentation index](README.en.md)
+[中文](SOURCES.md) · [Docs index](README.en.md)
 
-## Project relationship
+## Relation to Kilo
 
-Auto Complete is an independent dual-host inline-completion project. It uses open-source [Kilo Code / kilocode](https://github.com/Kilo-Org/kilocode) and [kilocode-legacy](https://github.com/Kilo-Org/kilocode-legacy) as references for classic completion behaviour and design, then reimplements that behaviour in this repository in Kotlin/JVM and TypeScript.
+Auto Complete is **independent**. It draws on classic inline-completion behaviour from open-source [Kilo Code](https://github.com/Kilo-Org/kilocode) / [kilocode-legacy](https://github.com/Kilo-Org/kilocode-legacy), reimplemented here in Kotlin and TypeScript.
 
-The current tree is not “JetBrains shipped, VS Code planned”: it contains JetBrains `apps/jetbrains/plugin` (Gradle `:plugin`) plus Kotlin `packages/completion/engine-jvm` (Gradle `:core`), VS Code `apps/vscode/extension` plus `packages/completion/engine-ts`, shared `packages/settings/ui`, and `packages/completion/contracts`. The hosts do not call each other through an Extension Host, RPC, or `kilo serve`.
+This repo already ships JetBrains + VS Code hosts, both engines, and shared settings UI. Hosts do not call each other via Extension Host or `kilo serve`.
 
-## Reference use
+## What was referenced
 
-| Reference | Use | Treatment here |
+| Source | Use | Here |
 |---|---|---|
-| `kilocode-legacy` v5.16.2 | Classic autocomplete cache, skip, FIM, filter, and lifecycle behaviour | Lock intended behaviour with tests/specs, then rewrite; do not carry its JetBrains→VS Code RPC |
-| Current `kilocode` monorepo | Error backoff, modern FIM routing, and product-evolution reference | Borrow behaviour only; no agent runtime, gateway account system, or CLI service |
-| Public completion ideas from projects such as Continue | Algorithm/protocol reference only when needed | Confirm licence and attribution before writing an independent implementation |
+| kilocode-legacy classic autocomplete | cache, skip, FIM, filter behaviour | Spec + rewrite; no JB→VS Code RPC |
+| current kilocode monorepo | backoff, routing ideas | Behaviour only; no agent/gateway accounts |
+| other public completion material | occasional protocol ideas | Licence check first |
 
-The historical v5 JetBrains shell sent complete documents through RPC to a VS Code extension host. That topology is explicitly rejected here: both current engines make in-process HTTP requests and `PromptBuilder` budgets prefix/suffix before transmission.
+Whole-file-over-RPC topologies are explicitly **not** used.
 
-## Current implementation map
+## Code map
 
-| Behaviour | Kotlin/JVM | TypeScript |
+| Area | Kotlin | TypeScript |
 |---|---|---|
-| Main pipeline | `packages/completion/engine-jvm/.../engine/CompletionEngine.kt` | `packages/completion/engine-ts/src/engine.ts` |
-| HTTP and templates | `packages/completion/engine-jvm/.../client/HttpCompletionClient.kt` | `packages/completion/engine-ts/src/httpClient.ts` |
-| Cache / skip / filter | `packages/completion/engine-jvm/.../{cache,skip,filter}/` | `packages/completion/engine-ts/src/{cache,contextualSkip,suggestionFilter}.ts` |
-| Prompt and language map | `packages/completion/engine-jvm/.../prompt/`, `util/LanguageMap.kt` | `packages/completion/engine-ts/src/prompt*`, `languageMap.ts` |
-| JetBrains host | `apps/jetbrains/plugin/.../ide`, `bridge`, `config`, `ui` | — |
-| VS Code host | — | `apps/vscode/extension/src/` |
-| Shared contract | `packages/completion/contracts/`: schema, templates, language map, UiBridge, fixtures | same |
+| Pipeline | `CompletionEngine.kt` | `engine.ts` |
+| HTTP / templates | `HttpCompletionClient.kt` | `httpClient.ts` |
+| Cache / skip / filter | matching packages | matching modules |
+| Hosts | `apps/jetbrains/plugin` | `apps/vscode/extension` |
+| Contracts | `packages/completion/contracts` | same |
 
-`packages/completion/contracts` (npm: `@auto-complete/shared-spec`) is the cross-host documentation/fixture contract. When changing completion behaviour, templates, or settings keys, review both host implementations and fixture tests; do not assume every JSON file is automatically loaded at runtime.
+Change shared behaviour on both sides + fixtures.
 
-## Explicit non-goals
+## Not ported
 
-The current product boundary excludes:
+VS Code host for JetBrains; `kilo serve` / Gateway; Kilo accounts; Agent / Next Edit / default full-repo context; private upstream assets or unlicensed copies.
 
-- a VS Code Extension Host supplying JetBrains completion;
-- `kilo serve` or Kilo Gateway as a runtime dependency;
-- Kilo login, balance, device-flow, or OAuth account systems;
-- Agent, Next Edit, repository retrieval, or default heavy multi-file context;
-- upstream private paths, secrets, brand assets, or code under unreviewed terms.
+## Licence
 
-## Licence and contribution requirements
-
-This repository uses Apache-2.0 ([LICENSE](../LICENSE)) and retains [NOTICE](../NOTICE). An upstream reference is not permission to copy: contributors must confirm the licence and attribution for any reused code, fixture, copy, or asset, and place required notices in NOTICE or an appropriate third-party notice.
-
-When adding work:
-
-1. State the behaviour as a testable requirement of this repository, not “copy upstream implementation”.
-2. Prefer a minimal independent implementation and tests; do not copy agent/extension-host infrastructure.
-3. Complete licence review and attribution before adding third-party constrained code.
-4. Keep API keys, personal endpoints, and machine paths out of source, documentation, fixtures, and log samples.
+Apache-2.0 + [NOTICE](../NOTICE). Reference ≠ copy. Contributions: testable requirements, minimal independent code, licence review, no secrets/private endpoints/home paths in the tree.

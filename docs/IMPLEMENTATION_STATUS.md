@@ -1,62 +1,54 @@
 # 实现状态
 
-[English](IMPLEMENTATION_STATUS.en.md) · [文档索引](README.md)
+[English](IMPLEMENTATION_STATUS.en.md) · [文档目录](README.md)
 
-> 本页记录当前源码已实现的能力与明确的宿主差异，不把规划项写成已交付功能。构建/测试结果应以本次 CI 或本地命令输出为准。
+记录**当前代码已经有的能力**和**允许的平台差异**。不要把计划写成已交付。测试结果以本次 CI/本地命令为准。
 
-## 已在树内实现
+## 已经有了什么
 
-| 范围 | JetBrains | VS Code / 共享部分 |
+| 范围 | JetBrains | VS Code |
 |---|---|---|
-| 宿主 | `InlineCompletionProvider`、手动触发、取消、开关、snooze、状态栏、同一工具窗口的 Settings/Logs | `InlineCompletionItemProvider`、Trigger/Toggle/Settings/Logs/Set API Key 命令、状态栏、OutputChannel |
-| 引擎 | Kotlin `CompletionEngine`、可取消 async HTTP、cache、skip、filter、backoff、prompt budget | TypeScript dual engine，覆盖相同主流水线与 shared fixtures |
-| Provider | OpenAI FIM、Qwen/DeepSeek/StarCoder token FIM、Pseudo-FIM chat、模板/连接/模型探测 | 相同模板类别和 HTTP client 语义 |
-| 设置 | 多 profile、PasswordSafe、PersistentState、JCEF UiBridge、IDE HTTP proxy/trust store | 多 profile、SecretStorage、globalState/config mirror、Webview UiBridge |
-| 共用 UI/规格 | — | `packages/settings/ui`（Vue 3，en/zh/ja/ko；npm：`@auto-complete/settings-ui`）、`packages/completion/contracts` schema/templates/language map/bridge/fixtures（npm：`@auto-complete/shared-spec`） |
-| CI | JDK 21 tests + `buildPlugin` + ZIP artifact | Node 22：JS tests + JS build |
+| 宿主 | 行内补全、手动触发、取消、开关、snooze、状态栏、设置/日志工具窗口 | 行内补全、命令、状态栏、Output |
+| 引擎 | Kotlin 完整管线 | TypeScript 对等管线 + 共享 fixture |
+| 连接 | FIM / Chat 模板、探测、拉模型 | 相同语义 |
+| 设置 | 多 profile、PasswordSafe、JCEF 设置页 | 多 profile、SecretStorage、Webview |
+| 共用 | — | Vue 设置页（中英日韩）+ contracts |
 
-JetBrains 兼容性为 **IntelliJ Platform 2024.2+ / build 242+**。JCEF 是 Web 设置页运行条件，但 `com.intellij.modules.jcef` 在新 IDE 上是 optional 依赖；旧平台通过反射探测可用的 JCEF。详见 [COMPATIBILITY.md](COMPATIBILITY.md)。VS Code 扩展声明 `^1.85.0`。
+JetBrains：**2024.2+**，设置页需要 JCEF。VS Code：**1.85+**。
 
-## 已实现的引擎语义
+## 引擎行为（两端）
 
-- 启用、自动触发、手动触发、路径/语言/大小 gate；
-- 自适应 debounce、同 scope 取消、generation stale drop、全局 `maxInFlight`；
-- suggestion history 与 prompt LRU；
-- FIM/chat prompt、模型名自动模板检测、path override、`/models` fallback；
-- `timeoutMs` 与 `settingsTimeoutMs` 分离；SSE 首 token 流式为实验功能；
-- 401/403 fatal、429/5xx/网络失败退避；
-- 日志、响应过滤、路径和最近文件可选上下文；
-- profile CRUD、密钥隔离、无密钥导出/导入。
+启用/自动触发、防抖与取消、缓存、FIM/Chat、超时分离、退避、日志、可选路径与最近文件、profile 与无密钥导出。
 
-## 跨宿主策略
+## 跨宿主原则
 
-**默认趋同**：同一 schema、同一 settings-ui、同一引擎门控语义（启用、防抖、ignore、注释/字符串、最近文件、日志与 fatal 通知等）。  
-**允许差异**：仅宿主平台能力（存储介质、UI 入口形态、密钥保险箱 API、命令/快捷键注册、VS Code 原生 Settings 镜像）。
+- **默认趋同**：同一设置、同一设置页、同一补全门控  
+- **允许差异**：只因平台（存盘位置、入口 UI、密钥 API、快捷键/snooze）  
+- **改 UI**：必须 JCEF + Webview 都查（见 `AGENTS.md`）  
 
-## 已知差异（允许的平台差）
+## 允许的差异
 
-| 项目 | 当前事实 |
+| 项目 | 现状 |
 |---|---|
-| 注释/字符串检测 | 两宿主均使用启发式 `ContextProbe`（JB Kotlin / VS Code TS `inspectContext`）。 |
-| `.gitignore` | 两宿主均注入 workspace/项目根 `.gitignore`（JB attach 时加载；VS Code `VsCodeProjectContext` 刷新）。 |
-| 最近文件上下文 | 两宿主均支持；JB 用已打开文件，VS Code 用打开/可见编辑器（limit/maxChars）。 |
-| 设置入口 | JetBrains：JCEF 工具窗口（无 Swing Configurable）。VS Code：Webview + 部分项镜像原生 Settings。 |
-| 秘钥与配置存储 | 功能等价；内部 key/name 不同，勿手工复制存储文件；用导出/导入迁移。 |
-| 动作面 | JetBrains 有 snooze（状态栏/动作）；VS Code 以 Toggle/命令为主，无对等 snooze 状态字段。 |
-| 发布自动化 | CI 构建/测试；`v*` tag 可上传 ZIP/VSIX。签名与 Marketplace 仍手动。 |
-| Agent / Next Edit | 不在产品范围。 |
+| 注释/字符串 | 两端都有启发式探测 |
+| `.gitignore` | 两端都会读项目/工作区根 |
+| 最近文件 | 两端都支持；数据来源略有不同（打开文件 / 可见编辑器） |
+| 设置入口 | 工具窗口 vs Webview（+ 部分原生设置） |
+| 密钥存储 | 功能等价，文件不能手工对拷 |
+| 动作 | JB 有 snooze；VS Code 以开关命令为主 |
+| 发布 | tag 可自动挂 Release 产物；Marketplace/签名仍手动 |
+| Agent / Next Edit | 不做 |
 
-不要把「存储路径不同」说成「功能不同」。任何声称「跨宿主行为完全相同」的改动都必须补齐实现和测试。
+存盘路径不同 ≠ 功能不同。
 
-## 验证命令
+## 验证
 
 ```bash
 npm install
 ./gradlew :core:test :plugin:test
 npm run test:js
 npm run build:js
-./gradlew :plugin:buildPlugin
 ./scripts/package-local.sh
 ```
 
-`package-local.sh` 会产出 ZIP 与 VSIX，但只显式运行 `:core:test`；完整测试仍需单独执行。详见 [RELEASE.md](RELEASE.md)。
+打包脚本只强制部分测试，完整测试用上面命令。见 [RELEASE.md](RELEASE.md)。

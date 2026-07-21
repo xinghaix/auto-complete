@@ -50,10 +50,11 @@ For one host, use `SKIP_JB=1` or `SKIP_VSCODE=1`. The package script does not re
 1. Read `AGENTS.md` and the relevant `docs/` page before changing a subsystem.
 2. Keep core algorithms host-neutral; do not add IntelliJ APIs to `packages/completion/engine-jvm` (`:core`) or VS Code APIs to `packages/completion/engine-ts` (`@auto-complete/core-ts`).
 3. Preserve cancellable requests and generation checks; do not run provider HTTP from JCEF/Webview.
-4. Keep API keys in PasswordSafe/SecretStorage. Never add keys, personal endpoints, or raw prompt samples to source, docs, tests, or fixtures.
+4. Keep API keys in PasswordSafe/SecretStorage. Never add keys, personal endpoints, or raw prompt samples to source, docs, tests, or fixtures. Never commit home paths, private emails, LAN IPs, machine hostnames, or absolute paths to a local clone (see `AGENTS.md` privacy rules).
 5. Update both host implementations and shared fixtures when changing a shared engine behaviour, template, or settings key—or document an intentional host difference in `docs/IMPLEMENTATION_STATUS.md`.
 6. Update Chinese and English documentation for user-visible architecture, settings, provider, compatibility, or distribution changes.
 7. Add focused tests for engine/client/settings changes. Run affected JVM and/or JS tests before opening a PR.
+8. **Settings / Web UI (`packages/settings/ui`):** treat JetBrains JCEF and VS Code Webview as two target platforms. Check both (or document why not). Do not use `window.prompt` / `confirm` / `alert` for product flows; use in-panel modals. Prefer bridge `openExternal` for http(s) links. Follow the dual-host UI checklist in `AGENTS.md`.
 
 ## Pull requests
 

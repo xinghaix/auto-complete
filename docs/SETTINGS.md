@@ -1,122 +1,100 @@
-# 设置参考
+# 设置说明
 
-[English](SETTINGS.en.md) · [文档索引](README.md)
+[English](SETTINGS.en.md) · [文档目录](README.md)
 
-设置分为**全局偏好**和**已保存配置（Provider profile）**。JetBrains 与 VS Code 使用**同一套设置键、默认值与 settings-ui**；普通设置的持久化介质不同，API 密钥始终不进入普通设置文件。
+设置分两类：
 
-## 跨宿主原则：尽量趋同，允许少量差异
+1. **全局**：开关、防抖、日志等  
+2. **已保存配置（profile）**：某一套服务地址 / 模型 / 超时  
 
-| 必须趋同 | 允许差异（宿主平台能力） |
+两端用**同一套设置名和设置页**；只是存在 IDE 里的位置不同。**密钥从不进普通设置文件。**
+
+## 两端怎么对齐
+
+| 尽量相同 | 可以不同（平台限制） |
 |---|---|
-| 设置 schema / snapshot 字段名与默认值 | 存储介质（XML vs globalState/SecretStorage） |
-| 设置面板（`packages/settings/ui`）与 UiBridge 语义 | 设置入口形态（JCEF 工具窗口 vs Webview 面板） |
-| 引擎门控：启用、防抖、忽略规则、注释/字符串、最近文件开关 | 密钥保险箱 API（PasswordSafe vs SecretStorage） |
-| 导出/导入（无密钥 JSON） | 命令/快捷键与 snooze 的 IDE 注册方式 |
-| `uiTheme` / `uiLocale`（仅设置面板） | VS Code 可将部分项镜像到原生 Settings |
+| 字段名、默认值、设置页 | 存盘格式（XML vs globalState） |
+| 补全相关开关行为 | 密钥保险箱实现 |
+| 无密钥导出 / 导入 | 入口形态（工具窗口 vs 面板） |
+| 面板语言 / 主题 | VS Code 可镜像部分项到原生设置 |
 
-不要在宿主间手工复制内部存储文件；导出/导入走 UiBridge 无密钥 JSON。声称「跨宿主完全相同」时，必须确认实现与 [IMPLEMENTATION_STATUS.md](IMPLEMENTATION_STATUS.md) 一致。
+不要手工拷贝 IDE 内部存储文件；用面板的导出/导入。
 
-## 存储与宿主差异
+## 存在哪里
 
-| 数据 | JetBrains | VS Code |
+| | JetBrains | VS Code |
 |---|---|---|
-| 普通设置与 profile | `PersistentStateComponent` 的 `autoCompleteSettings.xml` | `globalState`；常用项镜像到 `autoComplete.*` configuration |
-| API key | `PasswordSafe`，按 profile 隔离 | `SecretStorage`，按 profile 隔离 |
-| 设置/日志 UI | JCEF 中的 **Auto Complete** 工具窗口 | Webview 设置面板；日志也写入 OutputChannel |
-| 导出 | UiBridge 导出普通设置 | UiBridge 导出普通设置 |
+| 普通设置 + profile | `autoCompleteSettings.xml` | `globalState`（部分到 `autoComplete.*`） |
+| API Key | PasswordSafe | SecretStorage |
+| 界面 | **Auto Complete** 工具窗口 | Webview 设置面板 |
 
-快照和导出只暴露 `hasApiKey`，不会返回 `apiKey`。导入会丢弃任何密钥字段；必须在目标 IDE 重新填写密钥。
+快照和导出只有 `hasApiKey`，没有密钥明文。导入后要在目标 IDE **重新填密钥**。
 
-## 全局行为
+## 全局设置（常用）
 
-| 设置 | 默认值 | 含义 |
+| 设置 | 默认 | 白话 |
 |---|---:|---|
-| `enabled` | `true` | 总开关 |
-| `autoTrigger` | `true` | 输入时是否自动请求；手动触发不受它限制 |
-| `enableInComments` / `enableInStrings` | `true` | 是否允许在注释/字符串中补全 |
-| `firstLineOnlyWhenMidLine` | `true` | 光标位于一行中间时只显示首行建议 |
-| `sendFilePath` | `true` | 是否把文件路径加入 prompt |
-| `respectGitignore` | `true` | 将项目 / workspace 根 `.gitignore` 纳入跳过规则（两宿主均注入引擎） |
-| `ignoreGlobs` | 见下 | 额外忽略的路径模式，每行一条 |
-| `disabledLanguages` | 空 | 禁用的语言 ID（逗号或换行分隔） |
-| `showStatusBar` | `true` | 显示状态栏入口（运行时可切换） |
-| `uiTheme` | `auto` | 设置面板主题：跟随 IDE、白色或暗黑（不改 IDE 主题） |
-| `uiLocale` | `auto` | 设置面板语言：跟随 IDE，或固定 en/zh/ja/ko（不改 IDE 界面语言） |
+| 启用 | 开 | 总开关 |
+| 自动触发 | 开 | 边输入边请求；关了仍可手动触发 |
+| 注释 / 字符串中补全 | 开 | 是否在注释、字符串里补全（启发式判断） |
+| 行中仅首行 | 开 | 光标在行中间时只显示建议的第一行 |
+| 发送文件路径 | 开 | 是否把路径放进提示词 |
+| 遵循 .gitignore | 开 | 跳过被 ignore 的文件 |
+| 忽略规则 | 见下 | 额外路径模式，一行一条 |
+| 禁用语言 | 空 | 语言 ID，如 `markdown, json` |
+| 显示状态栏 | 开 | 状态栏入口 |
+| 面板主题 / 语言 | 自动 | 只改设置页，不改 IDE 本身 |
 
-默认 ignore globs：
+默认忽略示例：`.git`、`node_modules`、`dist`、`build`、`target`、`.idea`、`.gradle`、`vendor` 等。
 
-```text
-**/.git/**
-**/node_modules/**
-**/dist/**
-**/build/**
-**/target/**
-**/.idea/**
-**/.gradle/**
-**/vendor/**
-```
+JetBrains 还有 snooze（暂停一段时间）；VS Code 主要用开关命令。快捷键在各自 IDE 里配置。
 
-JetBrains 提供 `AutoComplete.Trigger`（默认 Ctrl+Shift+Space，macOS 为 Cmd+Shift+Space）、开关、取消、30 分钟 snooze、打开设置/日志等动作；快捷键由 IDE Keymap 管理。VS Code 提供同名语义的 Trigger、Toggle Enabled、Open Settings Panel、Show Logs 和 Set API Key 命令。
+## 已保存配置（profile）
 
-> 注释/字符串门控依赖轻量启发式探测（非完整解析器）。两宿主在请求路径上均填充 `inComment` / `inString`。
+一套连接 = 一个 profile。可新建、切换、改名、删光。新建是**空白**，不复制当前表单。
 
-## 已保存配置（profiles）
-
-一个 profile 对应一套端点连接。可创建、切换、改名和删除；允许删除全部 profile。新建 profile 是空白配置，不会复制当前连接。旧版扁平设置在首次读取时迁移成一个 profile。
-
-| Profile 字段 | 默认值 | 说明 |
+| 字段 | 默认 | 白话 |
 |---|---:|---|
-| `baseUrl` | `http://127.0.0.1:11434/v1` | OpenAI 兼容服务根地址或自定义服务根地址 |
-| `model` | `qwen2.5-coder:7b` | 模型 ID |
-| `promptTemplate` | `AUTO` | `AUTO`、`CODESTRAL_API`、`QWEN`、`DEEPSEEK`、`STARCODER`、`CHAT` |
-| `authHeaderTemplate` | `Authorization: Bearer ***` | 鉴权头模板；空 key 时不发该头 |
-| `extraHeadersJson` | `{}` | 额外请求头 JSON object |
-| `temperature` | `0` | 代码补全通常保持低值 |
-| `maxTokens` | `128` | 单次补全输出上限 |
-| `timeoutMs` | `3000` | ghost-text 补全硬超时，范围 `500..30000` |
-| `settingsTimeoutMs` | `15000` | 模型列表/连接/模板探测硬超时，范围 `1000..120000` |
-| `stream` | `false` | 实验性 SSE 首 token 流式 |
-| `fimPath` / `chatPath` / `completionsPath` | 自动 / `/chat/completions` / 自动 | 覆盖模板请求路径 |
-| `overrideContextBudget` | `false` | 使用本 profile 的 prefix/suffix 预算，而不是全局预算 |
+| Base URL | `http://127.0.0.1:11434/v1` | 服务根地址 |
+| 模型 | `qwen2.5-coder:7b` | 模型 ID |
+| 模板 | AUTO | 自动或指定 FIM/Chat |
+| 鉴权头 | `Authorization: Bearer …` | 空密钥时不发 |
+| 额外 Headers | `{}` | JSON 对象 |
+| 温度 | 0 | 代码补全建议保持 0 |
+| 最大 tokens | 128 | 单次输出上限 |
+| 补全超时 | 3000 ms | ghost text 请求 |
+| 设置页超时 | 15000 ms | 拉模型 / 探测用 |
+| 流式 | 关 | 实验功能 |
+| 路径覆盖 | 可选 | 覆盖默认 API 路径 |
+| 覆盖上下文预算 | 关 | 用本 profile 的前后缀长度 |
 
-核心客户端保留 `CUSTOM` / `MISTRAL_FIM` 兼容枚举，但当前宿主 profile 使用 OpenAI-compatible 请求管线，并通过自定义头、路径和模板覆盖处理兼容需求；设置 UI 不提供完整的独立 custom-provider 产品流程。历史 `mistral-fim` 读入后会归一为 OpenAI-compatible + FIM 模板。
+面板可：**拉取模型**、**测试连接**、**测试模板 / 尝试全部**。结果：`SUCCESS` 有文本，`EMPTY` 通了但没建议，`FAILED` 失败。
 
-### 模型和模板探测
+## 性能相关
 
-设置界面可：
-
-1. 请求 `GET {baseUrl}/models`；若根路径没有该端点，客户端会尝试兼容的 `/v1/models` 路径。
-2. 发送很小的补全请求测试连接。
-3. 对当前模板测试，或按固定顺序探测全部 FIM/chat 模板。
-
-结果分为 `SUCCESS`（2xx 且非空）、`EMPTY`（2xx 但无建议）和 `FAILED`（网络、鉴权或 HTTP 失败）。错误详情会带方法、最终 URL、状态码或截断响应，便于检查路径和鉴权。探测请求经宿主 HTTP 客户端发出，遵循 JetBrains IDE 代理或 VS Code 的扩展网络环境。
-
-## 性能与上下文
-
-| 设置 | 默认值 | 说明 |
+| 设置 | 默认 | 白话 |
 |---|---:|---|
-| `debounceMinMs` / `debounceInitialMs` / `debounceMaxMs` | `150 / 300 / 1000` | 自动触发的自适应防抖边界 |
-| `maxPrefixChars` / `maxSuffixChars` | `8000 / 2000` | 默认出站 prompt 的字符预算 |
-| `maxInFlight` | `1` | 全局在途任务上限 |
-| `cacheSize` / `lruSize` | `20 / 64` | suggestion history 与 prompt LRU 容量 |
-| `maxFileSizeKb` | `512` | 超过该大小不请求 |
-| `enableRecentFileContext` | `false` | 是否附带最近打开文件的片段 |
-| `recentFileLimit` / `recentFileMaxChars` | `3 / 1200` | 最近文件上下文限制 |
+| 防抖 最短/起始/最长 | 150 / 300 / 1000 ms | 输入后等多久再请求 |
+| 前缀 / 后缀字符 | 8000 / 2000 | 发多少上下文 |
+| 最大并发 | 1 | 同时几个请求 |
+| 缓存 / LRU | 20 / 64 | 本地复用建议 |
+| 最大文件 KB | 512 | 太大就不请求 |
+| 最近文件 | 关 | 是否附带其它打开文件片段 |
 
-最近文件上下文会增加发送给 endpoint 的代码量；保持关闭，除非你确认端点的数据处理策略可接受。引擎最终使用 `PromptBuilder` 的预算裁剪，设置 UI 本身不接触文件内容或 provider HTTP。
+最近文件会多发代码，确认服务商策略后再开。
 
-## 日志与隐私
+## 日志
 
-| 设置 | 默认值 | 说明 |
+| 设置 | 默认 | 白话 |
 |---|---:|---|
-| `logLevel` | `info` | `debug`、`info`、`warn`、`error` |
-| `logRetention` | `1000` | 内存 ring buffer 条数；旧条目会被丢弃 |
-| `logPromptBodies` | `false` | 记录截断后的 prompt 内容；高敏，默认关闭 |
-| `notifyOnFatalError` | `true` | 401/403 等 fatal 配置错误时提示 |
-| `showCostApprox` | `false` | 在 provider 返回 usage 时，在日志中追加 token 用量（非费用计费） |
+| 级别 | info | debug…error |
+| 保留条数 | 1000 | 内存环形缓冲 |
+| 记录完整提示词 | 关 | 敏感，仅排查时开 |
+| 鉴权错误通知 | 开 | 401/403 等 |
+| 日志里显示 token | 关 | 有 usage 才显示，不是账单 |
 
-日志不会记录 API key 或认证头。JetBrains 同时把接受到的日志写入 `idea.log`；VS Code 同时写入 **Auto Complete** OutputChannel。完整日志字段见 [UiBridge 协议](../packages/completion/contracts/bridge-protocol.md)。
+密钥和鉴权头不会进日志。JetBrains 另写 `idea.log`；VS Code 另写 Output。
 
-## 校验与远程端点
+## 校验
 
-连接要求有效的 URL、非空模型（存在 profile 时）、合法 JSON headers、正的上下文预算，以及范围内的 timeout/maxTokens。当前产品**始终允许**远程 `baseUrl`；历史 `allowRemote` 字段不再有 UI 开关，也不能作为网络隔离控制。若要限制出站网络，应在 IDE、操作系统或网络层执行。
+有 profile 时需要合法 URL 和非空模型；headers 须是 JSON 对象；超时与 token 在允许范围内。产品**始终允许**远程地址；若要限制出站，在系统/网络层处理。

@@ -18,7 +18,12 @@ fi
 SKIP_VSCODE="${SKIP_VSCODE:-0}"
 SKIP_JB="${SKIP_JB:-0}"
 
-echo "==> JAVA_HOME=${JAVA_HOME:-"(default)"}"
+# Do not print full JAVA_HOME (may contain a user home path). Only confirm presence.
+if [[ -n "${JAVA_HOME:-}" ]]; then
+  echo "==> JAVA_HOME is set (JDK for Gradle)"
+else
+  echo "==> JAVA_HOME not set (using default java on PATH)"
+fi
 echo "==> Dual package (JB zip + VS Code vsix); SKIP_JB=$SKIP_JB SKIP_VSCODE=$SKIP_VSCODE"
 
 # ── Shared Web UI (both hosts) ──────────────────────────────────────────

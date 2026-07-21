@@ -1,25 +1,20 @@
 # @auto-complete/shared-spec
 
-[English](README.md) · [中文](README.zh.md)
+[English](README.md)
 
-磁盘路径：`packages/completion/contracts` · npm 包名：`@auto-complete/shared-spec`。
+路径：`packages/completion/contracts` · npm：`@auto-complete/shared-spec`
 
-本目录保存 JetBrains Kotlin 引擎、VS Code TypeScript 引擎和共用 Web 设置界面之间的**行为契约与测试数据**。它不代表两个引擎在运行时动态加载所有 JSON；实现变更仍需同时检查两端代码。TypeScript golden 测试（`packages/completion/engine-ts/test`）会读取此处的 `testdata/**`；Kotlin 引擎以并行单元测试对齐行为，而不是在运行时加载每一份 JSON fixture。
+这里放 **两端引擎 + 设置页** 共用的规则和测试数据。不是运行时动态加载每一份 JSON 的意思——改行为仍要改两边代码。
 
-| 文件/目录 | 作用 |
+| 内容 | 作用 |
 |---|---|
-| `settings.schema.json` | 跨宿主设置/profile 的 JSON Schema；secret 不得出现于 snapshot/export |
-| `defaults.json` | 对应 schema 的默认设置样例 |
-| `templates.json` | FIM/chat 模板、wire format、停止 token、模型名检测规则 |
-| `language-map.json` | 扩展名/别名到 language ID 的映射 |
-| `bridge-protocol.md` | settings UI 与宿主的 UiBridge 消息和安全规则 |
-| `testdata/**` | HTTP 解析、prompt budget、cache 的 golden fixtures |
+| `settings.schema.json` | 设置字段约定（导出/快照无密钥） |
+| `defaults.json` | 默认样例 |
+| `templates.json` | 模板与模型名识别 |
+| `language-map.json` | 语言 ID 映射 |
+| `bridge-protocol.md` | 设置页 ↔ 宿主消息 |
+| `testdata/**` | HTTP / prompt / cache 样例 |
 
-修改设置 key、模板、语言规则或共享行为时：
+改共享语义时：更新这里 → 更新 Kotlin + TS 实现（或写明有意差异）→ 跑测试 → 更新用户文档。
 
-1. 更新此处的契约/fixture（若该项属于共享语义）；
-2. 更新 Kotlin `packages/completion/engine-jvm`（Gradle `:core`）与 TypeScript `packages/completion/engine-ts`（npm `@auto-complete/core-ts`）的实现，或明确记录有意差异；
-3. 运行两端相关测试；
-4. 更新用户文档，尤其是 `docs/SETTINGS*`、`docs/PROVIDERS*`、`docs/IMPLEMENTATION_STATUS*`。
-
-安全红线：fixture、默认值、schema 示例和 bridge payload 均不得包含 API key、Authorization header 明文、真实 endpoint 或用户代码。
+**禁止**：样例里出现真实密钥、鉴权头明文、私人 endpoint、用户代码。
