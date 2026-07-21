@@ -34,7 +34,7 @@ Converge by default; differ only where the platform forces it; UI changes checke
 | Settings chrome | Tool window vs Webview (+ some native keys) |
 | Secrets | Equivalent concepts, different storage |
 | Actions | JB snooze; VS Code toggle/commands |
-| Publishing | `v*` can attach Release artifacts; Marketplace/signing manual |
+| Publishing | JetBrains preferred via [Marketplace 33040](https://plugins.jetbrains.com/plugin/33040-auto-complete); CI ships **signed ZIP** only when secrets exist; `v*` GitHub Release; optional `publishPlugin` |
 | Agent / Next Edit | Out of scope |
 
 Different storage paths ≠ different features.

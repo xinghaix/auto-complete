@@ -6,17 +6,31 @@
 
 **Bring-your-own model endpoint** AI inline completion (ghost text) for **JetBrains** and **VS Code**. The two hosts run independently — no cross-host bridge.
 
-| Host | Install |
+| Host | Preferred install |
 |---|---|
-| JetBrains (IntelliJ, etc.) | ZIP → **Install Plugin from Disk** |
-| VS Code | VSIX → **Install from VSIX** |
-| Settings UI | One shared Web panel (JCEF / Webview) |
+| JetBrains (IntelliJ, etc.) | **[JetBrains Marketplace](https://plugins.jetbrains.com/plugin/33040-auto-complete)** |
+| VS Code | GitHub Release / local **VSIX** |
+| Settings UI | Shared Web panel (JCEF / Webview) |
 
-**License:** Apache-2.0 · **Stage:** open-source preview (GitHub Releases or local package)
+**License:** Apache-2.0 · **Stage:** open-source preview
+
+<p align="center">
+  <a href="https://plugins.jetbrains.com/plugin/33040-auto-complete">
+    <img alt="Get Auto Complete from JetBrains Marketplace" src="https://img.shields.io/badge/JetBrains%20Marketplace-Auto%20Complete-orange?style=for-the-badge&logo=jetbrains" />
+  </a>
+</p>
+
+```html
+<!-- Optional embed on a custom site (replace #yourelement with your element id) -->
+<script src="https://plugins.jetbrains.com/assets/scripts/mp-widget.js"></script>
+<script>
+  MarketplaceWidget.setupMarketplaceWidget('card', 33040, "#yourelement");
+</script>
+```
 
 ## Features
 
-- OpenAI-compatible HTTP (Ollama, vLLM, gateways, …)
+- OpenAI-compatible HTTP (Ollama, vLLM, DeepSeek / Mistral FIM, gateways, …)
 - FIM / chat templates with auto-detect from model name
 - Multiple saved profiles (endpoint, model, timeouts, …)
 - Debounce, cancel stale requests, cache, error backoff
@@ -24,18 +38,21 @@
 - Secrets in IDE secure storage; exports never include keys
 - Settings UI: English, Chinese, Japanese, Korean
 
-Hosts aim for the same behaviour; platform-only differences are listed in [implementation status](docs/IMPLEMENTATION_STATUS.en.md).
+Host differences: [implementation status](docs/IMPLEMENTATION_STATUS.en.md).
 
 ## Install
 
-### JetBrains
+### JetBrains (Marketplace first)
 
 Requires **IntelliJ Platform 2024.2+**. Settings need **JCEF** (on newer IDEs enable *Web Browser (JCEF)*).
 
-1. Download `auto-complete-*.zip` from [Releases](https://github.com/xinghaix/auto-complete/releases), or build locally below.
-2. **Settings → Plugins → ⚙ → Install Plugin from Disk…** → restart.
-3. Open the **Auto Complete** tool window.
+1. **Settings → Plugins → Marketplace**, search **Auto Complete**, or open  
+   [plugins.jetbrains.com/plugin/33040-auto-complete](https://plugins.jetbrains.com/plugin/33040-auto-complete)  
+2. Install and restart.  
+3. Open the **Auto Complete** tool window.  
 4. Create a profile: Base URL, model, optional API key → **Test connection**.
+
+Fallback (review pending / offline / custom build): download **`*-signed.zip`** from [GitHub Releases](https://github.com/xinghaix/auto-complete/releases) → **Install Plugin from Disk**. Published ZIPs are **signed**.
 
 Details: [docs/COMPATIBILITY.md](docs/COMPATIBILITY.md)
 
@@ -43,9 +60,9 @@ Details: [docs/COMPATIBILITY.md](docs/COMPATIBILITY.md)
 
 Requires VS Code **1.85+**.
 
-1. Get `auto-complete-*.vsix`, or package locally.
-2. Extensions → **… → Install from VSIX…** → reload.
-3. Command: **Auto Complete: Open Settings Panel**.
+1. Download `auto-complete-*.vsix` from [Releases](https://github.com/xinghaix/auto-complete/releases), or package locally.  
+2. Extensions → **… → Install from VSIX…** → reload.  
+3. Command: **Auto Complete: Open Settings Panel**.  
 4. Configure a profile and test the connection.
 
 See [VS Code README](apps/vscode/extension/README.md).
@@ -64,22 +81,22 @@ npm run build:js
 
 | Artifact | Path |
 |---|---|
-| JetBrains ZIP | `apps/jetbrains/plugin/build/distributions/auto-complete-*.zip` |
+| JetBrains signed ZIP | `apps/jetbrains/plugin/build/distributions/*-signed.zip` (needs signing env) |
 | VS Code VSIX | `apps/vscode/extension/dist-vsix/auto-complete-*.vsix` |
 
-One host only: `SKIP_JB=1` or `SKIP_VSCODE=1`. Full tests are the commands above; the package script runs a subset.
+JetBrains release ZIPs require signing secrets — see [Marketplace signing](docs/MARKETPLACE.en.md). One host only: `SKIP_JB=1` or `SKIP_VSCODE=1`.
 
-JetBrains sandbox: `./gradlew :plugin:runIde`
+Sandbox: `./gradlew :plugin:runIde`
 
 ## Recommended services & local example
 
-Prefer endpoints with real **FIM (fill-in-the-middle)** for inline completion.
+Prefer real **FIM** endpoints for inline completion:
 
 | Service | Example Base URL | Template | Docs |
 |---|---|---|---|
 | DeepSeek cloud FIM | `https://api.deepseek.com/beta` | `CODESTRAL_API` | [EN](https://api-docs.deepseek.com/guides/fim_completion/) · [中文](https://api-docs.deepseek.com/zh-cn/guides/fim_completion/) |
 | Mistral Codestral FIM | `https://api.mistral.ai/v1` | `CODESTRAL_API` | [FIM API](https://docs.mistral.ai/api/endpoint/fim) |
-| Local Ollama | `http://127.0.0.1:11434/v1` | `AUTO` / `QWEN`… | Your local server |
+| Local Ollama | `http://127.0.0.1:11434/v1` | `AUTO` / `QWEN`… | Local server docs |
 
 Full notes: [Providers](docs/PROVIDERS.en.md).
 
@@ -87,8 +104,8 @@ Full notes: [Providers](docs/PROVIDERS.en.md).
 # Ollama example
 Base URL:  http://127.0.0.1:11434/v1
 Model:     qwen2.5-coder:7b
-API key:   leave empty if the server has no auth
-Template:  AUTO (or QWEN / CHAT as needed)
+API key:   leave empty if no auth
+Template:  AUTO
 ```
 
 Use **Fetch models / Test connection / Test template** instead of guessing formats.
@@ -106,7 +123,7 @@ Security: [SECURITY.md](SECURITY.md)
 
 - [Index](docs/README.en.md) · [Architecture](docs/ARCHITECTURE.en.md) · [Settings](docs/SETTINGS.en.md)
 - [Providers](docs/PROVIDERS.en.md) · [Performance](docs/PERFORMANCE.en.md) · [Release](docs/RELEASE.en.md)
-- [Status](docs/IMPLEMENTATION_STATUS.en.md) · [Sources](docs/SOURCES.en.md)
+- [Marketplace signing](docs/MARKETPLACE.en.md) · [Status](docs/IMPLEMENTATION_STATUS.en.md) · [Sources](docs/SOURCES.en.md)
 - [Contributing](CONTRIBUTING.md) · [Changelog](CHANGELOG.md)
 
 Inspired by classic Kilo Code completion behaviour; this tree is an independent implementation — see [NOTICE](NOTICE).

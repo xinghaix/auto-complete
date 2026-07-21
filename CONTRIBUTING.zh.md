@@ -28,11 +28,12 @@ npm run build:js
 
 ```bash
 ./scripts/package-local.sh
-# JetBrains ZIP: apps/jetbrains/plugin/build/distributions/auto-complete-*.zip
+# JetBrains 签名 ZIP: apps/jetbrains/plugin/build/distributions/*-signed.zip
+#   （需 CERTIFICATE_CHAIN + PRIVATE_KEY；见 docs/MARKETPLACE.md）
 # VS Code VSIX: apps/vscode/extension/dist-vsix/auto-complete-*.vsix
 ```
 
-只构建一个宿主时使用 `SKIP_JB=1` 或 `SKIP_VSCODE=1`。打包脚本不等于完整测试：它只显式执行 `:core:test`。
+用户侧 JetBrains 安装优先 [Marketplace](https://plugins.jetbrains.com/plugin/33040-auto-complete)。只构建一个宿主时使用 `SKIP_JB=1` 或 `SKIP_VSCODE=1`。打包脚本不等于完整测试：它只显式执行 `:core:test`。
 
 ## 代码目录
 

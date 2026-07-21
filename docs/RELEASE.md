@@ -2,51 +2,60 @@
 
 [English](RELEASE.en.md) · [文档目录](README.md)
 
-开源预览：本地打 ZIP / VSIX 安装即可。Marketplace 上架与签名**不是**默认流程，CI 也不自动做。
+**用户安装优先：**
+
+| 宿主 | 推荐 | 备用 |
+|---|---|---|
+| JetBrains | [Marketplace · Auto Complete](https://plugins.jetbrains.com/plugin/33040-auto-complete) | GitHub Release 的 **`*-signed.zip`**（从磁盘安装） |
+| VS Code | GitHub Release / 本地 VSIX | 自行 `package:vscode` |
+
+发布到 Marketplace 的 JetBrains 包必须是 **已签名** ZIP。CI 在配置了签名 Secrets 后**只上传 `*-signed.zip`**，不再分发未签名包。
 
 ## 需要什么
 
 | 目标 | 要求 |
 |---|---|
-| 构建 JetBrains 插件 | JDK 21 + 能下 IntelliJ 依赖 |
+| 构建 JetBrains 插件 | **JDK 21** + 能下 IntelliJ 依赖 |
 | 构建设置页 / VS Code | Node 18+、npm |
 | 运行 JetBrains | 平台 2024.2+，可用 JCEF |
 | 运行 VS Code | 1.85+ |
+| 签名 / CI 发布 ZIP | Secrets：`CERTIFICATE_CHAIN`、`PRIVATE_KEY`（见 [MARKETPLACE.md](MARKETPLACE.md)） |
 
-macOS 若用 Homebrew JDK 21，可设置 `JAVA_HOME` 指向该 JDK（示例路径见本机安装说明，因系统而异）。
+macOS 务必用 JDK 21（不要用 Homebrew 默认 openjdk 26）：
+
+```bash
+export JAVA_HOME=/opt/homebrew/opt/openjdk@21/libexec/openjdk.jdk/Contents/Home
+export PATH="$JAVA_HOME/bin:$PATH"
+```
 
 ## 完整验证
-
-仓库根目录：
 
 ```bash
 npm install
 ./gradlew :core:test :plugin:test
 npm run test:js
 npm run build:js
-./gradlew :plugin:buildPlugin
 ```
 
-开发沙箱（≠ 从 ZIP 安装验收）：
+开发沙箱：`./gradlew :plugin:runIde`（≠ 从 Marketplace / 签名 ZIP 安装验收）。
+
+## 本地打包
 
 ```bash
-./gradlew :plugin:runIde
-```
-
-## 本地双端打包
-
-```bash
+# 推荐：带签名（与 CI / Marketplace 一致）
+export CERTIFICATE_CHAIN="$(cat ~/.jb-plugin-signing/chain.crt)"
+export PRIVATE_KEY="$(cat ~/.jb-plugin-signing/private.pem)"
 ./scripts/package-local.sh
 ```
 
-| 产物 | 安装 |
+| 产物 | 路径 |
 |---|---|
-| `apps/jetbrains/plugin/build/distributions/auto-complete-*.zip` | 插件 → 从磁盘安装 |
-| `apps/vscode/extension/dist-vsix/auto-complete-*.vsix` | 扩展 → 从 VSIX 安装 |
+| JetBrains **signed** ZIP | `apps/jetbrains/plugin/build/distributions/*-signed.zip` |
+| VS Code VSIX | `apps/vscode/extension/dist-vsix/auto-complete-*.vsix` |
 
-只打一端：`SKIP_JB=1` 或 `SKIP_VSCODE=1`。
+未设置签名环境变量时，`package-local.sh` 仍可打出**未签名** ZIP 供本机调试，但**不要**当作 Marketplace / 正式 Release 包。
 
-> 打包脚本只强制跑 `:core:test`，**不能代替**上面的完整测试。
+只打一端：`SKIP_JB=1` 或 `SKIP_VSCODE=1`。打包脚本只强制部分测试，完整测试用上一节。
 
 ## 装上后快速检查
 
@@ -57,18 +66,23 @@ npm run build:js
 
 ## CI 做什么
 
-- JDK 21：测试 + 打 JetBrains ZIP  
-- Node 22：JS 测试 + 构建  
-- 推送 `v*` 标签且测试通过：自动建同名 GitHub Release 并挂 ZIP/VSIX（已有同名 Release 则跳过，不覆盖）  
-- **不做** Marketplace / 签名  
+| 场景 | 行为 |
+|---|---|
+| PR（无签名 Secrets） | JVM 测试；**不上传** JB ZIP artifact |
+| main / tag（有 Secrets） | `buildPlugin` + **`signPlugin`**，只上传 `*-signed.zip` |
+| Node job | 测试 + VSIX artifact |
+| 推送 `v*` | GitHub Release 挂 **signed ZIP** + VSIX |
+| `v*` + `PUBLISH_TOKEN` | 可选 `publishPlugin` 到 Marketplace |
+
+签名与 Token 配置：[MARKETPLACE.md](MARKETPLACE.md)。
 
 ## 发版清单
 
-1. 对齐 `pluginVersion` 与各 `package.json` 版本意图  
+1. 对齐 `pluginVersion` 与各 `package.json`  
 2. 更新 `CHANGELOG.md`  
-3. 完整测试 + 双端打包  
-4. 真机安装 smoke  
-5. 打注释 tag `vX.Y.Z` 并推送（有明确发布意图时）  
-6. 任何 token 只放 CI/环境变量，绝不进仓库  
+3. 完整测试；确认 GitHub Secrets 可签名  
+4. 真机 smoke（优先装 Marketplace 或 signed ZIP）  
+5. 打注释 tag `vX.Y.Z` 并推送  
+6. 私钥 / Token 只放 Secrets，绝不进仓库  
 
 未要求时不要 push / tag / 发布。

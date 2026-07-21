@@ -8,11 +8,12 @@ Auto Complete：自备模型服务的 AI **行内补全**，支持 JetBrains 与
 
 | 你想… | 看 |
 |---|---|
-| 安装 / 本地打包 | [项目主页](../README.md) |
+| 安装（**优先 Marketplace**）/ 本地打包 | [项目主页](../README.md) · [Marketplace](https://plugins.jetbrains.com/plugin/33040-auto-complete) |
 | JetBrains 版本与 JCEF | [COMPATIBILITY.md](COMPATIBILITY.md) |
 | 填 endpoint / 选模板 / **推荐 FIM 服务** | [PROVIDERS.md](PROVIDERS.md) |
 | 每个设置是什么意思 | [SETTINGS.md](SETTINGS.md) |
 | 构建、测试、发版 | [RELEASE.md](RELEASE.md) |
+| **Marketplace 签名 / 上传** | [MARKETPLACE.md](MARKETPLACE.md) |
 | 两端差在哪 | [IMPLEMENTATION_STATUS.md](IMPLEMENTATION_STATUS.md) |
 
 ## 全部文档
@@ -24,6 +25,7 @@ Auto Complete：自备模型服务的 AI **行内补全**，支持 JetBrains 与
 | 连接与模板 | [PROVIDERS.md](PROVIDERS.md) | [PROVIDERS.en.md](PROVIDERS.en.md) |
 | 性能与热路径 | [PERFORMANCE.md](PERFORMANCE.md) | [PERFORMANCE.en.md](PERFORMANCE.en.md) |
 | 构建与发布 | [RELEASE.md](RELEASE.md) | [RELEASE.en.md](RELEASE.en.md) |
+| Marketplace 签名 | [MARKETPLACE.md](MARKETPLACE.md) | [MARKETPLACE.en.md](MARKETPLACE.en.md) |
 | JetBrains 兼容 | [COMPATIBILITY.md](COMPATIBILITY.md) | 中英合订 |
 | 实现状态 | [IMPLEMENTATION_STATUS.md](IMPLEMENTATION_STATUS.md) | [IMPLEMENTATION_STATUS.en.md](IMPLEMENTATION_STATUS.en.md) |
 | 上游参考与归属 | [SOURCES.md](SOURCES.md) | [SOURCES.en.md](SOURCES.en.md) |

@@ -2,18 +2,31 @@
 
 [中文](RELEASE.md) · [Docs index](README.en.md)
 
-Open-source preview: install local ZIP/VSIX. Marketplace listing and signing are **not** default CI.
+**Preferred installs:**
+
+| Host | Preferred | Fallback |
+|---|---|---|
+| JetBrains | [Marketplace · Auto Complete](https://plugins.jetbrains.com/plugin/33040-auto-complete) | GitHub Release **`*-signed.zip`** (Install from Disk) |
+| VS Code | GitHub Release / local VSIX | `package:vscode` |
+
+JetBrains Marketplace and GitHub Release ZIPs are **signed**. CI uploads **only `*-signed.zip`** when signing secrets are configured — no unsigned distribution artifact.
 
 ## Prerequisites
 
 | Goal | Need |
 |---|---|
-| Build JetBrains plugin | JDK 21 + network for platform deps |
+| Build JetBrains plugin | **JDK 21** + network for platform deps |
 | Settings UI / VS Code | Node 18+, npm |
 | Run JetBrains | 2024.2+, working JCEF |
 | Run VS Code | 1.85+ |
+| Signed CI ZIP | Secrets: `CERTIFICATE_CHAIN`, `PRIVATE_KEY` — [MARKETPLACE.en.md](MARKETPLACE.en.md) |
 
-Set `JAVA_HOME` to a JDK 21 install when needed (paths differ by OS).
+Use JDK 21 (not Homebrew default openjdk 26):
+
+```bash
+export JAVA_HOME=/opt/homebrew/opt/openjdk@21/libexec/openjdk.jdk/Contents/Home
+export PATH="$JAVA_HOME/bin:$PATH"
+```
 
 ## Full verification
 
@@ -22,40 +35,35 @@ npm install
 ./gradlew :core:test :plugin:test
 npm run test:js
 npm run build:js
-./gradlew :plugin:buildPlugin
 ```
 
-Sandbox IDE (not the same as install-from-zip QA):
+Sandbox: `./gradlew :plugin:runIde` (not the same as Marketplace install QA).
+
+## Local package
 
 ```bash
-./gradlew :plugin:runIde
-```
-
-## Dual-host package
-
-```bash
+export CERTIFICATE_CHAIN="$(cat ~/.jb-plugin-signing/chain.crt)"
+export PRIVATE_KEY="$(cat ~/.jb-plugin-signing/private.pem)"
 ./scripts/package-local.sh
 ```
 
-| Artifact | Install |
+| Artifact | Path |
 |---|---|
-| `.../distributions/auto-complete-*.zip` | Install Plugin from Disk |
-| `.../dist-vsix/auto-complete-*.vsix` | Install from VSIX |
+| JetBrains **signed** ZIP | `apps/jetbrains/plugin/build/distributions/*-signed.zip` |
+| VS Code VSIX | `apps/vscode/extension/dist-vsix/auto-complete-*.vsix` |
 
-One host: `SKIP_JB=1` or `SKIP_VSCODE=1`.
-
-> The package script only forces `:core:test` — **not** a full test substitute.
-
-## Smoke after install
-
-Create a profile → test connection → type and watch ghost text cancel on continue → check settings UI on both hosts.
+Without signing env, `package-local.sh` may still emit an **unsigned** ZIP for local debug only — do not ship it as a release.
 
 ## CI
 
-JDK 21 tests + ZIP; Node 22 JS tests + build; `v*` tags create a same-name GitHub Release with artifacts when tests pass (skip if release exists). No Marketplace/signing automation.
+| Case | Behaviour |
+|---|---|
+| PR without secrets | JVM tests; **no** JB ZIP artifact |
+| main/tag with secrets | `buildPlugin` + **`signPlugin`**; upload `*-signed.zip` only |
+| Node job | tests + VSIX |
+| `v*` tag | GitHub Release with signed ZIP + VSIX |
+| `v*` + `PUBLISH_TOKEN` | optional `publishPlugin` |
 
 ## Release checklist
 
-Bump versions → CHANGELOG → full tests + package → real install smoke → annotated `vX.Y.Z` tag when intended → tokens only in CI/env.
-
-Do not push/tag/publish without explicit intent.
+Bump versions → CHANGELOG → full tests → signed secrets OK → smoke → annotated `vX.Y.Z` tag. Never commit keys/tokens.

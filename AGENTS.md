@@ -18,10 +18,10 @@ User-facing documentation is paired Chinese/English: root `README.md` / `README.
 
 Open-source preview:
 
-- JetBrains: Install from Disk / GitHub Release ZIP.
-- VS Code: Install from VSIX / GitHub Release VSIX.
-- CI tests and builds; it does not sign, publish Marketplace, create releases, or upload VSIX.
-- Do not commit Marketplace/signing tokens, API keys, or private endpoints.
+- **JetBrains (preferred):** [Marketplace plugin 33040](https://plugins.jetbrains.com/plugin/33040-auto-complete). Fallback: GitHub Release **`*-signed.zip`** (Install from Disk).
+- **VS Code:** GitHub Release / local VSIX.
+- CI builds **signed** JetBrains ZIPs only when `CERTIFICATE_CHAIN` + `PRIVATE_KEY` secrets are set; unsigned ZIPs are not release artifacts. `v*` tags create GitHub Releases; optional `publishPlugin` with `PUBLISH_TOKEN`.
+- Do not commit Marketplace/signing tokens, private keys, API keys, or private endpoints.
 
 ## Required reading before meaningful changes
 
@@ -30,10 +30,11 @@ Open-source preview:
 3. `docs/PROVIDERS.md`
 4. `docs/PERFORMANCE.md`
 5. `docs/RELEASE.md`
-6. `docs/COMPATIBILITY.md`
-7. `docs/SOURCES.md`
-8. `docs/IMPLEMENTATION_STATUS.md`
-9. `CONTRIBUTING.md`
+6. `docs/MARKETPLACE.md`
+7. `docs/COMPATIBILITY.md`
+8. `docs/SOURCES.md`
+9. `docs/IMPLEMENTATION_STATUS.md`
+10. `CONTRIBUTING.md`
 
 ## Hard constraints
 

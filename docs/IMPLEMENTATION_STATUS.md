@@ -36,7 +36,7 @@ JetBrains：**2024.2+**，设置页需要 JCEF。VS Code：**1.85+**。
 | 设置入口 | 工具窗口 vs Webview（+ 部分原生设置） |
 | 密钥存储 | 功能等价，文件不能手工对拷 |
 | 动作 | JB 有 snooze；VS Code 以开关命令为主 |
-| 发布 | tag 可自动挂 Release 产物；Marketplace/签名仍手动 |
+| 发布 | JetBrains 优先 [Marketplace 33040](https://plugins.jetbrains.com/plugin/33040-auto-complete)；CI 在有 Secrets 时只分发 **signed ZIP**；`v*` 挂 Release；可选 `publishPlugin` |
 | Agent / Next Edit | 不做 |
 
 存盘路径不同 ≠ 功能不同。

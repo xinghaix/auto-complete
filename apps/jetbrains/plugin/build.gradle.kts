@@ -31,6 +31,8 @@ dependencies {
         )
         testFramework(TestFrameworkType.Platform)
         instrumentationTools()
+        // Required for :plugin:signPlugin (Marketplace ZIP Signer CLI).
+        zipSigner()
     }
 }
 
@@ -63,20 +65,58 @@ intellijPlatform {
             </ul>
             <p><b>Requires IntelliJ Platform 2024.2+ (build 242+)</b>.
             Settings are Web/JCEF only (optional jcef module on 2025.3+/2026).
-            Apache-2.0. Keys stay in the IDE PasswordSafe.</p>
+            Apache-2.0. Prefer JetBrains Marketplace (or a signed ZIP).
+            Keys stay in the IDE PasswordSafe.</p>
             """.trimIndent(),
         )
         changeNotes.set(changeNotesText)
         vendor {
-            name = "auto-complete"
-            // Update to your public repo URL when publishing the GitHub project.
-            url = "https://github.com"
+            // Marketplace public vendor name can differ; keep in sync with plugins.jetbrains.com vendor.
+            name = "Auto Complete"
+            url = "https://github.com/xinghaix/auto-complete"
         }
     }
 
-    // Marketplace: set token via env only when intentionally publishing. Never commit secrets.
+    /**
+     * Plugin signing (Marketplace / trusted updates).
+     *
+     * Uses IntelliJ Platform defaults when env is set (no secrets in git):
+     * - CERTIFICATE_CHAIN — PEM certificate chain (content, not a path)
+     * - PRIVATE_KEY — PEM private key (content)
+     * - PRIVATE_KEY_PASSWORD — optional key passphrase
+     *
+     * Or set file-based variants via Gradle properties / env mapped below.
+     * Without secrets, `signPlugin` is skipped (local debug only). CI release artifacts require signing.
+     *
+     * @see https://plugins.jetbrains.com/docs/intellij/plugin-signing.html
+     */
+    signing {
+        val chain = providers.environmentVariable("CERTIFICATE_CHAIN")
+        val key = providers.environmentVariable("PRIVATE_KEY")
+        val keyPass = providers.environmentVariable("PRIVATE_KEY_PASSWORD")
+        // Only wire when present so local/CI without secrets stays green.
+        if (chain.isPresent && key.isPresent) {
+            certificateChain.set(chain)
+            privateKey.set(key)
+            if (keyPass.isPresent) {
+                password.set(keyPass)
+            }
+        }
+    }
+
+    /**
+     * Marketplace publish. Requires JB Hub permanent token with Marketplace permissions.
+     * Env: PUBLISH_TOKEN (or JETBRAINS_MARKETPLACE_TOKEN as alias set in CI).
+     * Never commit the token.
+     */
     publishing {
-        // intentionally empty for open-source zip / GitHub Releases distribution
+        val token =
+            providers
+                .environmentVariable("PUBLISH_TOKEN")
+                .orElse(providers.environmentVariable("JETBRAINS_MARKETPLACE_TOKEN"))
+        if (token.isPresent) {
+            this.token.set(token)
+        }
     }
 
     instrumentCode.set(false)
@@ -111,11 +151,29 @@ tasks {
         dependsOn(copySettingsUi)
     }
 
-    // Prefer a stable local artifact name for Install from Disk.
+    // Stable archive name; CI ships only the signed variant for distribution.
     named<Zip>("buildPlugin") {
         archiveBaseName.set("auto-complete")
         archiveVersion.set(pluginVersion)
         dependsOn(copySettingsUi)
+    }
+
+    // signPlugin only when CERTIFICATE_CHAIN + PRIVATE_KEY are available (CI secrets / local env).
+    named("signPlugin") {
+        onlyIf {
+            providers.environmentVariable("CERTIFICATE_CHAIN").orNull != null &&
+                providers.environmentVariable("PRIVATE_KEY").orNull != null
+        }
+        dependsOn(named("buildPlugin"))
+    }
+
+    // Convenience: build + sign when secrets exist; otherwise just buildPlugin.
+    register("buildSignedPlugin") {
+        group = "intellij platform"
+        description =
+            "buildPlugin, then signPlugin if CERTIFICATE_CHAIN and PRIVATE_KEY env are set"
+        dependsOn(named("buildPlugin"))
+        dependsOn(named("signPlugin"))
     }
 }
 

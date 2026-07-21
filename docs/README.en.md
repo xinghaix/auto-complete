@@ -8,11 +8,12 @@ Auto Complete is **bring-your-own-endpoint** AI **inline completion** for JetBra
 
 | Goal | Doc |
 |---|---|
-| Install / package locally | [Project home](../README.en.md) |
+| Install (**Marketplace first**) / package locally | [Project home](../README.en.md) · [Marketplace](https://plugins.jetbrains.com/plugin/33040-auto-complete) |
 | JetBrains version & JCEF | [COMPATIBILITY.md](COMPATIBILITY.md) |
 | Endpoint, templates & **recommended FIM services** | [PROVIDERS.en.md](PROVIDERS.en.md) |
 | What each setting means | [SETTINGS.en.md](SETTINGS.en.md) |
 | Build, test, release | [RELEASE.en.md](RELEASE.en.md) |
+| **Marketplace signing / upload** | [MARKETPLACE.en.md](MARKETPLACE.en.md) |
 | Host differences | [IMPLEMENTATION_STATUS.en.md](IMPLEMENTATION_STATUS.en.md) |
 
 ## All docs
@@ -24,6 +25,7 @@ Auto Complete is **bring-your-own-endpoint** AI **inline completion** for JetBra
 | Providers & templates | [PROVIDERS.md](PROVIDERS.md) | [PROVIDERS.en.md](PROVIDERS.en.md) |
 | Performance | [PERFORMANCE.md](PERFORMANCE.md) | [PERFORMANCE.en.md](PERFORMANCE.en.md) |
 | Build & release | [RELEASE.md](RELEASE.md) | [RELEASE.en.md](RELEASE.en.md) |
+| Marketplace signing | [MARKETPLACE.md](MARKETPLACE.md) | [MARKETPLACE.en.md](MARKETPLACE.en.md) |
 | JetBrains compatibility | [COMPATIBILITY.md](COMPATIBILITY.md) | bilingual |
 | Implementation status | [IMPLEMENTATION_STATUS.md](IMPLEMENTATION_STATUS.md) | [IMPLEMENTATION_STATUS.en.md](IMPLEMENTATION_STATUS.en.md) |
 | Sources & attribution | [SOURCES.md](SOURCES.md) | [SOURCES.en.md](SOURCES.en.md) |

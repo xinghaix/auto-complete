@@ -4,6 +4,8 @@
 
 VS Code 宿主：TypeScript 补全引擎 + Webview 共用设置页。与 JetBrains **独立**，互不依赖。
 
+JetBrains 用户请优先从 [Marketplace](https://plugins.jetbrains.com/plugin/33040-auto-complete) 安装同名插件。
+
 ## 安装
 
 - VS Code **1.85+**

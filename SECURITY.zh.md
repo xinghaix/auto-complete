@@ -24,7 +24,7 @@
 - UiBridge snapshot 与导出只含 `hasApiKey`，绝不能返回明文 secret。
 - 设置 UI 不得直接发 provider HTTP；探测必须经宿主和引擎客户端。
 - 补全会向用户配置的 endpoint 发送裁剪 prefix/suffix。文件路径默认发送；最近打开文件上下文和 prompt 正文日志均为默认关闭的 opt-in 功能。
-- CI 和普通 PR 构建不得依赖 Marketplace/signing secret。
+- PR CI 可不配置 Marketplace/签名 secret（仅测试）。main/tag 的 JetBrains 分发 ZIP **必须签名**，secret 只放 GitHub Actions，绝不进仓库。
 
 ## 范围说明
 

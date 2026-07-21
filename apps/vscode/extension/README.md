@@ -4,6 +4,8 @@
 
 VS Code host: TypeScript completion engine + shared Webview settings UI. Runs **independently** from JetBrains.
 
+JetBrains users should install the sibling plugin from the [Marketplace](https://plugins.jetbrains.com/plugin/33040-auto-complete).
+
 ## Install
 
 - VS Code **1.85+**

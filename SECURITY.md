@@ -24,7 +24,7 @@ Include the affected version or commit, host (JetBrains/VS Code), impact, minima
 - UiBridge snapshots and exports expose `hasApiKey` only; they must not return plaintext secrets.
 - Settings UI must not directly call provider HTTP. Probes go through the host and engine client.
 - Completion sends trimmed prefix/suffix to user-configured endpoints. File paths are on by default; recent-open-file context and prompt-body logging are opt-in and disabled by default.
-- CI and ordinary PR builds must not require Marketplace/signing secrets.
+- PR CI may run without Marketplace/signing secrets (tests only). Release/main JetBrains ZIP artifacts require signing secrets and publish **signed** builds only — secrets stay in GitHub Actions, never in the repository.
 
 ## Scope notes
 

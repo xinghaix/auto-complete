@@ -28,11 +28,12 @@ Create local installable packages:
 
 ```bash
 ./scripts/package-local.sh
-# JetBrains ZIP: apps/jetbrains/plugin/build/distributions/auto-complete-*.zip
+# JetBrains signed ZIP: apps/jetbrains/plugin/build/distributions/*-signed.zip
+#   (set CERTIFICATE_CHAIN + PRIVATE_KEY; see docs/MARKETPLACE.md)
 # VS Code VSIX: apps/vscode/extension/dist-vsix/auto-complete-*.vsix
 ```
 
-For one host, use `SKIP_JB=1` or `SKIP_VSCODE=1`. The package script does not replace full tests: it explicitly runs only `:core:test`.
+Users should install JetBrains builds from [Marketplace](https://plugins.jetbrains.com/plugin/33040-auto-complete) when available. For one host, use `SKIP_JB=1` or `SKIP_VSCODE=1`. The package script does not replace full tests: it explicitly runs only `:core:test`.
 
 ## Code layout
 
