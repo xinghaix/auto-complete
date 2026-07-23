@@ -36,6 +36,12 @@ API Key:   无鉴权则留空
 
 推荐 FIM 服务（DeepSeek / Mistral / Ollama 等）、全部设置说明与排错 → **[使用指南](docs/GUIDE.md)**。
 
+## 使用说明
+
+- 开启自动触发后，正常输入会在光标后显示 ghost text；按 IDE 默认 **Tab** 接受。
+- 继续输入或移动光标会取消过期建议；手动触发默认 `Ctrl/Cmd+Shift+Space`，可在 IDE Keymap 改键。
+- Settings 面板可测试连接、模型和模板；VS Code 日志同时写入 **Auto Complete** OutputChannel。
+
 ## 能做什么
 
 - OpenAI 兼容接口（Ollama、vLLM、云 FIM、网关等）

@@ -36,6 +36,12 @@ Template:  AUTO
 
 Recommended FIM providers, full settings, troubleshooting → **[User guide](docs/GUIDE.en.md)**.
 
+## How to use it
+
+- With auto trigger enabled, type normally to show ghost text after the cursor; use the IDE's normal **Tab** acceptance behaviour.
+- Continuing to type or moving the cursor cancels stale suggestions. Manual trigger defaults to `Ctrl/Cmd+Shift+Space` and can be rebound in the IDE Keymap.
+- The Settings panel tests connections, models, and templates; VS Code also mirrors logs to the **Auto Complete** OutputChannel.
+
 ## Features
 
 - OpenAI-compatible HTTP (Ollama, vLLM, cloud FIM, gateways, …)
