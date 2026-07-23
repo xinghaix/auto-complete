@@ -53,6 +53,16 @@ Template: AUTO
 
 [端点、模型和模板配置 →](docs/PROVIDERS.md)
 
+## 如何使用
+
+1. 在 Settings 面板选择一个 profile，并先通过 **Test connection** 与 **Test template**。
+2. 在受支持的代码文件中正常输入；开启自动触发后，候选会以 ghost text 出现在光标后。
+3. 按 IDE 默认的 **Tab** 接受建议；继续输入或移动光标会取消过期建议。
+4. 需要手动触发时：JetBrains 使用 **Tools → Auto Complete** 中的触发动作（可在 Keymap 配置快捷键）；VS Code 使用 **Auto Complete: Trigger Inline Completion**，默认 `Ctrl+Shift+Space`（macOS 为 `Cmd+Shift+Space`）。
+5. 用 Settings + Logs 面板排查模型、模板、连接或请求失败；VS Code 的日志也会写入 **Auto Complete** OutputChannel。
+
+建议先在一个普通文本/代码文件验证自动提示、手动触发、继续输入取消和 Tab 接受行为，再用于真实项目。
+
 ## 安全与数据边界
 
 - 专用 API key 只保存在 JetBrains PasswordSafe 或 VS Code SecretStorage。

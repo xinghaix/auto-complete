@@ -53,6 +53,16 @@ A model name is not a request protocol. After configuration, use **Fetch models*
 
 [Endpoint, model, and template configuration →](docs/PROVIDERS.en.md)
 
+## How to use it
+
+1. Select a profile in the Settings panel, then run **Test connection** and **Test template** first.
+2. Type normally in a supported code file. With auto trigger enabled, a candidate appears after the cursor as ghost text.
+3. Use the IDE's normal **Tab** acceptance behaviour; continuing to type or moving the cursor cancels an obsolete suggestion.
+4. For a manual request: in JetBrains use the trigger action under **Tools → Auto Complete** (bind a shortcut in Keymap if wanted); in VS Code run **Auto Complete: Trigger Inline Completion**, default `Ctrl+Shift+Space` (`Cmd+Shift+Space` on macOS).
+5. Use the Settings + Logs panel to diagnose model, template, connection, or request failures. VS Code also mirrors logs to the **Auto Complete** OutputChannel.
+
+Before using a real project, validate automatic suggestions, manual triggering, cancellation while typing, and Tab acceptance in an ordinary text or code file.
+
 ## Security and data boundary
 
 - Dedicated API keys live only in JetBrains PasswordSafe or VS Code SecretStorage.
