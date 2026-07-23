@@ -1,52 +1,30 @@
 # Auto Complete (VS Code)
 
-[Repository](https://github.com/xinghaix/auto-complete) · [Documentation](https://github.com/xinghaix/auto-complete)
+[中文](README.zh.md) · [User guide](../../../docs/GUIDE.en.md)
 
-The VS Code host uses the TypeScript completion engine in `packages/completion/engine-ts` and embeds shared `packages/settings/ui` in a Webview. It runs independently from JetBrains and does not use a JetBrains plugin, an Extension Host bridge, or `kilo serve`.
+VS Code host: TypeScript completion engine + shared Webview settings. Independent of JetBrains.
 
-## Requirements and installation
+JetBrains users: prefer [Marketplace](https://plugins.jetbrains.com/plugin/33040-auto-complete).
 
-- VS Code: `^1.85.0`
-- Development/packaging: Node.js 18+ and npm
+## Install
 
-Package from the repository root:
+- VS Code **1.85+**
+- Dev/package: Node 18+
 
 ```bash
+# repo root
 npm install
-npm run build:settings-ui
-npm run test:js
-npm run build:js
 npm run package:vscode
 ```
 
-The artifact is `apps/vscode/extension/dist-vsix/auto-complete-*.vsix`. Install it with **Extensions → … → Install from VSIX…**, then reload the window.
+Artifact: `apps/vscode/extension/dist-vsix/auto-complete-*.vsix`  
+Install: **Extensions → … → Install from VSIX…** → reload.
 
-To package a JetBrains ZIP and VSIX together:
+## Use
 
-```bash
-./scripts/package-local.sh
-```
+1. Command: **Auto Complete: Open Settings Panel**  
+2. Create a profile → Base URL, model, optional API key  
+3. **Fetch models / Test connection / Test template**  
+4. Manual trigger defaults to `Ctrl/Cmd+Shift+Space`  
 
-For local development, open `apps/vscode/extension/` and press F5. The extension build entry is `npm run build -w auto-complete`.
-
-## Configure and use
-
-1. Run **Auto Complete: Open Settings Panel**.
-2. Create/select a profile and enter Base URL, model, and optional API key.
-3. Use **Fetch models**, **Test connection**, and **Test template** to verify the endpoint.
-4. Run **Auto Complete: Trigger Inline Completion** for a manual suggestion; default binding is Ctrl+Shift+Space (Cmd+Shift+Space on macOS).
-5. **Auto Complete: Toggle Enabled** controls completion. **Auto Complete: Set API Key** writes SecretStorage. **Auto Complete: Show Logs** opens both the Logs tab and OutputChannel.
-
-Keys live only in VS Code **SecretStorage**, not `settings.json`, global-state export, or UiBridge snapshots. Common fields mirror into native `autoComplete.*` settings; profiles and remaining global preferences live in extension `globalState`. Use the panel to manage profiles rather than editing internal storage.
-
-## Current host differences
-
-- The provider currently fixes `inComment` and `inString` to `false`, so the matching settings do not yet receive syntax-aware enforcement in VS Code.
-- Workspace `.gitignore` is not currently injected into the TypeScript engine. Extra ignore globs are the reliable path filter.
-- The VS Code host does not currently provide recent-file snippets to the engine.
-
-These differences affect privacy and trigger scope. Do not assume full JetBrains parity; see the [repository documentation](https://github.com/xinghaix/auto-complete).
-
-## Logs and security
-
-Logs are batched into the Settings panel Logs tab and mirrored to the **Auto Complete** OutputChannel. Prompt-body logging is off by default. Keep credentials in the dedicated API-key field, not plaintext extra headers. Provider request/path rules are in the [repository documentation](https://github.com/xinghaix/auto-complete).
+Keys stay in **SecretStorage**. Full guide: [GUIDE.en.md](../../../docs/GUIDE.en.md).

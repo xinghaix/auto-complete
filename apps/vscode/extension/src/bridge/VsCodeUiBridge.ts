@@ -97,6 +97,9 @@ export class VsCodeUiBridge {
             ok: true,
             entries: this.getLogs().slice(-200),
           });
+        case "unsubscribeLogs":
+          // Host keeps push wiring for the open panel; no-op is enough for protocol parity.
+          return this.ok(msg, "logUnsubscribed", { ok: true });
         case "clearLogs":
           this.clearLogsFn();
           return this.ok(msg, "logsCleared", { ok: true });
@@ -117,6 +120,22 @@ export class VsCodeUiBridge {
         }
         case "importSettings":
           return this.ok(msg, "applyResult", await this.importSettings(msg.payload));
+        case "openExternal": {
+          const url = (msg.payload as { url?: string } | undefined)?.url?.trim() ?? "";
+          if (!/^https?:\/\//i.test(url)) {
+            return this.fail(msg, "invalid url");
+          }
+          await vscode.env.openExternal(vscode.Uri.parse(url));
+          return this.ok(msg, "openExternalResult", { ok: true, url });
+        }
+        case "openKeymap": {
+          // Focus Keyboard Shortcuts on the manual trigger command.
+          await vscode.commands.executeCommand(
+            "workbench.action.openGlobalKeybindings",
+            "autoComplete.trigger",
+          );
+          return this.ok(msg, "openKeymapResult", { ok: true });
+        }
         default:
           return this.fail(msg, `unknown type: ${msg.type}`);
       }
@@ -180,6 +199,10 @@ export class VsCodeUiBridge {
       uiTheme:
         data.uiTheme === "light" || data.uiTheme === "dark" || data.uiTheme === "auto"
           ? data.uiTheme
+          : undefined,
+      uiLocale:
+        typeof data.uiLocale === "string" && data.uiLocale.trim()
+          ? data.uiLocale.trim().toLowerCase()
           : undefined,
     });
 

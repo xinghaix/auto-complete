@@ -49,13 +49,15 @@ type BridgeResponse = {
 | `probeAllTemplates` | `{ profileId? }` | `probeAllResult` | 逐个探测模板 |
 | `listModels` | `{ profileId? }` | `modelsResult` | 拉取模型列表 |
 | `subscribeLogs` | 可选 `{ level? }` | `logSubscribed` | 后续推送 `logBatch` |
-| `unsubscribeLogs` | — | `logUnsubscribed` | **预留**；JetBrains 已处理，当前 VS Code bridge 不 dispatch |
+| `unsubscribeLogs` | — | `logUnsubscribed` | 两宿主均接受（VS Code 在面板仍打开时为 no-op） |
 | `clearLogs` | — | `logsCleared` | 清空内存日志 |
 | `getLogLevel` | — | `logLevel` | 日志级别 |
 | `setLogLevel` | `{ level }` | `logLevel` | **预留**；当前通过 `applySettings` 修改 |
 | `getPlatform` | — | `platform` | `{ platform, locale, theme }` |
 | `exportSettings` | — | `exportResult` | 无 secret 的 JSON |
 | `importSettings` | `{ json }` | `applyResult` | 合并/替换普通设置 |
+| `openExternal` | `{ url }` | `openExternalResult` | 在系统浏览器打开 http(s) 链接（关于页 / 文档）。非 http(s) 会被宿主拒绝。 |
+| `openKeymap` | — | `openKeymapResult` | 打开宿主 IDE 快捷键设置，并尽量定位到手动触发（JB action `AutoComplete.Trigger` / VS Code 命令 `autoComplete.trigger`）。 |
 
 `locale` 是 IDE 界面语言（VS Code `env.language`；JetBrains `DynamicBundle.getLocale()` BCP-47 tag）。settings-ui 映射为 en/zh/ja/ko。`theme` 是 IDE 明暗/高对比主题；`uiTheme` 决定是否跟随。
 
@@ -66,17 +68,17 @@ type BridgeResponse = {
 | `snapshot` | 完整普通设置，不含 key；通常作为请求响应返回 |
 | `logEntry` | **预留**；当前宿主按批而非逐条推送日志 |
 | `logBatch` | `{ entries: LogEntry[] }`；当前活跃推送路径，通常每 100–200 ms |
-| `themeChanged` | **预留**；宿主通过 `getPlatform` 提供初始主题 |
-| `localeChanged` | **预留**；宿主通过 `getPlatform` 提供初始语言 |
-| `settingsChanged` | **预留**；当前 UI 从 apply/snapshot 响应刷新 |
+| `themeChanged` | `{ theme }` — IDE 配色变化（VS Code 面板打开时推送；JB 经 `getPlatform` 刷新） |
+| `localeChanged` | `{ locale }` — IDE 界面语言 tag（VS Code 打开时推送；JB 经 `getPlatform`） |
+| `settingsChanged` | 可选完整 snapshot；UI 也可从 apply/snapshot 响应刷新 |
 
 ## 强制安全规则
 
 1. `snapshot` 绝不返回 API key 明文，只能有每个 profile 的 `hasApiKey`。
 2. secret 只通过一次 `setSecret` 传输；宿主写入 SecretStorage/PasswordSafe，UI 必须清空输入。
-3. 可移植导出 JSON 必须移除 `apiKey`、`hasApiKey`、`authHeaderTemplate` 与 `extraHeadersJson`。本地 UI snapshot 可保留可编辑的明文头字段用于本地配置；它们不是凭据存储。
-4. 补全 HTTP 只能由 `core-ts` / `core-jvm` 发起；Web UI 不得 `fetch` 用户 `baseUrl`。
-5. 连接/模板探测只能走 **Bridge → 宿主 → core**。
+3. 导出 JSON 必须移除 secret。
+4. 补全 HTTP 只能由 `packages/completion/engine-ts` / `packages/completion/engine-jvm` 发起；Web UI 不得 `fetch` 用户 `baseUrl`。
+5. 连接/模板探测只能走 **Bridge → 宿主 → 引擎客户端**。
 6. VS Code Webview 使用严格 CSP；JetBrains 使用打包的本地资源。
 
 ## `LogEntry` 形状

@@ -1,6 +1,7 @@
 import * as vscode from "vscode";
 import {
   CompletionEngine,
+  inspectContext,
   normalizeLanguage,
   type CompletionOutcome,
 } from "@auto-complete/core-ts";
@@ -23,6 +24,7 @@ export class AutoCompleteInlineProvider implements vscode.InlineCompletionItemPr
     const prefix = full.slice(0, offset);
     const suffix = full.slice(offset);
     const language = normalizeLanguage(document.languageId, document.fileName);
+    const probe = inspectContext(prefix, language);
 
     const gen = this.engine.nextGeneration();
     const request = {
@@ -32,14 +34,20 @@ export class AutoCompleteInlineProvider implements vscode.InlineCompletionItemPr
       prefix,
       suffix,
       offset,
-      trigger: context.triggerKind === vscode.InlineCompletionTriggerKind.Invoke ? ("MANUAL" as const) : ("AUTO" as const),
+      trigger:
+        context.triggerKind === vscode.InlineCompletionTriggerKind.Invoke
+          ? ("MANUAL" as const)
+          : ("AUTO" as const),
       generation: gen,
       fileSizeBytes: Buffer.byteLength(full, "utf8"),
       context: {
-        inComment: false,
-        inString: false,
+        inComment: probe.inComment,
+        inString: probe.inString,
       },
-      projectKey: vscode.workspace.workspaceFolders?.[0]?.uri.fsPath ?? "",
+      projectKey:
+        vscode.workspace.getWorkspaceFolder(document.uri)?.uri.fsPath ??
+        vscode.workspace.workspaceFolders?.[0]?.uri.fsPath ??
+        "",
     };
     const scope = request.path || "untitled";
     const dispose = token.onCancellationRequested(() => this.engine.cancelScope(scope, request.id));

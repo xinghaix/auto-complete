@@ -1,8 +1,11 @@
 package io.autocomplete.bridge
 
 import com.intellij.DynamicBundle
+import com.intellij.ide.BrowserUtil
 import com.intellij.openapi.application.ApplicationManager
 import com.intellij.openapi.diagnostic.Logger
+import com.intellij.openapi.keymap.impl.ui.EditKeymapsDialog
+import com.intellij.openapi.project.ProjectManager
 import com.intellij.ui.JBColor
 import io.autocomplete.client.HttpCompletionClient
 import io.autocomplete.config.AutoCompleteSettingsService
@@ -12,6 +15,7 @@ import io.autocomplete.net.IdeHttpSupport
 import io.autocomplete.plugin.AutoCompleteAppService
 import io.autocomplete.prompt.PromptTemplate
 import io.autocomplete.util.Json
+import java.net.URI
 import java.util.UUID
 import java.util.concurrent.CopyOnWriteArrayList
 
@@ -167,6 +171,15 @@ class JbUiBridge {
                                     .toTypedArray(),
                             ),
                     )
+            "openExternal" -> {
+                val url = payload?.get("url")?.toString()?.trim().orEmpty()
+                openExternalUrl(url)
+                "openExternalResult" to mapOf("ok" to true, "url" to url)
+            }
+            "openKeymap" -> {
+                openManualTriggerKeymap()
+                "openKeymapResult" to mapOf("ok" to true)
+            }
             "importSettings" -> {
                 val json = payload?.get("json")?.toString().orEmpty()
                 val parsed = Json.parseObject(json).toMutableMap()
@@ -244,6 +257,13 @@ class JbUiBridge {
                     when (raw.trim().lowercase()) {
                         "light" -> "light"
                         "dark" -> "dark"
+                        else -> "auto"
+                    }
+            }
+            (obj["uiLocale"] as? String)?.let { raw ->
+                uiLocale =
+                    when (raw.trim().lowercase()) {
+                        "en", "zh", "ja", "ko" -> raw.trim().lowercase()
                         else -> "auto"
                     }
             }
@@ -379,6 +399,7 @@ class JbUiBridge {
             "notifyOnFatalError" to s.notifyOnFatalError,
             "showCostApprox" to s.showCostApprox,
             "uiTheme" to s.uiTheme,
+            "uiLocale" to s.uiLocale,
         )
     }
 
@@ -535,6 +556,35 @@ class JbUiBridge {
             "payload" to payload,
             "error" to error,
         )
+
+    /**
+     * Open http(s) URLs in the system browser (settings-ui About links).
+     * Rejects non-http(s) schemes for safety under JCEF.
+     */
+    private fun openExternalUrl(raw: String) {
+        val url = raw.trim()
+        require(url.isNotEmpty()) { "url is required" }
+        val uri =
+            runCatching { URI(url) }.getOrElse {
+                throw IllegalArgumentException("invalid url")
+            }
+        val scheme = uri.scheme?.lowercase().orEmpty()
+        require(scheme == "http" || scheme == "https") { "invalid url scheme" }
+        ApplicationManager.getApplication().invokeLater {
+            BrowserUtil.browse(url)
+        }
+    }
+
+    /**
+     * Open IDE Keymap editor focused on the manual trigger action.
+     * Shortcut ownership stays with the IDE Keymap (not plugin settings XML).
+     */
+    private fun openManualTriggerKeymap() {
+        ApplicationManager.getApplication().invokeLater {
+            val project = ProjectManager.getInstance().openProjects.firstOrNull()
+            EditKeymapsDialog(project, AutoCompleteSettingsService.TRIGGER_ACTION_ID).show()
+        }
+    }
 
     companion object {
         /** BCP-47 tag matching IDE UI language (DynamicBundle). */

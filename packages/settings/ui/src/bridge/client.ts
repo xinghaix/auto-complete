@@ -155,6 +155,7 @@ let mockState = {
   ],
   logLevel: "info",
   uiTheme: "auto" as "auto" | "light" | "dark",
+  uiLocale: "auto",
   enableInComments: true,
   enableInStrings: true,
   firstLineOnlyWhenMidLine: true,
@@ -334,6 +335,41 @@ async function mockHandle(msg: BridgeRequest): Promise<BridgeResponse> {
         };
       }
     }
+    case "openExternal": {
+      const url = (msg.payload as { url?: string } | undefined)?.url?.trim() ?? "";
+      if (!/^https?:\/\//i.test(url)) {
+        return {
+          v: 1,
+          id: msg.id,
+          type: "openExternalResult",
+          ok: false,
+          error: "invalid url",
+        };
+      }
+      try {
+        if (typeof window !== "undefined") {
+          window.open(url, "_blank", "noopener,noreferrer");
+        }
+      } catch {
+        /* ignore */
+      }
+      return {
+        v: 1,
+        id: msg.id,
+        type: "openExternalResult",
+        ok: true,
+        payload: { ok: true, url },
+      };
+    }
+    case "openKeymap":
+      // Browser mock: no IDE keymap; succeed so UI can show a soft message.
+      return {
+        v: 1,
+        id: msg.id,
+        type: "openKeymapResult",
+        ok: true,
+        payload: { ok: true, mock: true },
+      };
     default:
       return { v: 1, id: msg.id, type: msg.type, ok: true, payload: { ok: true } };
   }

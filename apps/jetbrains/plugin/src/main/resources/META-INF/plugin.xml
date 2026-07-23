@@ -2,7 +2,7 @@
 <idea-plugin>
     <id>io.autocomplete</id>
     <name>Auto Complete</name>
-    <vendor url="https://github.com">auto-complete</vendor>
+    <vendor url="https://github.com/xinghaix/auto-complete">Auto Complete</vendor>
     <resource-bundle>messages.AutoCompleteBundle</resource-bundle>
     <description><![CDATA[
     <p>Lightweight AI inline code completion for JetBrains IDEs.</p>
@@ -14,8 +14,8 @@
       <li>Single-process Kotlin — no VS Code host bridge</li>
     </ul>
     <p><b>Requires IntelliJ Platform 2024.2+ (build 242+)</b>.
-    Settings need working JCEF. See docs/COMPATIBILITY.md.</p>
-    <p>Apache-2.0 open source. Install from Disk or GitHub Releases.
+    Settings need working JCEF. See docs/GUIDE.md.</p>
+    <p>Apache-2.0 open source. Prefer JetBrains Marketplace (or signed ZIP from GitHub Releases).
     Keys stay in the IDE PasswordSafe.</p>
     ]]></description>
 

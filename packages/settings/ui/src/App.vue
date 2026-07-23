@@ -5,6 +5,7 @@ import CheckRow from "./components/CheckRow.vue";
 import GroupCard from "./components/GroupCard.vue";
 import PropertyRow from "./components/PropertyRow.vue";
 import ModelCombo from "./components/ModelCombo.vue";
+import ProfileCombo from "./components/ProfileCombo.vue";
 import SelectCombo from "./components/SelectCombo.vue";
 import {
   applyDocumentLocale,
@@ -24,6 +25,7 @@ import {
   ignoreGlobsFromSnapshot,
   normalizeHostTheme,
   normalizeTab,
+  normalizeUiLocale,
   normalizeUiTheme,
   numOr,
   validateForm,
@@ -82,18 +84,31 @@ const probeText = ref("");
 const probeKind = ref<"ok" | "err" | "warn" | "">("");
 const modelOptions = ref<string[]>([]);
 const modelsFetching = ref(false);
+/** Blocks Test template / Try all while a probe is in flight (anti double-click). */
+const probeBusy = ref(false);
+/** Which probe button is running: one | all | "" */
+const probeBusyKind = ref<"" | "one" | "all">("");
 const modelStatusText = ref("");
 const modelStatusKind = ref<"ok" | "err" | "warn" | "">("");
 const logs = ref<LogEntry[]>([]);
 const logFilter = ref("info");
 const renameValue = ref("");
-const profileMenuOpen = ref(false);
 const advancedOpen = ref(false);
 const deleteConfirming = ref(false);
 const saveState = ref<SaveState>("idle");
 const saveMsg = ref("");
 
 const loaded = ref(false);
+/** In-panel import dialog (avoid window.prompt — ugly under JCEF). */
+const importModalOpen = ref(false);
+const importJsonText = ref("");
+
+/** Public GitHub project (About card). Keep in sync with package homepage. */
+const GITHUB_REPO_URL = "https://github.com/xinghaix/auto-complete";
+const GITHUB_ISSUES_URL = "https://github.com/xinghaix/auto-complete/issues";
+/** UI package version; monorepo keeps hosts aligned at release. */
+const appVersion = "0.2.0";
+
 let saveTimer: ReturnType<typeof setTimeout> | null = null;
 let saveStatusTimer: ReturnType<typeof setTimeout> | null = null;
 let modelStatusTimer: ReturnType<typeof setTimeout> | null = null;
@@ -239,7 +254,6 @@ function applySnapshot(s: Snapshot) {
     clearProbeStatus();
   }
   activeId.value = id;
-  profileMenuOpen.value = false;
   const p = list.find((x) => x.id === id) ?? list[0];
   if (p) {
     form.value = { ...p };
@@ -276,6 +290,15 @@ function applySnapshot(s: Snapshot) {
   notifyOnFatalError.value = s.notifyOnFatalError !== false;
   showCostApprox.value = s.showCostApprox === true;
   uiTheme.value = normalizeUiTheme(s.uiTheme);
+  const loc = normalizeUiLocale(s.uiLocale);
+  if (loc === "auto") {
+    localeFollowIde.value = true;
+    // IDE locale applied via loadPlatform / localeChanged push
+  } else {
+    localeFollowIde.value = false;
+    locale.value = loc as Locale;
+    applyDocumentLocale(loc as Locale);
+  }
   loaded.value = true;
 }
 
@@ -310,7 +333,6 @@ function patchForm(partial: Partial<Profile>) {
 }
 
 async function onSelectProfile(id: string) {
-  profileMenuOpen.value = false;
   if (!id || id === activeId.value) return;
   const res = await bridge.request("selectProfile", { profileId: id });
   if (res.ok && res.payload) applySnapshot(res.payload as Snapshot);
@@ -405,28 +427,62 @@ async function onFetchModels() {
   }
 }
 
-async function onProbeOne() {
+/** Keep busy UI visible even when the probe returns in <100ms (matches fetch-models feel). */
+const PROBE_BUSY_MIN_MS = 450;
+
+async function runProbe(
+  kind: "one" | "all",
+  work: () => Promise<void>,
+): Promise<void> {
+  if (probeBusy.value || connDisabled.value) return;
+  probeBusy.value = true;
+  probeBusyKind.value = kind;
   setProbeStatus("warn", tr("testing"), true);
-  const res = await bridge.request("probeTemplate", {
-    profileId: activeId.value,
-    template: form.value.promptTemplate || "AUTO",
+  const started = Date.now();
+  try {
+    await work();
+  } catch (e) {
+    setProbeStatus("err", e instanceof Error ? e.message : tr("failed"));
+  } finally {
+    const left = PROBE_BUSY_MIN_MS - (Date.now() - started);
+    if (left > 0) await new Promise((r) => setTimeout(r, left));
+    probeBusy.value = false;
+    probeBusyKind.value = "";
+  }
+}
+
+async function onProbeOne() {
+  await runProbe("one", async () => {
+    const res = await bridge.request("probeTemplate", {
+      profileId: activeId.value,
+      template: form.value.promptTemplate || "AUTO",
+    });
+    if (!res.ok) {
+      setProbeStatus("err", res.error || tr("failed"));
+      return;
+    }
+    const p = (res.payload ?? {}) as ProbeResult;
+    const line = `${p.template ?? form.value.promptTemplate}: ${p.status} ${p.latencyMs ?? 0}ms ${p.preview ?? p.error ?? ""}`;
+    const ok = p.status === "SUCCESS";
+    setProbeStatus(ok ? "ok" : "err", line);
   });
-  const p = (res.payload ?? {}) as ProbeResult;
-  const line = `${p.template ?? form.value.promptTemplate}: ${p.status} ${p.latencyMs ?? 0}ms ${p.preview ?? p.error ?? ""}`;
-  const ok = p.status === "SUCCESS";
-  setProbeStatus(ok ? "ok" : "err", line);
 }
 
 async function onProbeAll() {
-  setProbeStatus("warn", tr("testing"), true);
-  const res = await bridge.request("probeAllTemplates", { profileId: activeId.value });
-  const results = ((res.payload as { results?: ProbeResult[] })?.results ?? []) as ProbeResult[];
-  const text =
-    results
-      .map((r) => `${r.template}: ${r.status} ${r.latencyMs ?? 0}ms ${r.preview ?? r.error ?? ""}`)
-      .join("\n") || (res.error ?? tr("failed"));
-  const ok = results.some((r) => r.status === "SUCCESS");
-  setProbeStatus(ok ? "ok" : "err", text);
+  await runProbe("all", async () => {
+    const res = await bridge.request("probeAllTemplates", { profileId: activeId.value });
+    if (!res.ok && !res.payload) {
+      setProbeStatus("err", res.error || tr("failed"));
+      return;
+    }
+    const results = ((res.payload as { results?: ProbeResult[] })?.results ?? []) as ProbeResult[];
+    const text =
+      results
+        .map((r) => `${r.template}: ${r.status} ${r.latencyMs ?? 0}ms ${r.preview ?? r.error ?? ""}`)
+        .join("\n") || (res.error ?? tr("failed"));
+    const ok = results.some((r) => r.status === "SUCCESS");
+    setProbeStatus(ok ? "ok" : "err", text);
+  });
 }
 
 async function onClearKey() {
@@ -442,11 +498,101 @@ function onLanguageChange(value: string) {
       ideLocaleTag.value || (typeof navigator !== "undefined" ? navigator.language : "en"),
     );
     void loadPlatform();
+    scheduleSave();
     return;
   }
   localeFollowIde.value = false;
   locale.value = value as Locale;
   applyDocumentLocale(value as Locale);
+  scheduleSave();
+}
+
+async function onExport() {
+  try {
+    const res = await bridge.request("exportSettings");
+    if (!res.ok) {
+      saveState.value = "error";
+      saveMsg.value = res.error || tr("exportFailed");
+      return;
+    }
+    const json = (res.payload as { json?: string } | undefined)?.json ?? "";
+    if (!json) {
+      saveState.value = "error";
+      saveMsg.value = tr("exportFailed");
+      return;
+    }
+    await navigator.clipboard.writeText(json);
+    saveState.value = "saved";
+    saveMsg.value = tr("exportOk");
+  } catch (e) {
+    saveState.value = "error";
+    saveMsg.value = e instanceof Error ? e.message : tr("exportFailed");
+  }
+}
+
+function openImportModal() {
+  importJsonText.value = "";
+  importModalOpen.value = true;
+}
+
+function closeImportModal() {
+  importModalOpen.value = false;
+  importJsonText.value = "";
+}
+
+async function confirmImport() {
+  const json = importJsonText.value.trim();
+  if (!json) {
+    saveState.value = "error";
+    saveMsg.value = tr("importEmpty");
+    return;
+  }
+  try {
+    const res = await bridge.request("importSettings", { json });
+    if (!res.ok) {
+      saveState.value = "error";
+      saveMsg.value = res.error || tr("importFailed");
+      return;
+    }
+    closeImportModal();
+    await load();
+    saveState.value = "saved";
+    saveMsg.value = tr("importOk");
+  } catch (e) {
+    saveState.value = "error";
+    saveMsg.value = e instanceof Error ? e.message : tr("importFailed");
+  }
+}
+
+/** Open https links via host (JCEF/Webview-safe); fall back to window.open. */
+async function openExternal(url: string) {
+  try {
+    const res = await bridge.request("openExternal", { url });
+    if (res.ok) return;
+  } catch {
+    /* fall through */
+  }
+  try {
+    const w = window.open(url, "_blank", "noopener,noreferrer");
+    if (w) return;
+  } catch {
+    /* fall through */
+  }
+  saveState.value = "error";
+  saveMsg.value = tr("aboutOpenFailed");
+}
+
+/** Jump to host IDE Keymap / Keyboard Shortcuts for manual trigger. */
+async function openKeymap() {
+  try {
+    const res = await bridge.request("openKeymap");
+    if (res.ok) return;
+    saveState.value = "error";
+    saveMsg.value = res.error?.trim() || tr("openKeymapFailed");
+  } catch {
+    saveState.value = "error";
+    saveMsg.value = tr("openKeymapFailed");
+  }
 }
 
 function onThemeChange(value: string) {
@@ -504,6 +650,7 @@ async function doSave() {
     notifyOnFatalError: notifyOnFatalError.value,
     showCostApprox: showCostApprox.value,
     uiTheme: uiTheme.value,
+    uiLocale: localeFollowIde.value ? "auto" : locale.value,
   };
   saveState.value = "saving";
   saveMsg.value = tr("saving");
@@ -523,16 +670,6 @@ function scheduleSave() {
   saveTimer = setTimeout(() => void doSave(), AUTOSAVE_DELAY);
 }
 
-function onProfileMenuDoc(ev: MouseEvent) {
-  const el = ev.target as HTMLElement | null;
-  if (el?.closest?.(".profile-combo")) return;
-  profileMenuOpen.value = false;
-}
-
-function onProfileMenuKey(ev: KeyboardEvent) {
-  if (ev.key === "Escape") profileMenuOpen.value = false;
-}
-
 function onHostOpenTab(ev: Event) {
   const tabName = (ev as CustomEvent<{ tab?: string }>).detail?.tab;
   if (tabName) openTab(tabName);
@@ -548,16 +685,6 @@ watch([uiTheme, ideTheme], ([pref, host]) => {
 
 watch(apiKey, (v) => {
   apiKeyPending.value = v;
-});
-
-watch(profileMenuOpen, (open) => {
-  if (open) {
-    document.addEventListener("mousedown", onProfileMenuDoc);
-    document.addEventListener("keydown", onProfileMenuKey);
-  } else {
-    document.removeEventListener("mousedown", onProfileMenuDoc);
-    document.removeEventListener("keydown", onProfileMenuKey);
-  }
 });
 
 watch(saveState, (st) => {
@@ -651,8 +778,6 @@ onMounted(() => {
 onUnmounted(() => {
   window.removeEventListener("ac-open-tab", onHostOpenTab as EventListener);
   delete window.__acSetTab;
-  document.removeEventListener("mousedown", onProfileMenuDoc);
-  document.removeEventListener("keydown", onProfileMenuKey);
   if (saveTimer) clearTimeout(saveTimer);
   if (saveStatusTimer) clearTimeout(saveStatusTimer);
   if (modelStatusTimer) clearTimeout(modelStatusTimer);
@@ -668,24 +793,10 @@ function onRenameKey(e: KeyboardEvent) {
     target.blur();
   } else if (e.key === "Escape") {
     e.preventDefault();
-    profileMenuOpen.value = false;
     const current = profiles.value.find((p) => p.id === activeId.value)?.name ?? "";
     renameValue.value = current;
     target.blur();
-  } else if (e.key === "ArrowDown") {
-    e.preventDefault();
-    profileMenuOpen.value = true;
   }
-}
-
-function toggleProfileMenu(e: MouseEvent) {
-  e.preventDefault();
-  profileMenuOpen.value = !profileMenuOpen.value;
-}
-
-function pickProfile(id: string, e: MouseEvent) {
-  e.preventDefault();
-  void onSelectProfile(id);
 }
 
 function clearLogs() {
@@ -755,46 +866,18 @@ function copyLogs() {
       <template v-if="tab === 'config'">
         <GroupCard :title="tr('sectionProvider')" :measure-key="locale">
           <template #toolbar>
-            <div class="profile-combo" role="group" :aria-label="tr('profiles')">
-              <input
-                type="text"
-                class="profile-combo-input"
-                v-model="renameValue"
-                :disabled="!activeId"
-                :aria-label="tr('profiles')"
-                :placeholder="tr('noProfiles')"
-                spellcheck="false"
-                @blur="commitRename()"
-                @keydown="onRenameKey"
-              />
-              <button
-                type="button"
-                class="profile-combo-toggle"
-                :disabled="profiles.length === 0"
-                :aria-label="tr('profiles')"
-                aria-haspopup="listbox"
-                :aria-expanded="profileMenuOpen"
-                @mousedown="toggleProfileMenu"
-              >
-                ▾
-              </button>
-              <ul v-if="profileMenuOpen" class="profile-combo-menu" role="listbox">
-                <li
-                  v-for="p in profiles"
-                  :key="p.id"
-                  role="option"
-                  :aria-selected="p.id === activeId"
-                >
-                  <button
-                    type="button"
-                    :class="{ active: p.id === activeId }"
-                    @mousedown="pickProfile(p.id, $event)"
-                  >
-                    {{ p.name }}
-                  </button>
-                </li>
-              </ul>
-            </div>
+            <ProfileCombo
+              :model-value="activeId"
+              :options="profiles"
+              :rename-value="renameValue"
+              :disabled="!activeId"
+              :aria-label="tr('profiles')"
+              :placeholder="tr('noProfiles')"
+              @update:rename-value="(v) => (renameValue = v)"
+              @select="(id) => void onSelectProfile(id)"
+              @commit-rename="void commitRename()"
+              @rename-keydown="onRenameKey"
+            />
             <button type="button" class="btn btn-secondary" @click="onCreate()">
               {{ tr("newProfile") }}
             </button>
@@ -849,6 +932,7 @@ function copyLogs() {
                   {{ tr("clearKey") }}
                 </button>
               </div>
+              <p class="row-help">{{ tr("secretHint") }}</p>
             </PropertyRow>
             <PropertyRow :label="tr('model')" :help="tr('helpModel')" required>
               <ModelCombo
@@ -888,11 +972,23 @@ function copyLogs() {
                 @update:model-value="(v) => patchForm({ promptTemplate: v })"
               />
               <div class="hstack">
-                <button type="button" class="btn btn-ghost" @click="onProbeOne()">
-                  {{ tr("tryTemplate") }}
+                <button
+                  type="button"
+                  class="btn btn-secondary"
+                  :disabled="probeBusy || connDisabled"
+                  :aria-busy="probeBusyKind === 'one'"
+                  @click="void onProbeOne()"
+                >
+                  {{ probeBusyKind === "one" ? tr("testing") : tr("tryTemplate") }}
                 </button>
-                <button type="button" class="btn btn-ghost" @click="onProbeAll()">
-                  {{ tr("tryAllTemplates") }}
+                <button
+                  type="button"
+                  class="btn btn-secondary"
+                  :disabled="probeBusy || connDisabled"
+                  :aria-busy="probeBusyKind === 'all'"
+                  @click="void onProbeAll()"
+                >
+                  {{ probeBusyKind === "all" ? tr("testing") : tr("tryAllTemplates") }}
                 </button>
               </div>
               <div
@@ -916,7 +1012,7 @@ function copyLogs() {
                 </button>
               </div>
             </PropertyRow>
-            <PropertyRow :label="tr('maxTokens')">
+            <PropertyRow :label="tr('maxTokens')" :help="tr('helpMaxTokens')">
               <input
                 type="number"
                 :value="form.maxTokens ?? 128"
@@ -943,7 +1039,7 @@ function copyLogs() {
               </button>
             </div>
             <div v-if="advancedOpen" class="advanced-body">
-              <PropertyRow :label="tr('settingsTimeoutMs')">
+              <PropertyRow :label="tr('settingsTimeoutMs')" :help="tr('helpSettingsTimeout')">
                 <input
                   type="number"
                   :value="form.settingsTimeoutMs ?? 15000"
@@ -954,7 +1050,7 @@ function copyLogs() {
                   "
                 />
               </PropertyRow>
-              <PropertyRow :label="tr('temperature')">
+              <PropertyRow :label="tr('temperature')" :help="tr('helpTemperature')">
                 <input
                   type="number"
                   step="0.1"
@@ -970,7 +1066,7 @@ function copyLogs() {
                 :help="tr('helpStream')"
                 @update:model-value="(v) => patchForm({ stream: v })"
               />
-              <PropertyRow :label="tr('authHeader')">
+              <PropertyRow :label="tr('authHeader')" :help="tr('helpAuthHeader')">
                 <input
                   type="text"
                   :value="form.authHeaderTemplate ?? 'Authorization: Bearer ***'"
@@ -982,7 +1078,7 @@ function copyLogs() {
                   "
                 />
               </PropertyRow>
-              <PropertyRow :label="tr('fimPath')">
+              <PropertyRow :label="tr('fimPath')" :help="tr('helpFimPath')">
                 <input
                   type="text"
                   :value="form.fimPath ?? ''"
@@ -990,7 +1086,7 @@ function copyLogs() {
                   @input="patchForm({ fimPath: ($event.target as HTMLInputElement).value })"
                 />
               </PropertyRow>
-              <PropertyRow :label="tr('chatPath')">
+              <PropertyRow :label="tr('chatPath')" :help="tr('helpChatPath')">
                 <input
                   type="text"
                   :value="form.chatPath ?? '/chat/completions'"
@@ -998,7 +1094,7 @@ function copyLogs() {
                   @input="patchForm({ chatPath: ($event.target as HTMLInputElement).value })"
                 />
               </PropertyRow>
-              <PropertyRow :label="tr('completionsPath')">
+              <PropertyRow :label="tr('completionsPath')" :help="tr('helpCompletionsPath')">
                 <input
                   type="text"
                   :value="form.completionsPath ?? ''"
@@ -1008,7 +1104,7 @@ function copyLogs() {
                   "
                 />
               </PropertyRow>
-              <PropertyRow :label="tr('extraHeaders')">
+              <PropertyRow :label="tr('extraHeaders')" :help="tr('helpExtraHeaders')">
                 <textarea
                   rows="2"
                   :value="form.extraHeadersJson ?? '{}'"
@@ -1023,21 +1119,24 @@ function copyLogs() {
               <CheckRow
                 :model-value="!!form.overrideContextBudget"
                 :label="tr('overrideBudget')"
+                :help="tr('helpOverrideBudget')"
                 @update:model-value="(v) => patchForm({ overrideContextBudget: v })"
               />
-              <PropertyRow :label="tr('maxPrefix')">
+              <PropertyRow :label="tr('maxPrefix')" :help="tr('helpMaxPrefix')">
                 <input
                   type="number"
                   :value="form.maxPrefixChars ?? 8000"
+                  :disabled="!form.overrideContextBudget"
                   @input="
                     patchForm({ maxPrefixChars: Number(($event.target as HTMLInputElement).value) })
                   "
                 />
               </PropertyRow>
-              <PropertyRow :label="tr('maxSuffix')">
+              <PropertyRow :label="tr('maxSuffix')" :help="tr('helpMaxSuffix')">
                 <input
                   type="number"
                   :value="form.maxSuffixChars ?? 2000"
+                  :disabled="!form.overrideContextBudget"
                   @input="
                     patchForm({ maxSuffixChars: Number(($event.target as HTMLInputElement).value) })
                   "
@@ -1054,14 +1153,46 @@ function copyLogs() {
           <CheckRow
             v-model="enabled"
             :label="tr('enabled')"
-            :help="tr('helpBehavior')"
+            :help="tr('helpEnabled')"
           />
-          <CheckRow v-model="autoTrigger" :label="tr('autoTrigger')" />
-          <CheckRow v-model="enableInComments" :label="tr('enableInComments')" />
-          <CheckRow v-model="enableInStrings" :label="tr('enableInStrings')" />
-          <CheckRow v-model="firstLineOnly" :label="tr('firstLineOnly')" />
-          <CheckRow v-model="sendFilePath" :label="tr('sendFilePath')" />
-          <CheckRow v-model="showStatusBar" :label="tr('showStatusBar')" />
+          <CheckRow
+            v-model="autoTrigger"
+            :label="tr('autoTrigger')"
+            :help="tr('helpAutoTrigger')"
+          />
+          <PropertyRow
+            :label="tr('manualTriggerShortcut')"
+            :help="tr('helpManualTriggerShortcut')"
+          >
+            <button type="button" class="btn btn-secondary" @click="void openKeymap()">
+              {{ tr("openKeymap") }}
+            </button>
+          </PropertyRow>
+          <CheckRow
+            v-model="enableInComments"
+            :label="tr('enableInComments')"
+            :help="tr('helpInComments')"
+          />
+          <CheckRow
+            v-model="enableInStrings"
+            :label="tr('enableInStrings')"
+            :help="tr('helpInStrings')"
+          />
+          <CheckRow
+            v-model="firstLineOnly"
+            :label="tr('firstLineOnly')"
+            :help="tr('helpFirstLineOnly')"
+          />
+          <CheckRow
+            v-model="sendFilePath"
+            :label="tr('sendFilePath')"
+            :help="tr('helpSendFilePath')"
+          />
+          <CheckRow
+            v-model="showStatusBar"
+            :label="tr('showStatusBar')"
+            :help="tr('helpShowStatusBar')"
+          />
           <PropertyRow :label="tr('disabledLanguages')" :help="tr('helpDisabledLanguages')">
             <input
               type="text"
@@ -1072,7 +1203,11 @@ function copyLogs() {
           </PropertyRow>
         </GroupCard>
         <GroupCard :title="tr('sectionIgnore')" :measure-key="locale">
-          <CheckRow v-model="respectGitignore" :label="tr('respectGitignore')" />
+          <CheckRow
+            v-model="respectGitignore"
+            :label="tr('respectGitignore')"
+            :help="tr('helpRespectGitignore')"
+          />
           <PropertyRow :label="tr('ignoreGlobs')" :help="tr('helpIgnoreGlobs')">
             <textarea rows="6" v-model="ignoreGlobs" spellcheck="false" />
           </PropertyRow>
@@ -1083,42 +1218,46 @@ function copyLogs() {
       <template v-if="tab === 'performance'">
         <GroupCard :title="tr('sectionDebounce')" :measure-key="locale">
           <p class="hint-block" style="margin: 0 12px 8px">{{ tr("helpDebounce") }}</p>
-          <PropertyRow :label="tr('debounceInitial')">
+          <PropertyRow :label="tr('debounceInitial')" :help="tr('helpDebounceInitial')">
             <input type="number" min="0" v-model.number="debounceInitialMs" />
           </PropertyRow>
-          <PropertyRow :label="tr('debounceMin')">
+          <PropertyRow :label="tr('debounceMin')" :help="tr('helpDebounceMin')">
             <input type="number" min="0" v-model.number="debounceMinMs" />
           </PropertyRow>
-          <PropertyRow :label="tr('debounceMax')">
+          <PropertyRow :label="tr('debounceMax')" :help="tr('helpDebounceMax')">
             <input type="number" min="0" v-model.number="debounceMaxMs" />
           </PropertyRow>
         </GroupCard>
         <GroupCard :title="tr('sectionContext')" :measure-key="locale">
           <p class="hint-block" style="margin: 0 12px 8px">{{ tr("helpContextBudget") }}</p>
-          <PropertyRow :label="tr('maxPrefix')">
+          <PropertyRow :label="tr('maxPrefix')" :help="tr('helpMaxPrefix')">
             <input type="number" min="1" v-model.number="maxPrefixChars" />
           </PropertyRow>
-          <PropertyRow :label="tr('maxSuffix')">
+          <PropertyRow :label="tr('maxSuffix')" :help="tr('helpMaxSuffix')">
             <input type="number" min="1" v-model.number="maxSuffixChars" />
           </PropertyRow>
         </GroupCard>
         <GroupCard :title="tr('sectionEngine')" :measure-key="locale">
-          <PropertyRow :label="tr('cacheSize')">
+          <PropertyRow :label="tr('cacheSize')" :help="tr('helpCacheSize')">
             <input type="number" min="1" v-model.number="cacheSize" />
           </PropertyRow>
-          <PropertyRow :label="tr('lruSize')">
+          <PropertyRow :label="tr('lruSize')" :help="tr('helpLruSize')">
             <input type="number" min="1" v-model.number="lruSize" />
           </PropertyRow>
-          <PropertyRow :label="tr('maxInFlight')">
+          <PropertyRow :label="tr('maxInFlight')" :help="tr('helpMaxInFlight')">
             <input type="number" min="1" v-model.number="maxInFlight" />
           </PropertyRow>
-          <PropertyRow :label="tr('maxFileSize')">
+          <PropertyRow :label="tr('maxFileSize')" :help="tr('helpMaxFileSize')">
             <input type="number" min="1" v-model.number="maxFileSizeKb" />
           </PropertyRow>
         </GroupCard>
         <GroupCard :title="tr('sectionRecent')" :measure-key="locale">
-          <CheckRow v-model="enableRecentFileContext" :label="tr('enableRecent')" />
-          <PropertyRow :label="tr('recentLimit')">
+          <CheckRow
+            v-model="enableRecentFileContext"
+            :label="tr('enableRecent')"
+            :help="tr('helpEnableRecent')"
+          />
+          <PropertyRow :label="tr('recentLimit')" :help="tr('helpRecentLimit')">
             <input
               type="number"
               min="0"
@@ -1126,7 +1265,7 @@ function copyLogs() {
               :disabled="!enableRecentFileContext"
             />
           </PropertyRow>
-          <PropertyRow :label="tr('recentMaxChars')">
+          <PropertyRow :label="tr('recentMaxChars')" :help="tr('helpRecentMaxChars')">
             <input
               type="number"
               min="1"
@@ -1140,13 +1279,12 @@ function copyLogs() {
       <!-- General -->
       <template v-if="tab === 'general'">
         <GroupCard :title="tr('sectionGeneral')" :measure-key="locale">
-          <PropertyRow :label="tr('language')">
+          <PropertyRow :label="tr('language')" :help="tr('helpLanguage')">
             <SelectCombo
               :model-value="languageSelectValue"
               :options="languageOptions"
               @update:model-value="onLanguageChange"
             />
-            <p class="row-help">{{ tr("secretHint") }}</p>
           </PropertyRow>
           <PropertyRow :label="tr('theme')" :help="tr('helpTheme')">
             <SelectCombo
@@ -1155,6 +1293,38 @@ function copyLogs() {
               @update:model-value="onThemeChange"
             />
           </PropertyRow>
+          <PropertyRow :label="tr('moreActions')">
+            <div class="hstack">
+              <button type="button" class="btn btn-secondary" @click="void onExport()">
+                {{ tr("export") }}
+              </button>
+              <button type="button" class="btn btn-secondary" @click="openImportModal()">
+                {{ tr("import") }}
+              </button>
+            </div>
+            <p class="row-help">{{ tr("helpImportExport") }}</p>
+          </PropertyRow>
+        </GroupCard>
+
+        <GroupCard :title="tr('sectionAbout')" :measure-key="locale">
+          <div class="about-card">
+            <p class="about-title">{{ tr("title") }}</p>
+            <p class="about-meta">
+              <span>{{ tr("aboutVersion") }} {{ appVersion }}</span>
+              <span class="about-dot" aria-hidden="true">·</span>
+              <span>{{ tr("aboutLicense") }}</span>
+            </p>
+            <p class="about-blurb">{{ tr("aboutBlurb") }}</p>
+            <div class="hstack about-actions">
+              <button type="button" class="btn btn-primary" @click="void openExternal(GITHUB_REPO_URL)">
+                {{ tr("aboutOpenGithub") }}
+              </button>
+              <button type="button" class="btn btn-secondary" @click="void openExternal(GITHUB_ISSUES_URL)">
+                {{ tr("aboutOpenIssues") }}
+              </button>
+            </div>
+            <p class="row-help about-url">{{ GITHUB_REPO_URL }}</p>
+          </div>
         </GroupCard>
       </template>
 
@@ -1162,7 +1332,7 @@ function copyLogs() {
       <template v-if="tab === 'logs'">
         <p class="hint-block">{{ tr("logsHint") }}</p>
         <GroupCard :title="tr('sectionLog')" :measure-key="locale">
-          <PropertyRow :label="tr('logLevel')">
+          <PropertyRow :label="tr('logLevel')" :help="tr('helpLogLevel')">
             <SelectCombo v-model="logLevel" :options="levelOptions" />
           </PropertyRow>
           <PropertyRow :label="tr('logRetention')" :help="tr('helpLogRetention')">
@@ -1173,8 +1343,16 @@ function copyLogs() {
             :label="tr('logPromptBodies')"
             :help="tr('helpLogPromptBodies')"
           />
-          <CheckRow v-model="notifyOnFatalError" :label="tr('notifyFatal')" />
-          <CheckRow v-model="showCostApprox" :label="tr('showCost')" />
+          <CheckRow
+            v-model="notifyOnFatalError"
+            :label="tr('notifyFatal')"
+            :help="tr('helpNotifyFatal')"
+          />
+          <CheckRow
+            v-model="showCostApprox"
+            :label="tr('showCost')"
+            :help="tr('helpShowCost')"
+          />
         </GroupCard>
         <div class="logs-bar">
           <label class="logs-bar-filter">
@@ -1195,5 +1373,39 @@ function copyLogs() {
     <div v-if="saveState !== 'idle'" class="save-status" :class="saveState">
       {{ saveMsg }}
     </div>
+
+    <!-- Import settings: in-panel modal (window.prompt is unusable in JCEF) -->
+    <Teleport to="body">
+      <div
+        v-if="importModalOpen"
+        class="modal-root"
+        role="dialog"
+        aria-modal="true"
+        :aria-label="tr('importTitle')"
+        @keydown.escape.prevent="closeImportModal()"
+      >
+        <div class="modal-backdrop" @mousedown="closeImportModal()" />
+        <div class="modal-panel" @mousedown.stop>
+          <h2 class="modal-title">{{ tr("importTitle") }}</h2>
+          <p class="modal-help">{{ tr("importPrompt") }}</p>
+          <textarea
+            v-model="importJsonText"
+            class="modal-textarea"
+            rows="12"
+            spellcheck="false"
+            autocomplete="off"
+            :placeholder="tr('importPlaceholder')"
+          />
+          <div class="modal-actions">
+            <button type="button" class="btn btn-ghost" @click="closeImportModal()">
+              {{ tr("confirmDeleteCancel") }}
+            </button>
+            <button type="button" class="btn btn-primary" @click="void confirmImport()">
+              {{ tr("importConfirm") }}
+            </button>
+          </div>
+        </div>
+      </div>
+    </Teleport>
   </div>
 </template>

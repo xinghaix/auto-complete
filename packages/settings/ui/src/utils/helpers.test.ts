@@ -6,6 +6,7 @@ import {
   ignoreGlobsFromSnapshot,
   normalizeHostTheme,
   normalizeTab,
+  normalizeUiLocale,
   normalizeUiTheme,
   numOr,
   validateForm,
@@ -31,6 +32,13 @@ describe("helpers (settings-ui)", () => {
     assert.equal(normalizeHostTheme("high-contrast"), "high-contrast");
     assert.equal(normalizeHostTheme("dark"), "dark");
     assert.equal(normalizeHostTheme(undefined), "dark");
+  });
+
+  it("normalizeUiLocale", () => {
+    assert.equal(normalizeUiLocale("zh"), "zh");
+    assert.equal(normalizeUiLocale("EN"), "en");
+    assert.equal(normalizeUiLocale("auto"), "auto");
+    assert.equal(normalizeUiLocale("fr"), "auto");
   });
 
   it("numOr and snapshot string helpers", () => {

@@ -9,7 +9,7 @@
     "dev": "vite",
     "build": "vite build",
     "preview": "vite preview",
-    "test": "tsx --test src/i18n/detect.test.ts src/utils/helpers.test.ts src/html-entry.test.ts src/mount.test.ts",
+    "test": "tsx --test src/i18n/detect.test.ts src/utils/helpers.test.ts src/html-entry.test.ts src/mount.test.ts src/composables/useFloatingMenu.test.ts",
     "typecheck": "vue-tsc -p tsconfig.json --noEmit"
   },
   "dependencies": {

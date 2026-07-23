@@ -18,4 +18,4 @@ This repository ships JetBrains and VS Code hosts today. It is not a redistribut
 Runtime: JetBrains IntelliJ Platform and VS Code (under their respective platform terms).
 
 No third-party model weights or API keys are bundled.
-See docs/SOURCES.md for mapping notes.
+See docs/DEV.md for repository layout notes.

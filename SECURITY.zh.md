@@ -24,10 +24,10 @@
 - UiBridge snapshot 只含 `hasApiKey`，绝不能返回专用 API key 明文；可编辑的头字段仅限本地编辑。可移植导出会移除 `apiKey`、`hasApiKey`、`authHeaderTemplate` 和 `extraHeadersJson`。
 - 设置 UI 不得直接发 provider HTTP；探测必须经宿主和引擎客户端。
 - 补全会向用户配置的 endpoint 发送裁剪 prefix/suffix。文件路径默认发送；最近打开文件上下文和 prompt 正文日志均为默认关闭的 opt-in 功能。
-- CI 和普通 PR 构建不得依赖 Marketplace/signing secret。
+- PR CI 可不配置 Marketplace/签名 secret（仅测试）。main/tag 的 JetBrains 分发 ZIP **必须签名**，secret 只放 GitHub Actions，绝不进仓库。
 
 ## 范围说明
 
 项目包含两个宿主；报告请注明宿主和 IDE/扩展版本。JetBrains 网络遵循 IDE 代理/信任库集成，VS Code 使用扩展网络路径。Provider 数据策略、TLS 拦截、endpoint 访问控制和网络出口策略仍由用户负责。
 
-可传输设置的完整说明见 [docs/SETTINGS.md](docs/SETTINGS.md) 和 [docs/PROVIDERS.md](docs/PROVIDERS.md)。
+可传输内容说明见 [docs/GUIDE.md](docs/GUIDE.md)（隐私与设置章节）。

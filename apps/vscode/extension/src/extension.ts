@@ -10,19 +10,24 @@ import {
   ensureProfiles,
   getActiveProfile,
   getActiveProfileId,
+  getGlobalPrefs,
   setApiKey,
 } from "./config/settings";
 import { AutoCompleteInlineProvider } from "./inline/provider";
 import { VsCodeUiBridge } from "./bridge/VsCodeUiBridge";
 import { SettingsPanel } from "./webview/SettingsPanel";
+import { VsCodeProjectContext } from "./project/context";
 
 let engine: CompletionEngine | undefined;
 let statusBar: vscode.StatusBarItem | undefined;
 let output: vscode.OutputChannel | undefined;
 let logBuffer: LogBuffer | undefined;
 let bridge: VsCodeUiBridge | undefined;
+let projectContext: VsCodeProjectContext | undefined;
+let extContext: vscode.ExtensionContext | undefined;
 
 export async function activate(context: vscode.ExtensionContext): Promise<void> {
+  extContext = context;
   output = vscode.window.createOutputChannel("Auto Complete");
   logBuffer = new LogBuffer(1000);
   logBuffer.addListener((entry: LogEntry) => {
@@ -32,16 +37,23 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
 
   await ensureProfiles(context);
 
+  projectContext = new VsCodeProjectContext();
+  await projectContext.refreshGitignore();
+
   let cachedSettings = await buildEngineSettings(context);
   const settingsSource = () => cachedSettings;
 
   engine = new CompletionEngine(
     settingsSource,
     logBuffer,
-    undefined,
+    projectContext,
     undefined,
     undefined,
     (status, message) => {
+      // Re-read prefs so notifyOnFatalError is honored after settings changes.
+      if (!extContext) return;
+      const prefs = getGlobalPrefs(extContext);
+      if (!prefs.notifyOnFatalError) return;
       void vscode.window.showErrorMessage(
         `Auto Complete auth/config error${status ? ` (HTTP ${status})` : ""}: ${message}`,
       );
@@ -51,6 +63,7 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
   const refreshSettings = async () => {
     cachedSettings = await buildEngineSettings(context);
     engine?.reloadCaches();
+    logBuffer?.setRetention(cachedSettings.logRetention);
     updateStatusBar();
   };
 
@@ -58,6 +71,15 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
     vscode.workspace.onDidChangeConfiguration(async (e) => {
       if (e.affectsConfiguration("autoComplete")) {
         await refreshSettings();
+      }
+    }),
+    vscode.workspace.onDidChangeWorkspaceFolders(() => {
+      void projectContext?.refreshGitignore();
+    }),
+    // Reload gitignore when the file is saved/created under a workspace root
+    vscode.workspace.onDidSaveTextDocument((doc) => {
+      if (doc.fileName.replace(/\\/g, "/").endsWith("/.gitignore")) {
+        void projectContext?.refreshGitignore();
       }
     }),
   );
@@ -80,9 +102,6 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
   statusBar.command = "autoComplete.openSettings";
   context.subscriptions.push(statusBar);
   updateStatusBar();
-  if (vscode.workspace.getConfiguration("autoComplete").get("showStatusBar", true)) {
-    statusBar.show();
-  }
 
   context.subscriptions.push(
     vscode.commands.registerCommand("autoComplete.trigger", async () => {
@@ -131,22 +150,27 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
   });
 }
 
-async function updateStatusBar(): Promise<void> {
+function updateStatusBar(): void {
   if (!statusBar) return;
-  const config = vscode.workspace.getConfiguration("autoComplete");
-  const enabled = config.get("enabled", true);
-  const showStatusBar = config.get("showStatusBar", true);
-  // model may come from globalState profile — show config mirror
-  const model = config.get("model", "");
+  const c = vscode.workspace.getConfiguration("autoComplete");
+  const show = extContext
+    ? getGlobalPrefs(extContext).showStatusBar
+    : c.get("showStatusBar", true);
+  if (!show) {
+    statusBar.hide();
+    return;
+  }
+  statusBar.show();
+  const enabled = c.get("enabled", true);
+  const model = c.get("model", "");
   statusBar.text = enabled ? `$(sparkle) AC: ${model || "on"}` : "$(circle-slash) AC off";
   statusBar.tooltip = "Auto Complete — open settings panel";
-  if (showStatusBar) statusBar.show();
-  else statusBar.hide();
 }
 
 export function deactivate(): void {
   engine?.dispose();
   engine = undefined;
+  extContext = undefined;
 }
 
 void getActiveProfileId;

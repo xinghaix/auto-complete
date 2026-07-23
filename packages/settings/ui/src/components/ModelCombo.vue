@@ -1,5 +1,7 @@
 <script setup lang="ts">
-import { computed, onUnmounted, ref, watch } from "vue";
+import { computed, ref, watch } from "vue";
+import { useFloatingMenu } from "../composables/useFloatingMenu";
+import CaretIcon from "./CaretIcon.vue";
 
 const props = defineProps<{
   modelValue: string;
@@ -18,9 +20,10 @@ const emit = defineEmits<{
   fetch: [];
 }>();
 
-const open = ref(false);
-const rootRef = ref<HTMLElement | null>(null);
 const query = ref(props.modelValue);
+const { open, triggerRef, menuRef, menuStyle, openMenu, close, toggle } = useFloatingMenu({
+  maxMenuHeight: 260,
+});
 
 watch(
   () => props.modelValue,
@@ -42,52 +45,34 @@ const menuIds = computed(() => {
   return out;
 });
 
-function onDoc(ev: MouseEvent) {
-  const t = ev.target as Node | null;
-  if (rootRef.value && t && !rootRef.value.contains(t)) open.value = false;
-}
-
-function onKey(ev: KeyboardEvent) {
-  if (ev.key === "Escape") open.value = false;
-}
-
-watch(open, (v) => {
-  if (v) {
-    document.addEventListener("mousedown", onDoc);
-    document.addEventListener("keydown", onKey);
-  } else {
-    document.removeEventListener("mousedown", onDoc);
-    document.removeEventListener("keydown", onKey);
-  }
-});
-
-onUnmounted(() => {
-  document.removeEventListener("mousedown", onDoc);
-  document.removeEventListener("keydown", onKey);
-});
-
 function onInput(e: Event) {
   const v = (e.target as HTMLInputElement).value;
   query.value = v;
   emit("update:modelValue", v);
 }
 
-function pick(id: string, e: MouseEvent) {
+function pick(id: string, e: Event) {
   e.preventDefault();
+  e.stopPropagation();
   query.value = id;
   emit("update:modelValue", id);
-  open.value = false;
+  close();
 }
 
-function toggleMenu(e: MouseEvent) {
+async function onToggle(e: MouseEvent) {
   e.preventDefault();
+  e.stopPropagation();
   if (props.disabled) return;
-  open.value = !open.value;
+  if (menuIds.value.length === 0) {
+    close();
+    return;
+  }
+  await toggle();
 }
 
-function openMenu() {
+async function onArrowOpen() {
   if (props.disabled) return;
-  if (menuIds.value.length > 0) open.value = true;
+  if (menuIds.value.length > 0) await openMenu();
 }
 
 function onFetch(e: MouseEvent) {
@@ -99,7 +84,11 @@ function onFetch(e: MouseEvent) {
 
 <template>
   <div class="model-combo-wrap">
-    <div ref="rootRef" class="model-combo" :class="{ open, disabled }">
+    <div
+      ref="triggerRef"
+      class="model-combo"
+      :class="{ open, disabled }"
+    >
       <input
         type="text"
         class="model-combo-input"
@@ -110,8 +99,8 @@ function onFetch(e: MouseEvent) {
         spellcheck="false"
         autocomplete="off"
         @input="onInput"
-        @keydown.arrow-down.prevent="openMenu"
-        @keydown.escape.prevent="open = false"
+        @keydown.arrow-down.prevent="onArrowOpen"
+        @keydown.escape.prevent="close()"
       />
       <button
         type="button"
@@ -120,11 +109,19 @@ function onFetch(e: MouseEvent) {
         aria-haspopup="listbox"
         :aria-expanded="open"
         :aria-label="ariaLabel"
-        @mousedown="toggleMenu"
+        @mousedown="onToggle"
       >
-        ▾
+        <CaretIcon />
       </button>
-      <ul v-if="open && menuIds.length" class="model-combo-menu" role="listbox">
+    </div>
+    <Teleport to="body">
+      <ul
+        v-if="open && menuIds.length"
+        ref="menuRef"
+        class="floating-menu model-combo-menu"
+        role="listbox"
+        :style="menuStyle"
+      >
         <li
           v-for="id in menuIds"
           :key="id"
@@ -133,6 +130,7 @@ function onFetch(e: MouseEvent) {
         >
           <button
             type="button"
+            class="floating-menu-item"
             :class="{ active: id === modelValue }"
             @mousedown="pick(id, $event)"
           >
@@ -140,7 +138,7 @@ function onFetch(e: MouseEvent) {
           </button>
         </li>
       </ul>
-    </div>
+    </Teleport>
     <button
       type="button"
       class="btn btn-secondary model-fetch-btn"

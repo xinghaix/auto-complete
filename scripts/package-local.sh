@@ -18,7 +18,12 @@ fi
 SKIP_VSCODE="${SKIP_VSCODE:-0}"
 SKIP_JB="${SKIP_JB:-0}"
 
-echo "==> JAVA_HOME=${JAVA_HOME:-"(default)"}"
+# Do not print full JAVA_HOME (may contain a user home path). Only confirm presence.
+if [[ -n "${JAVA_HOME:-}" ]]; then
+  echo "==> JAVA_HOME is set (JDK for Gradle)"
+else
+  echo "==> JAVA_HOME not set (using default java on PATH)"
+fi
 echo "==> Dual package (JB zip + VS Code vsix); SKIP_JB=$SKIP_JB SKIP_VSCODE=$SKIP_VSCODE"
 
 # ── Shared Web UI (both hosts) ──────────────────────────────────────────
@@ -41,11 +46,19 @@ if [[ "$SKIP_JB" != "1" ]]; then
   echo "==> Run core tests"
   ./gradlew :core:test
 
-  echo "==> Build JetBrains plugin zip"
-  ./gradlew :plugin:buildPlugin
-
   DIST_JB="$ROOT/apps/jetbrains/plugin/build/distributions"
-  JB_ZIP="$(ls -1t "$DIST_JB"/auto-complete-*.zip 2>/dev/null | head -1 || true)"
+  if [[ -n "${CERTIFICATE_CHAIN:-}" && -n "${PRIVATE_KEY:-}" ]]; then
+    echo "==> Build + sign JetBrains plugin ZIP (CERTIFICATE_CHAIN/PRIVATE_KEY set)"
+    ./gradlew :plugin:buildPlugin :plugin:signPlugin
+    # Prefer signed artifact for Install from Disk / Marketplace.
+    find "$DIST_JB" -type f -name '*.zip' ! -name '*-signed.zip' -delete 2>/dev/null || true
+    JB_ZIP="$(ls -1t "$DIST_JB"/*-signed.zip 2>/dev/null | head -1 || true)"
+  else
+    echo "==> Build JetBrains plugin ZIP (unsigned — set CERTIFICATE_CHAIN+PRIVATE_KEY to sign)"
+    echo "    Marketplace / release distribution should use a signed ZIP only."
+    ./gradlew :plugin:buildPlugin
+    JB_ZIP="$(ls -1t "$DIST_JB"/auto-complete-*.zip 2>/dev/null | head -1 || true)"
+  fi
   if [[ -z "$JB_ZIP" ]]; then
     JB_ZIP="$(ls -1t "$DIST_JB"/*.zip 2>/dev/null | head -1 || true)"
   fi
@@ -90,8 +103,13 @@ fi
 
 echo
 if [[ -n "$JB_ZIP" ]]; then
-  echo "JetBrains — Install Plugin from Disk:"
+  if [[ "$JB_ZIP" == *-signed.zip ]]; then
+    echo "JetBrains — signed ZIP (Marketplace / Install from Disk):"
+  else
+    echo "JetBrains — unsigned ZIP (local only; prefer Marketplace or signed build):"
+  fi
   echo "  $JB_ZIP"
+  echo "  Preferred install: https://plugins.jetbrains.com/plugin/33040-auto-complete"
 fi
 if [[ -n "$VSIX" ]]; then
   echo "VS Code — Extensions → Install from VSIX:"

@@ -24,10 +24,10 @@ Include the affected version or commit, host (JetBrains/VS Code), impact, minima
 - UiBridge snapshots expose `hasApiKey`, never the dedicated API key. They retain editable plaintext header fields only for local editing; portable exports omit `apiKey`, `hasApiKey`, `authHeaderTemplate`, and `extraHeadersJson`.
 - Settings UI must not directly call provider HTTP. Probes go through the host and engine client.
 - Completion sends trimmed prefix/suffix to user-configured endpoints. File paths are on by default; recent-open-file context and prompt-body logging are opt-in and disabled by default.
-- CI and ordinary PR builds must not require Marketplace/signing secrets.
+- PR CI may run without Marketplace/signing secrets (tests only). Release/main JetBrains ZIP artifacts require signing secrets and publish **signed** builds only — secrets stay in GitHub Actions, never in the repository.
 
 ## Scope notes
 
 This project runs in two hosts. Please identify the host and IDE/extension version in reports. JetBrains networking follows IDE proxy/trust-store integration; VS Code uses its extension networking path. Provider data policies, TLS interception, endpoint access controls, and network egress policies remain the user's responsibility.
 
-For a complete description of what settings can transmit, see [docs/SETTINGS.en.md](docs/SETTINGS.en.md) and [docs/PROVIDERS.en.md](docs/PROVIDERS.en.md).
+What settings can transmit: [docs/GUIDE.en.md](docs/GUIDE.en.md) (privacy + settings sections).

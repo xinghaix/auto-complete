@@ -23,6 +23,13 @@ export function normalizeUiTheme(raw: unknown): UiTheme {
   return "auto";
 }
 
+/** Settings panel locale preference: auto | en | zh | ja | ko. */
+export function normalizeUiLocale(raw: unknown): string {
+  const v = typeof raw === "string" ? raw.trim().toLowerCase() : "";
+  if (v === "en" || v === "zh" || v === "ja" || v === "ko") return v;
+  return "auto";
+}
+
 /** Map host theme push / getPlatform theme to a concrete CSS data-theme value. */
 export function normalizeHostTheme(raw?: string | null): "light" | "dark" | "high-contrast" {
   const v = (raw ?? "").trim().toLowerCase();
@@ -83,9 +90,11 @@ export function validateForm(form: Profile, hasProfiles: boolean): string[] {
   }
   if (hasProfiles && !(form.model ?? "").trim()) errors.push("model is required");
   const timeout = form.timeoutMs ?? 3000;
-  if (timeout < 500 || timeout > 60000) errors.push("timeoutMs must be 500..60000");
+  // Align with engine TIMEOUT.MAX_MS (30000) / schema
+  if (timeout < 500 || timeout > 30000) errors.push("timeoutMs must be 500..30000");
   const st = form.settingsTimeoutMs ?? 15000;
-  if (st < 1000 || st > 60000) errors.push("settingsTimeoutMs must be 1000..60000");
+  // Align with engine TIMEOUT.MAX_SETTINGS_MS (120000) / schema
+  if (st < 1000 || st > 120000) errors.push("settingsTimeoutMs must be 1000..120000");
   const mt = form.maxTokens ?? 128;
   if (mt < 16 || mt > 1024) errors.push("maxTokens must be 16..1024");
   if ((form.maxPrefixChars ?? 8000) <= 0) errors.push("maxPrefixChars must be > 0");

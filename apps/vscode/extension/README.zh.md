@@ -1,52 +1,30 @@
 # Auto Complete（VS Code）
 
-[项目仓库](https://github.com/xinghaix/auto-complete) · [完整文档](https://github.com/xinghaix/auto-complete)
+[English](README.md) · [使用指南](../../../docs/GUIDE.md)
 
-VS Code 宿主使用 `packages/completion/engine-ts` 的 TypeScript 补全引擎，通过 Webview 嵌入共用的 `packages/settings/ui`。它与 JetBrains 宿主独立运行，不依赖 JetBrains 插件、Extension Host bridge 或 `kilo serve`。
+VS Code 宿主：TypeScript 补全引擎 + Webview 共用设置页。与 JetBrains **独立**。
 
-## 要求与安装
+JetBrains 用户请优先从 [Marketplace](https://plugins.jetbrains.com/plugin/33040-auto-complete) 安装。
 
-- VS Code：`^1.85.0`
-- 开发/打包：Node.js 18+ 与 npm
+## 安装
 
-从仓库根目录打包：
+- VS Code **1.85+**
+- 开发/打包：Node 18+
 
 ```bash
+# 仓库根目录
 npm install
-npm run build:settings-ui
-npm run test:js
-npm run build:js
 npm run package:vscode
 ```
 
-产物在 `apps/vscode/extension/dist-vsix/auto-complete-*.vsix`。安装：**Extensions → … → Install from VSIX…**，然后重载窗口。
+产物：`apps/vscode/extension/dist-vsix/auto-complete-*.vsix`  
+安装：**扩展 → … → 从 VSIX 安装…** → 重载。
 
-一次打包 JetBrains ZIP + VSIX：
+## 使用
 
-```bash
-./scripts/package-local.sh
-```
+1. 命令：**Auto Complete: Open Settings Panel**  
+2. 新建配置 → Base URL、模型、可选 API Key  
+3. **拉取模型 / 测试连接 / 测试模板**  
+4. 手动触发默认 `Ctrl/Cmd+Shift+Space`  
 
-本地开发也可从 `apps/vscode/extension/` 打开项目后按 F5；构建入口为 `npm run build -w auto-complete`。
-
-## 配置与命令
-
-1. 执行 **Auto Complete: Open Settings Panel**。
-2. 创建或选择 profile，填写 Base URL、模型和可选 API key。
-3. 可用 **Fetch models**、**Test connection**、**Test template** 检查 endpoint。
-4. 用 **Auto Complete: Trigger Inline Completion** 手动触发；默认快捷键为 Ctrl+Shift+Space（macOS Cmd+Shift+Space）。
-5. **Auto Complete: Toggle Enabled** 开关补全；**Auto Complete: Set API Key** 写入 SecretStorage；**Auto Complete: Show Logs** 打开日志页与 OutputChannel。
-
-密钥只进 VS Code **SecretStorage**，不进 `settings.json`、globalState 导出或 UiBridge snapshot。常用配置会镜像到 `autoComplete.*` 原生 Settings，其余 profile/global 偏好由扩展 `globalState` 保存；请使用设置面板管理 profile，而不是手工编辑内部存储。
-
-## 当前宿主差异
-
-- 当前 provider 将 `inComment` 与 `inString` 固定为 `false`，所以相关设置尚未做 VS Code 语义识别。
-- workspace `.gitignore` 尚未注入 TypeScript engine；额外 ignore globs 才是可靠的路径过滤方式。
-- 最近文件上下文尚未由 VS Code 宿主提供给 engine。
-
-这些差异会影响隐私和建议触发范围，不能假设与 JetBrains 完全一致。完整状态见[项目文档](https://github.com/xinghaix/auto-complete)。
-
-## 日志与安全
-
-日志通过 Settings 面板 Logs tab 批量显示，并同步写入 **Auto Complete** OutputChannel。默认不记录 prompt 正文；凭据应保存在专用 API key 字段，不能写入明文额外 Headers。Provider 请求和路径规则见[项目文档](https://github.com/xinghaix/auto-complete)。
+密钥只进 **SecretStorage**。完整说明与排错见 [使用指南](../../../docs/GUIDE.md)。
