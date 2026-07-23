@@ -24,6 +24,11 @@ jobs:
           distribution: temurin
           java-version: "21"
 
+      - name: Set up Node 22 for embedded settings UI
+        uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+
       - name: Setup Gradle
         uses: gradle/actions/setup-gradle@v4
 
@@ -66,6 +71,28 @@ jobs:
           echo "signed=true" >> "$GITHUB_OUTPUT"
           echo "Signed ZIP: $SIGNED"
           ls -la "$DIST"
+
+      - name: Verify signed ZIP embeds settings UI
+        if: steps.sign.outputs.signed == 'true'
+        run: |
+          python3 - <<'PY2'
+          from io import BytesIO
+          from pathlib import Path
+          from zipfile import ZipFile
+          archives = list(Path("apps/jetbrains/plugin/build/distributions").glob("*-signed.zip"))
+          assert archives, "signed plugin ZIP was not produced"
+          with ZipFile(max(archives, key=lambda p: p.stat().st_mtime)) as outer:
+              for name in outer.namelist():
+                  if not name.endswith(".jar"):
+                      continue
+                  with ZipFile(BytesIO(outer.read(name))) as jar:
+                      entries = set(jar.namelist())
+                      if "settings-ui/index.html" in entries and any(e.startswith("settings-ui/assets/") for e in entries):
+                          print(f"embedded settings UI verified in {name}")
+                          break
+              else:
+                  raise AssertionError("signed ZIP is missing packaged settings-ui assets")
+          PY2
 
       - name: Upload signed ZIP distribution
         if: success() && steps.sign.outputs.signed == 'true'

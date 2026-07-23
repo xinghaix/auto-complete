@@ -43,6 +43,8 @@ Inline completion works best with **FIM (Fill-In-the-Middle)**: text before *and
 
 Put keys **only in the settings panel**, never in docs, exports, or issues.
 
+Exports remove API-key state, auth-header templates, and extra headers; legacy imports strip those fields too. Extra headers are only for non-sensitive routing metadata, and common credential header names are rejected.
+
 ## 4. Templates
 
 | ID | Typical use | Default path |

@@ -74,7 +74,7 @@ type BridgeResponse = {
 
 1. **`snapshot` never returns API key plaintext** — only `hasApiKey: boolean` per profile.
 2. Secrets travel only via `setSecret` once; host writes to SecretStorage / PasswordSafe; UI must clear the input.
-3. Export JSON must strip secrets.
+3. Portable exports must strip `apiKey`, `hasApiKey`, `authHeaderTemplate`, and `extraHeadersJson`; snapshots may contain editable local header fields only.
 4. Completion HTTP runs only in the engines (`packages/completion/engine-ts` / `packages/completion/engine-jvm`). Web UI must not `fetch` user `baseUrl`.
 5. Test connection / template probes go **Bridge → host → engine client**.
 6. CSP: VS Code Webview strict; JB prefers local packaged assets.

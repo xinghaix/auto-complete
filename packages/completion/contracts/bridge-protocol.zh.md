@@ -76,7 +76,7 @@ type BridgeResponse = {
 
 1. `snapshot` 绝不返回 API key 明文，只能有每个 profile 的 `hasApiKey`。
 2. secret 只通过一次 `setSecret` 传输；宿主写入 SecretStorage/PasswordSafe，UI 必须清空输入。
-3. 导出 JSON 必须移除 secret。
+3. 可移植导出必须移除 `apiKey`、`hasApiKey`、`authHeaderTemplate` 与 `extraHeadersJson`；snapshot 仅可包含本地可编辑的头字段。
 4. 补全 HTTP 只能由 `packages/completion/engine-ts` / `packages/completion/engine-jvm` 发起；Web UI 不得 `fetch` 用户 `baseUrl`。
 5. 连接/模板探测只能走 **Bridge → 宿主 → 引擎客户端**。
 6. VS Code Webview 使用严格 CSP；JetBrains 使用打包的本地资源。
