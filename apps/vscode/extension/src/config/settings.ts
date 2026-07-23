@@ -4,6 +4,7 @@ import type { EngineSettings, PromptTemplateId, ProviderConfig } from "@auto-com
 import { validateSettings } from "@auto-complete/core-ts";
 
 const PROFILES_KEY = "autoComplete.profiles.v1";
+const PROFILES_INITIALIZED_KEY = "autoComplete.profilesInitialized.v1";
 const ACTIVE_KEY = "autoComplete.activeProfileId";
 const GLOBAL_KEY = "autoComplete.global.v1";
 
@@ -125,7 +126,9 @@ export function uniqueName(preferred: string, existing: string[]): string {
 
 export async function ensureProfiles(context: vscode.ExtensionContext): Promise<StoredProfile[]> {
   let profiles = context.globalState.get<StoredProfile[]>(PROFILES_KEY);
-  if (profiles && profiles.length > 0) return profiles.map((p) => ({ ...p }));
+  const initialized = context.globalState.get<boolean>(PROFILES_INITIALIZED_KEY, false);
+  if (profiles && (profiles.length > 0 || initialized)) return profiles.map((p) => ({ ...p }));
+  if (!profiles && initialized) return [];
 
   // Migrate from contributes.configuration flat keys once.
   const c = vscode.workspace.getConfiguration("autoComplete");
@@ -158,6 +161,7 @@ export async function ensureProfiles(context: vscode.ExtensionContext): Promise<
   }
   profiles = [migrated];
   await context.globalState.update(PROFILES_KEY, profiles);
+  await context.globalState.update(PROFILES_INITIALIZED_KEY, true);
   await context.globalState.update(ACTIVE_KEY, migrated.id);
   return profiles.map((p) => ({ ...p }));
 }
@@ -270,6 +274,7 @@ export async function saveProfiles(
     PROFILES_KEY,
     profiles.map((p) => ({ ...p })),
   );
+  await context.globalState.update(PROFILES_INITIALIZED_KEY, true);
   if (activeId !== undefined) {
     await context.globalState.update(ACTIVE_KEY, activeId);
   }

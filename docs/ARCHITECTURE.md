@@ -22,13 +22,15 @@ Auto Complete 是自带模型端点的 AI 内联代码补全项目。用户提�
 
 ```text
 auto-complete/
-├── packages/completion/engine-jvm/                     Kotlin/JVM 补全引擎（无 IntelliJ UI 依赖）
-├── apps/jetbrains/plugin/                   JetBrains 宿主：Inline Completion、JCEF、PasswordSafe、IDE HTTP 支持
+├── apps/
+│   ├── jetbrains/plugin/                   JetBrains 宿主：Inline Completion、JCEF、PasswordSafe、IDE HTTP 支持
+│   └── vscode/extension/                   VS Code 宿主：Inline provider、SecretStorage、Webview、OutputChannel
 ├── packages/
-│   ├── shared-spec/          设置、模板、语言映射、UiBridge 协议和 golden fixtures
-│   ├── core-ts/              TypeScript 补全引擎
-│   └── settings-ui/          Vue 3 设置与日志界面，供两个宿主嵌入
-├── apps/vscode/extension/             VS Code 扩展：Inline provider、SecretStorage、Webview、OutputChannel
+│   ├── completion/
+│   │   ├── contracts/        npm `@auto-complete/shared-spec`：设置、模板、语言映射、UiBridge 协议和 golden fixtures
+│   │   ├── engine-jvm/       Kotlin/JVM 补全引擎（无 IntelliJ UI 依赖；Gradle `:core`）
+│   │   └── engine-ts/        TypeScript 补全引擎（npm `@auto-complete/core-ts`）
+│   └── settings/ui/          Vue 3 设置与日志界面，供两个宿主嵌入
 ├── docs/                     面向用户和贡献者的文档
 └── scripts/package-local.sh  构建 JetBrains zip 与 VSIX 的本地打包脚本
 ```
@@ -96,7 +98,7 @@ JetBrains 入口会读取文档来形成 prefix/suffix，但出站请求由 `Pro
 
 ## 配置、隐私与日志
 
-设置分为全局行为/性能/日志设置和具名 Provider profile。每个 profile 保存端点、模型、模板、超时和可选上下文预算；API key 永远独立存入 PasswordSafe 或 SecretStorage。导出和 UiBridge snapshot 只有 `hasApiKey` 标志，绝不含明文 key。
+设置分为全局行为/性能/日志设置和具名 Provider profile。每个 profile 保存端点、模型、模板、超时和可选上下文预算；专用 API key 永远独立存入 PasswordSafe 或 SecretStorage。内部 UiBridge snapshot 仅以 `hasApiKey` 表示专用 API key，但会保留可编辑的明文头字段用于本地配置。可移植导出会移除 API key、`hasApiKey`、`authHeaderTemplate` 和 `extraHeadersJson`，因此凭据必须使用专用 API key，不能写成字面量头字段。
 
 默认值强调输入路径与隐私：不启用最近文件上下文、不记录 prompt 正文、JetBrains 遵循 `.gitignore`（VS Code 当前只可靠地应用额外 glob）、最大文件 512 KB、补全硬超时 3000 ms。用户开启 `logPromptBodies` 后，日志会记录截断 prompt，属于高敏设置。
 
@@ -105,7 +107,7 @@ UiBridge 的请求/响应 envelope、日志批处理、主题/语言推送与安
 ## 验证边界
 
 - Kotlin：`packages/completion/engine-jvm/src/test` 覆盖引擎、缓存、跳过、模板、HTTP fixtures、设置校验；`apps/jetbrains/plugin/src/test` 覆盖 profile、i18n 和 UI 状态。
-- TypeScript：`packages/completion/engine-ts/test/fixtures.test.ts` 对照 shared-spec golden fixtures；settings UI 有 i18n、挂载和 HTML entry 测试。
-- CI：JDK 21 job 运行 `:core:test :plugin:test` 并构建 zip；Node 22 job 运行 `npm run test:js` 和 `npm run build:js`。
+- TypeScript：`packages/completion/engine-ts/test/fixtures.test.ts` 对照 shared-spec golden fixtures；settings UI 有 i18n、挂载和 HTML entry 测试；VS Code 宿主测试导出脱敏，并对其绑定到引擎源码的导入执行 typecheck。
+- CI 的 JVM job 会在独立工作区先构建 settings UI，再运行 `:core:test :plugin:test`，并在上传前验证 ZIP 内嵌 `settings-ui/index.html` 与 assets。Node 22 job 同样先构建 settings UI，再运行 `npm run test:js`、`npm run build:js`、打包并上传 VSIX。推送 `v*` tag 后，release job 将两个 artifact 附加到同名 GitHub Release。
 
 构建、安装和打包说明见 [RELEASE.md](RELEASE.md)。

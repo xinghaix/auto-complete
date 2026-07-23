@@ -25,6 +25,8 @@ export function validateSettings(opts: {
     }
     if (!uri || !uri.protocol || !uri.hostname) {
       errors.push("baseUrl must be a valid URL");
+    } else if (uri.username || uri.password) {
+      errors.push("baseUrl must not contain user-info credentials");
     } else if (!opts.allowRemote) {
       const host = uri.hostname.toLowerCase();
       const local =
@@ -50,10 +52,25 @@ export function validateSettings(opts: {
       const parsed = JSON.parse(opts.extraHeadersJson);
       if (parsed === null || typeof parsed !== "object" || Array.isArray(parsed)) {
         errors.push("extraHeadersJson must be a JSON object");
+      } else if (Object.keys(parsed).some(isSensitiveHeaderName)) {
+        errors.push("extraHeadersJson must not contain credential headers");
       }
     } catch {
       errors.push("extraHeadersJson must be a JSON object");
     }
   }
   return errors;
+}
+
+function isSensitiveHeaderName(name: string): boolean {
+  return new Set([
+    "authorization",
+    "proxy-authorization",
+    "cookie",
+    "set-cookie",
+    "x-api-key",
+    "api-key",
+    "x-auth-token",
+    "x-access-token",
+  ]).has(name.trim().toLowerCase());
 }

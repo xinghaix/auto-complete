@@ -27,6 +27,7 @@ From the repository root:
 
 ```bash
 npm install
+npm run build:settings-ui
 ./gradlew :core:test :plugin:test
 npm run test:js
 npm run build:js
@@ -86,10 +87,10 @@ SKIP_VSCODE=1 ./scripts/package-local.sh  # JetBrains only
 
 `.github/workflows/ci.yml` defines two jobs:
 
-- **JVM (JDK 21):** `./gradlew :core:test :plugin:test --stacktrace`, `./gradlew :plugin:buildPlugin --stacktrace`, then ZIP artifact upload.
-- **JS (Node 22):** `npm install`, `npm run test:js`, and `npm run build:js`.
+- **JVM (JDK 21 + Node 22):** builds `settings-ui` in the same isolated workspace, runs `./gradlew :core:test :plugin:test --stacktrace`, builds the plugin ZIP, verifies the ZIP embeds the UI assets, then uploads the ZIP artifact.
+- **JS (Node 22):** `npm install`, `npm run build:settings-ui`, `npm run test:js`, `npm run build:js`, then VSIX packaging and artifact upload.
 
-CI builds and tests on `main`/PRs. A pushed `v*` tag downloads the successful ZIP/VSIX artifacts after the JVM and JS jobs, then creates a GitHub Release. If that tag already has a release, the workflow skips publication and never overwrites or uploads duplicates. Marketplace publishing and signing remain manual.
+CI builds and tests on pushes and pull requests targeting `main` or `master`. A pushed `v*` tag downloads the successful ZIP/VSIX artifacts after the JVM and JS jobs, then creates a GitHub Release. If that tag already has a release, the workflow skips publication and never overwrites or uploads duplicates. Marketplace publishing and signing remain manual.
 
 ## Versioning and release checklist
 

@@ -2,7 +2,7 @@
 
 [中文](README.md) · [English](README.en.md) · [项目主页](../README.md)
 
-Auto Complete 是面向 **JetBrains 与 VS Code** 的双宿主 AI 内联代码补全项目：JetBrains 使用 Kotlin/JVM `core`，VS Code 使用 TypeScript `core-ts`，共享设置/模板/语言映射/fixture 规格与 Vue 设置界面。两个宿主独立运行；JetBrains 不依赖 VS Code Extension Host 或 `kilo serve`。
+Auto Complete 是面向 **JetBrains 与 VS Code** 的双宿主 AI 内联代码补全项目：JetBrains 使用 Kotlin/JVM 引擎 `packages/completion/engine-jvm`（Gradle 逻辑模块 `core`），VS Code 使用 TypeScript 引擎 `packages/completion/engine-ts`（npm 包 `core-ts`），并共享 `packages/completion/contracts` 的设置/模板/语言映射/fixture 契约和 `packages/settings/ui` 的 Vue 设置界面。两个宿主独立运行；JetBrains 不依赖 VS Code Extension Host 或 `kilo serve`。
 
 ## 快速入口
 

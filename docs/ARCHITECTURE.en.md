@@ -22,13 +22,15 @@ The project independently reimplements completion behaviour inspired by Kilo Cod
 
 ```text
 auto-complete/
-├── packages/completion/engine-jvm/                     Kotlin/JVM completion engine, without IntelliJ UI
-├── apps/jetbrains/plugin/                   JetBrains host: inline completion, JCEF, PasswordSafe, IDE HTTP support
+├── apps/
+│   ├── jetbrains/plugin/                   JetBrains host: inline completion, JCEF, PasswordSafe, IDE HTTP support
+│   └── vscode/extension/                   VS Code host: provider, SecretStorage, Webview, OutputChannel
 ├── packages/
-│   ├── shared-spec/          settings, templates, language map, UiBridge protocol, golden fixtures
-│   ├── core-ts/              TypeScript completion engine
-│   └── settings-ui/          Vue 3 Settings + Logs UI embedded by both hosts
-├── apps/vscode/extension/             VS Code extension: provider, SecretStorage, Webview, OutputChannel
+│   ├── completion/
+│   │   ├── contracts/        npm `@auto-complete/shared-spec`: settings, templates, language map, UiBridge protocol, golden fixtures
+│   │   ├── engine-jvm/       Kotlin/JVM completion engine without IntelliJ UI (Gradle `:core`)
+│   │   └── engine-ts/        TypeScript completion engine (npm `@auto-complete/core-ts`)
+│   └── settings/ui/          Vue 3 Settings + Logs UI embedded by both hosts
 ├── docs/                     user and contributor documentation
 └── scripts/package-local.sh  local JetBrains ZIP + VSIX packaging script
 ```
@@ -96,7 +98,7 @@ The JVM `HttpCompletionClient` and `packages/completion/engine-ts/src/httpClient
 
 ## Settings, privacy, and logs
 
-Global behaviour/performance/log preferences are separate from named provider profiles. Profiles hold endpoint, model, template, timeouts, and optional context-budget overrides. API keys always live in PasswordSafe or SecretStorage. Exports and UiBridge snapshots expose only `hasApiKey`, never plaintext.
+Global behaviour/performance/log preferences are separate from named provider profiles. Profiles hold endpoint, model, template, timeouts, and optional context-budget overrides. Dedicated API keys always live in PasswordSafe or SecretStorage. Internal UiBridge snapshots expose only `hasApiKey` for that dedicated secret, but retain editable plaintext header fields for local configuration. Portable exports remove API keys, `hasApiKey`, `authHeaderTemplate`, and `extraHeadersJson`; use the dedicated API key plus auth-header template for credentials, never a literal credential in a header field.
 
 Defaults favour responsiveness and privacy: recent-file context is disabled, prompt-body logging is disabled, JetBrains honours `.gitignore` (VS Code currently reliably applies only extra globs), the file limit is 512 KB, and the completion hard timeout is 3000 ms. Enabling `logPromptBodies` writes truncated prompts and is a sensitive option.
 
@@ -105,7 +107,7 @@ The UiBridge envelope, log batching, locale/theme events, and security rules are
 ## Verification boundary
 
 - Kotlin tests under `packages/completion/engine-jvm/src/test` cover engine, cache, skip, templates, HTTP fixtures, and validation; `apps/jetbrains/plugin/src/test` covers profiles, i18n, and UI state.
-- TypeScript fixtures in `packages/completion/engine-ts/test/fixtures.test.ts` use shared-spec golden data; the settings UI tests i18n, mounting, and HTML entries.
-- CI runs JDK 21 `:core:test :plugin:test` plus ZIP build, and Node 22 `npm run test:js` plus `npm run build:js`.
+- TypeScript fixtures in `packages/completion/engine-ts/test/fixtures.test.ts` use shared-spec golden data; the settings UI tests i18n, mounting, and HTML entries; the VS Code host tests export redaction and type-checks its source-bound engine import.
+- CI's JVM job builds the settings UI in its own workspace before `:core:test :plugin:test`, then verifies the ZIP embeds `settings-ui/index.html` and assets before upload. The Node 22 job also builds the settings UI before `npm run test:js`, `npm run build:js`, VSIX packaging, and VSIX upload. A pushed `v*` tag attaches both artifacts to the matching GitHub Release.
 
 For build, installation, and packaging instructions, see [RELEASE.en.md](RELEASE.en.md).

@@ -28,6 +28,8 @@ object SettingsValidation {
             val uri = runCatching { URI.create(base) }.getOrNull()
             if (uri == null || uri.scheme.isNullOrBlank() || uri.host.isNullOrBlank()) {
                 errors += "baseUrl must be a valid URL"
+            } else if (!uri.userInfo.isNullOrBlank()) {
+                errors += "baseUrl must not contain user-info credentials"
             } else if (!allowRemote) {
                 val host = uri.host.lowercase()
                 val local = host == "localhost" || host == "127.0.0.1" || host == "::1" || host == "0.0.0.0"
@@ -47,8 +49,25 @@ object SettingsValidation {
         if (maxSuffixChars <= 0) errors += "maxSuffixChars must be > 0"
         if (extraHeadersJson.isNotBlank()) {
             runCatching { Json.parseObject(extraHeadersJson) }
+                .onSuccess { headers ->
+                    if (headers.keys.any { it.trim().lowercase() in SENSITIVE_HEADER_NAMES }) {
+                        errors += "extraHeadersJson must not contain credential headers"
+                    }
+                }
                 .onFailure { errors += "extraHeadersJson must be a JSON object" }
         }
         return errors
     }
 }
+
+private val SENSITIVE_HEADER_NAMES =
+    setOf(
+        "authorization",
+        "proxy-authorization",
+        "cookie",
+        "set-cookie",
+        "x-api-key",
+        "api-key",
+        "x-auth-token",
+        "x-access-token",
+    )

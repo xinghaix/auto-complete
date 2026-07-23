@@ -12,6 +12,7 @@ Auto Complete 是双宿主、自备端点的内联代码补全项目：JetBrains
 
 ```bash
 npm install
+npm run build:settings-ui
 ./gradlew :core:test :plugin:test
 npm run test:js
 npm run build:js

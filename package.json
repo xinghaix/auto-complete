@@ -17,7 +17,8 @@
     "build:settings-ui": "npm run build -w @auto-complete/settings-ui",
     "build:vscode": "npm run build -w auto-complete",
     "build:js": "npm run build:core-ts && npm run build:settings-ui && npm run build:vscode",
-    "test:js": "npm run test:core-ts && npm run test:settings-ui",
+    "test:vscode": "npm run test -w auto-complete",
+    "test:js": "npm run test:core-ts && npm run test:settings-ui && npm run test:vscode",
     "package:local": "bash ./scripts/package-local.sh",
     "package:vscode": "npm run build:settings-ui && npm run package -w auto-complete"
   },

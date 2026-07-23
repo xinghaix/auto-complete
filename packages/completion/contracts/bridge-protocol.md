@@ -72,7 +72,7 @@ type BridgeResponse = {
 
 1. **`snapshot` never returns API key plaintext** — only `hasApiKey: boolean` per profile.
 2. Secrets travel only via `setSecret` once; host writes to SecretStorage / PasswordSafe; UI must clear the input.
-3. Export JSON must strip secrets.
+3. Portable export JSON must strip `apiKey`, `hasApiKey`, `authHeaderTemplate`, and `extraHeadersJson`. A local UI snapshot may include editable plaintext header fields only for local configuration; they are not credential stores.
 4. Completion HTTP runs only in **core** (core-ts / core-jvm). Web UI must not `fetch` user `baseUrl`.
 5. Test connection / template probes go **Bridge → host → core**.
 6. CSP: VS Code Webview strict; JB prefers local packaged assets.

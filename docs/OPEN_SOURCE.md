@@ -7,7 +7,7 @@ The repository already has the baseline pieces for an open-source preview: Apach
 ## Current distribution boundary
 
 - **JetBrains:** Install from Disk and GitHub Release ZIP; minimum 2024.2 / build 242.
-- **VS Code:** local VSIX distribution; extension, TS engine, and Webview settings UI are in the tree.
+- **VS Code:** Install-from-VSIX through local packaging or GitHub Release assets; extension, TS engine, and Webview settings UI are in the tree.
 - **Marketplace and signing:** optional; current CI does not automate either.
 - **API keys:** stored only in PasswordSafe / SecretStorage and must never be committed.
 - **Runtime:** the two hosts run independently; neither requires a VS Code host bridge, `kilo serve`, or Kilo Gateway.
@@ -35,12 +35,12 @@ Use an annotated `v<version>` tag, for example:
 git tag -a v0.2.0 -m "Auto Complete 0.2.0"
 ```
 
-Release notes should come from the matching `CHANGELOG.md` section and include known host differences and installation paths. Do not claim that Marketplace publishing, signing, VSIX CI upload, or compatibility testing is automated when it is not.
+Release notes should come from the matching `CHANGELOG.md` section and include known host differences and installation paths. GitHub Actions already uploads ZIP/VSIX artifacts and creates a tag-triggered GitHub Release; do not claim that Marketplace publishing, signing, or compatibility smoke testing is automated.
 
 ## Optional next steps
 
 - Marketplace listing, signing, and token management;
-- a reproducible release workflow after end-to-end smoke tests are stable;
+- automated end-to-end compatibility smoke tests for the existing release workflow;
 - screenshots, demos, and privacy documentation;
 - Dependabot, a Code of Conduct, and more security-reporting channels;
 - stronger cross-host parity tests, especially VS Code `.gitignore`, recent-file context, and comment/string detection.

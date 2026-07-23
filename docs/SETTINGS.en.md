@@ -13,7 +13,7 @@ Settings consist of **global preferences** and saved **provider profiles**. JetB
 | Settings/log UI | **Auto Complete** JCEF tool window | Webview panel; logs also reach OutputChannel |
 | Export | UiBridge exports non-secret settings | UiBridge exports non-secret settings |
 
-Snapshots and exports expose only `hasApiKey`, never `apiKey`. Import discards secret fields; enter keys again in the target IDE.
+Local UiBridge snapshots expose `hasApiKey`, never `apiKey`, but retain editable plaintext header fields for local configuration. Portable exports omit `apiKey`, `hasApiKey`, `authHeaderTemplate`, and `extraHeadersJson`. Import strips those fields even from legacy files: a matching local profile retains its existing local header configuration, while a newly imported profile receives safe defaults; enter any needed local header configuration again in the target IDE.
 
 ## Global behaviour
 
@@ -57,7 +57,7 @@ A profile is one endpoint connection. Profiles can be created, selected, renamed
 | `model` | `qwen2.5-coder:7b` | Model ID |
 | `promptTemplate` | `AUTO` | `AUTO`, `CODESTRAL_API`, `QWEN`, `DEEPSEEK`, `STARCODER`, or `CHAT` |
 | `authHeaderTemplate` | `Authorization: Bearer ***` | Auth header template; omitted for an empty key |
-| `extraHeadersJson` | `{}` | Extra request-header JSON object |
+| `extraHeadersJson` | `{}` | Plaintext JSON for non-sensitive routing headers; omitted from exports |
 | `temperature` | `0` | Keep low for code completion |
 | `maxTokens` | `128` | Output limit per completion |
 | `timeoutMs` | `3000` | Ghost-text hard timeout, `500..30000` |
@@ -67,6 +67,8 @@ A profile is one endpoint connection. Profiles can be created, selected, renamed
 | `overrideContextBudget` | `false` | Use profile prefix/suffix budgets instead of global budgets |
 
 The core client retains `CUSTOM` / `MISTRAL_FIM` compatibility enums, but current host profiles use the OpenAI-compatible request pipeline with header, path, and template overrides for compatibility needs. The settings UI does not expose a complete standalone custom-provider product flow. Historic `mistral-fim` is normalized on load to OpenAI-compatible plus an FIM template.
+
+`extraHeadersJson` is visible to the local settings UI and persisted as ordinary configuration so users can edit non-sensitive routing metadata. It is deliberately omitted from portable exports and must not hold API keys, bearer tokens, cookies, or any other credential. Put credentials in the dedicated API-key field and reference it through `authHeaderTemplate`.
 
 ### Models and template probes
 

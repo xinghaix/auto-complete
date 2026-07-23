@@ -7,7 +7,7 @@
 ## 当前发布边界
 
 - JetBrains：通过 Install from Disk 或 GitHub Release ZIP 分发；最低版本 2024.2 / build 242。
-- VS Code：通过本地 VSIX 分发；扩展、TS 引擎与 Webview 设置界面均已在仓库中。
+- VS Code：通过本地打包或 GitHub Release 的 VSIX 安装；扩展、TS 引擎与 Webview 设置界面均已在仓库中。
 - Marketplace 与插件签名：可选；CI 当前不自动执行。
 - API key：仅保存在 PasswordSafe / SecretStorage，不能提交。
 - 运行时：两个宿主独立运行；不依赖 VS Code host、`kilo serve` 或 Kilo Gateway。
@@ -35,12 +35,12 @@
 git tag -a v0.2.0 -m "Auto Complete 0.2.0"
 ```
 
-Release notes 应来自相应版本的 `CHANGELOG.md`，包含已知宿主差异和安装方式。不要宣称 Marketplace、签名、VSIX CI 上传或跨版本兼容性检查已经自动完成。
+Release notes 应来自相应版本的 `CHANGELOG.md`，包含已知宿主差异和安装方式。GitHub Actions 已上传 ZIP/VSIX artifact，并在 tag 触发时创建 GitHub Release；不要宣称 Marketplace、签名或跨版本兼容性 smoke test 已自动完成。
 
 ## 后续可选项
 
 - Marketplace listing、签名与 token 管理；
-- 在端到端 smoke 测试稳定后增加可复现 release workflow；
+- 为现有 release workflow 增加自动化端到端兼容性 smoke test；
 - 截图、演示与隐私说明；
 - Dependabot、Code of Conduct、更多安全披露渠道；
 - 扩充跨宿主 parity 测试，特别是 VS Code `.gitignore`、最近文件、注释/字符串识别。

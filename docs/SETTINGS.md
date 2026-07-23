@@ -13,7 +13,7 @@
 | 设置/日志 UI | JCEF 中的 **Auto Complete** 工具窗口 | Webview 设置面板；日志也写入 OutputChannel |
 | 导出 | UiBridge 导出普通设置 | UiBridge 导出普通设置 |
 
-快照和导出只暴露 `hasApiKey`，不会返回 `apiKey`。导入会丢弃任何密钥字段；必须在目标 IDE 重新填写密钥。
+本地 UiBridge snapshot 只暴露 `hasApiKey`，不会返回 `apiKey`，但会保留可编辑的明文头字段用于本地配置。可移植导出会移除 `apiKey`、`hasApiKey`、`authHeaderTemplate` 与 `extraHeadersJson`；导入即使遇到旧文件也会剥离这些字段：匹配到的本地 profile 保留原有本地头配置，新导入 profile 使用安全默认值，需在目标 IDE 重新填写。
 
 ## 全局行为
 
@@ -57,7 +57,7 @@ JetBrains 提供 `AutoComplete.Trigger`（默认 Ctrl+Shift+Space，macOS 为 Cm
 | `model` | `qwen2.5-coder:7b` | 模型 ID |
 | `promptTemplate` | `AUTO` | `AUTO`、`CODESTRAL_API`、`QWEN`、`DEEPSEEK`、`STARCODER`、`CHAT` |
 | `authHeaderTemplate` | `Authorization: Bearer ***` | 鉴权头模板；空 key 时不发该头 |
-| `extraHeadersJson` | `{}` | 额外请求头 JSON object |
+| `extraHeadersJson` | `{}` | 用于非敏感路由头的明文 JSON；不随导出文件带出 |
 | `temperature` | `0` | 代码补全通常保持低值 |
 | `maxTokens` | `128` | 单次补全输出上限 |
 | `timeoutMs` | `3000` | ghost-text 补全硬超时，范围 `500..30000` |
@@ -66,7 +66,9 @@ JetBrains 提供 `AutoComplete.Trigger`（默认 Ctrl+Shift+Space，macOS 为 Cm
 | `fimPath` / `chatPath` / `completionsPath` | 自动 / `/chat/completions` / 自动 | 覆盖模板请求路径 |
 | `overrideContextBudget` | `false` | 使用本 profile 的 prefix/suffix 预算，而不是全局预算 |
 
-核心客户端保留 `CUSTOM` / `MISTRAL_FIM` 兼容枚举，但当前宿主 profile 使用 OpenAI-compatible 请求管线，并通过自定义头、路径和模板覆盖处理兼容需求；设置 UI 不提供完整的独立 custom-provider 产品流程。历史 `mistral-fim` 读入后会归一为 OpenAI-compatible + FIM 模板。
+核心客户端保留 `CUSTOM` / `MISTRAL_FIM` 兼容枚举，但当前宿主 profile 使用 OpenAI-compatible 请求管线，并用头、路径和模板覆盖满足兼容需求。设置 UI 不提供完整独立的 custom-provider 产品流程；历史 `mistral-fim` 读入后会归一为 OpenAI-compatible + FIM 模板。
+
+`extraHeadersJson` 会在本地设置 UI 中显示，并以普通配置保存，便于编辑非敏感路由元数据；它会从可移植导出中移除。不要在此处保存 API key、Bearer token、Cookie 或其他凭据；认证应放进专用 API key 字段，再由 `authHeaderTemplate` 引用。
 
 ### 模型和模板探测
 

@@ -13,7 +13,7 @@
 | Provider | OpenAI FIM、Qwen/DeepSeek/StarCoder token FIM、Pseudo-FIM chat、模板/连接/模型探测 | 相同模板类别和 HTTP client 语义 |
 | 设置 | 多 profile、PasswordSafe、PersistentState、JCEF UiBridge、IDE HTTP proxy/trust store | 多 profile、SecretStorage、globalState/config mirror、Webview UiBridge |
 | 共用 UI/规格 | — | `settings-ui`（Vue 3，en/zh/ja/ko）、`shared-spec` schema/templates/language map/bridge/fixtures |
-| CI | JDK 21 tests + `buildPlugin` + ZIP artifact | Node 22：JS tests + JS build |
+| CI | JDK 21 tests + `buildPlugin` + ZIP artifact | Node 22：先构建 settings UI，再运行 JS tests/build、打包并上传 VSIX |
 
 JetBrains 兼容性为 **IntelliJ Platform 2024.2+ / build 242+**。JCEF 是 Web 设置页运行条件，但 `com.intellij.modules.jcef` 在新 IDE 上是 optional 依赖；旧平台通过反射探测可用的 JCEF。详见 [COMPATIBILITY.md](COMPATIBILITY.md)。VS Code 扩展声明 `^1.85.0`。
 
@@ -34,7 +34,7 @@ JetBrains 兼容性为 **IntelliJ Platform 2024.2+ / build 242+**。JCEF 是 Web
 |---|---|
 | 注释/字符串检测 | JetBrains 通过 `ContextProbe` 填充 hint；VS Code provider 当前固定 `inComment=false`、`inString=false`，所以这些开关尚未在 VS Code 做语义生效。 |
 | `.gitignore` | JetBrains 在项目 attach 时加载 `.gitignore`；VS Code 当前未将 workspace `.gitignore` 注入 TS engine，因此 VS Code 只可靠地应用额外 glob。 |
-| 最近文件上下文 | JetBrains 会收集已打开文件片段；VS Code 当前没有向 TS engine 提供最近文件片段。 |
+| 最近文件上下文 | JetBrains 会收集已打开文件片段，并在 `sendFilePath=false` 时省略相关文件路径；但尚未对每个相关文件应用 ignore/大小/语言资格检查。VS Code 当前没有向 TS engine 提供最近文件片段。 |
 | 设置入口 | JetBrains 只有 JCEF 工具窗口入口，没有 Swing Configurable；VS Code 有 Webview 面板并镜像部分常用项到原生 Settings。 |
 | 秘钥与配置命名 | 两宿主功能等价但持久化 key/name 细节不同；不要手工复制内部存储文件。 |
 | 发布自动化 | CI 构建/测试；推送 `v*` tag 时自动创建不存在的同名 GitHub Release 并上传 ZIP/VSIX。签名和 Marketplace 仍未自动化。 |
@@ -46,6 +46,7 @@ JetBrains 兼容性为 **IntelliJ Platform 2024.2+ / build 242+**。JCEF 是 Web
 
 ```bash
 npm install
+npm run build:settings-ui
 ./gradlew :core:test :plugin:test
 npm run test:js
 npm run build:js

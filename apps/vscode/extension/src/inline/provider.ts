@@ -1,7 +1,5 @@
 import * as vscode from "vscode";
 import {
-  CancellationToken as EngineCancel,
-  CancelledError,
   CompletionEngine,
   normalizeLanguage,
   type CompletionOutcome,
@@ -26,9 +24,6 @@ export class AutoCompleteInlineProvider implements vscode.InlineCompletionItemPr
     const suffix = full.slice(offset);
     const language = normalizeLanguage(document.languageId, document.fileName);
 
-    const engineToken = new EngineCancel();
-    const dispose = token.onCancellationRequested(() => engineToken.cancel());
-
     const gen = this.engine.nextGeneration();
     const request = {
       id: this.engine.newRequestId(),
@@ -46,13 +41,14 @@ export class AutoCompleteInlineProvider implements vscode.InlineCompletionItemPr
       },
       projectKey: vscode.workspace.workspaceFolders?.[0]?.uri.fsPath ?? "",
     };
+    const scope = request.path || "untitled";
+    const dispose = token.onCancellationRequested(() => this.engine.cancelScope(scope, request.id));
 
     try {
-      const outcome: CompletionOutcome = await this.engine.complete(request, {
-        debounce: request.trigger === "AUTO",
-        token: engineToken,
+      const outcome: CompletionOutcome = await new Promise((resolve) => {
+        this.engine.completeAsync(request, resolve, request.trigger === "AUTO");
       });
-      if (token.isCancellationRequested || engineToken.isCancelled()) return undefined;
+      if (token.isCancellationRequested) return undefined;
       if (outcome.kind !== "success" || !outcome.response.text) return undefined;
 
       const item = new vscode.InlineCompletionItem(
@@ -60,8 +56,7 @@ export class AutoCompleteInlineProvider implements vscode.InlineCompletionItemPr
         new vscode.Range(position, position),
       );
       return new vscode.InlineCompletionList([item]);
-    } catch (e) {
-      if (e instanceof CancelledError || token.isCancellationRequested) return undefined;
+    } catch {
       return undefined;
     } finally {
       dispose.dispose();

@@ -1,6 +1,6 @@
 # Auto Complete（VS Code）
 
-[English](README.md) · [中文](README.zh.md) · [完整文档](../../docs/README.md)
+[项目仓库](https://github.com/xinghaix/auto-complete) · [完整文档](https://github.com/xinghaix/auto-complete)
 
 VS Code 宿主使用 `packages/completion/engine-ts` 的 TypeScript 补全引擎，通过 Webview 嵌入共用的 `packages/settings/ui`。它与 JetBrains 宿主独立运行，不依赖 JetBrains 插件、Extension Host bridge 或 `kilo serve`。
 
@@ -13,8 +13,8 @@ VS Code 宿主使用 `packages/completion/engine-ts` 的 TypeScript 补全引擎
 
 ```bash
 npm install
-npm run test:core-ts
-npm run test:settings-ui
+npm run build:settings-ui
+npm run test:js
 npm run build:js
 npm run package:vscode
 ```
@@ -45,8 +45,8 @@ npm run package:vscode
 - workspace `.gitignore` 尚未注入 TypeScript engine；额外 ignore globs 才是可靠的路径过滤方式。
 - 最近文件上下文尚未由 VS Code 宿主提供给 engine。
 
-这些差异会影响隐私和建议触发范围，不能假设与 JetBrains 完全一致。完整状态见 [../../docs/IMPLEMENTATION_STATUS.md](../../docs/IMPLEMENTATION_STATUS.md)。
+这些差异会影响隐私和建议触发范围，不能假设与 JetBrains 完全一致。完整状态见[项目文档](https://github.com/xinghaix/auto-complete)。
 
 ## 日志与安全
 
-日志通过 Settings 面板 Logs tab 批量显示，并同步写入 **Auto Complete** OutputChannel。默认不记录 prompt 正文；API key 和鉴权头不得出现在日志、Issue 或导出的设置中。Provider 请求和路径规则见 [../../docs/PROVIDERS.md](../../docs/PROVIDERS.md)。
+日志通过 Settings 面板 Logs tab 批量显示，并同步写入 **Auto Complete** OutputChannel。默认不记录 prompt 正文；凭据应保存在专用 API key 字段，不能写入明文额外 Headers。Provider 请求和路径规则见[项目文档](https://github.com/xinghaix/auto-complete)。

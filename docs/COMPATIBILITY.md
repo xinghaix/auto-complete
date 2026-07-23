@@ -75,10 +75,37 @@
 
 ### JCEF on old vs new IDEs
 
-- **2024.2 already includes JCEF** on the platform classpath.  
-- **2025.3.1+ / 2026** may ship JCEF as module/plugin `com.intellij.modules.jcef`.  
-- This plugin uses an **optional** dependency on that module plus **reflective** loading of `SettingsJcefHostImpl`, so:
-  - 2024.2 loads with platform JCEF  
-  - 2026 loads with the JCEF plugin on the classloader  
+Settings are **Web-only**: there is no Swing Configurable.
 
-Settings remain **Web-only** (no Swing settings form). Enable *Web Browser (JCEF)* on newer IDEs if the settings panel cannot find JCEF classes.
+| Platform | JCEF source | Plugin behaviour |
+|---|---|---|
+| **2024.2** | bundled platform classes (for example `app-client.jar`) | no JCEF module dependency is needed; the host can discover `JBCefBrowser` |
+| **2025.3.1+** | module alias `com.intellij.modules.jcef` | optional dependency, used as a parent ClassLoader when present |
+| **2026.2+** | bundled *Web Browser (JCEF)* plugin | the optional dependency remains; keep the plugin enabled |
+
+The implementation keeps `SettingsWebPanel` free of `com.intellij.ui.jcef.*` imports, probes `JBCefBrowser` at runtime, and reflectively loads `SettingsJcefHostImpl`, which is the only class that uses JCEF APIs. This avoids class-loading failures when the optional module is absent.
+
+### Other runtime and build requirements
+
+| Requirement | Detail |
+|---|---|
+| Inline Completion API | The public `InlineCompletionProvider` API exists on 2023.3–2024.x; product support is intentionally pinned to **2024.2**. |
+| JBR + enabled JCEF | Use JetBrains Runtime and do not disable `ide.browser.jcef.enabled`; headless environments cannot host the panel. |
+| JDK 21 | Required to build this repository, not required from an end user merely installing the IDE plugin. |
+
+### Compatibility history
+
+| Period | `pluginSinceBuild` | Why |
+|---|---:|---|
+| Early/current baseline | `242` | Aligns with the compile SDK and Inline Completion API. |
+| Temporary increase | `253` | JCEF was mistakenly made mandatory, blocking 2024.2 installation. |
+| Current | `242` | JCEF is optional and loaded reflectively, so 2024.2 and 2026 share one Web settings UI. |
+
+### Troubleshooting
+
+| Symptom | Action |
+|---|---|
+| JCEF unavailable on 2026 | Enable *Web Browser (JCEF)* and restart the IDE. |
+| JCEF disabled | Check the Registry and avoid headless environments. |
+| `settings-ui` missing | Run `npm run build:settings-ui`, then rebuild the plugin ZIP. |
+| Tool window opens but is blank | Install a newly built ZIP. Old packages may use a blocked `type=module` script under `file://`; inspect `settings-ui loadEnd` and `Prepared settings-ui` in **Help → Show Log**. |

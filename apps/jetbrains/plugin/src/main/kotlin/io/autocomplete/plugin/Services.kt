@@ -221,7 +221,12 @@ object ProjectSupport {
                     }.getOrNull() ?: continue
                 val clipped = text.take(maxChars)
                 if (clipped.isNotBlank()) {
-                    snippets += "File: ${file.path}\n$clipped"
+                    snippets +=
+                        if (settings.sendFilePath) {
+                            "File: ${file.path}\n$clipped"
+                        } else {
+                            clipped
+                        }
                 }
             }
             if (isCurrent(project)) {

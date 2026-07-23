@@ -20,7 +20,7 @@ Open-source preview:
 
 - JetBrains: Install from Disk / GitHub Release ZIP.
 - VS Code: Install from VSIX / GitHub Release VSIX.
-- CI tests and builds; it does not sign, publish Marketplace, create releases, or upload VSIX.
+- CI tests, builds, packages ZIP/VSIX artifacts, and creates a GitHub Release for a pushed `v*` tag. It does not sign or publish to either Marketplace.
 - Do not commit Marketplace/signing tokens, API keys, or private endpoints.
 
 ## Required reading before meaningful changes
@@ -52,6 +52,7 @@ Open-source preview:
 
 ```bash
 npm install
+npm run build:settings-ui
 ./gradlew :core:test :plugin:test
 npm run test:js
 npm run build:js

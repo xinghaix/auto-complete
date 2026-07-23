@@ -6,7 +6,7 @@
 
 | 文件/目录 | 作用 |
 |---|---|
-| `settings.schema.json` | 跨宿主设置/profile 的 JSON Schema；secret 不得出现于 snapshot/export |
+| `settings.schema.json` | 跨宿主可移植设置/profile 的 JSON Schema；专用 secret 不得出现于 snapshot/export |
 | `defaults.json` | 对应 schema 的默认设置样例 |
 | `templates.json` | FIM/chat 模板、wire format、停止 token、模型名检测规则 |
 | `language-map.json` | 扩展名/别名到 language ID 的映射 |
@@ -20,4 +20,4 @@
 3. 运行两端相关测试；
 4. 更新用户文档，尤其是 `docs/SETTINGS*`、`docs/PROVIDERS*`、`docs/IMPLEMENTATION_STATUS*`。
 
-安全红线：fixture、默认值、schema 示例和 bridge payload 均不得包含 API key、Authorization header 明文、真实 endpoint 或用户代码。
+安全红线：fixture、默认值、schema 示例和可移植导出均不得包含 API key、Authorization header 明文、真实 endpoint 或用户代码。本地 UI snapshot 仅暴露 `hasApiKey`；其中可编辑的 `extraHeadersJson` 是明文非敏感路由元数据，绝不能承载凭据。

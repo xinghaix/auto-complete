@@ -412,9 +412,9 @@ export class CompletionEngine {
     for (const scope of [...this.inflight.keys()]) this.cancelScope(scope);
   }
 
-  cancelScope(scope: string): void {
+  cancelScope(scope: string, expectedRequestId?: string): void {
     const job = this.inflight.get(scope);
-    if (!job) return;
+    if (!job || (expectedRequestId && job.id !== expectedRequestId)) return;
     this.inflight.delete(scope);
     job.token.cancel();
     job.abort?.();

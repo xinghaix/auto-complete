@@ -159,7 +159,14 @@ class JbUiBridge {
                     )
             "exportSettings" ->
                 "exportResult" to
-                    mapOf("json" to Json.obj(*snapshotMap(settings).entries.map { it.key to it.value }.toTypedArray()))
+                    mapOf(
+                        "json" to
+                            Json.obj(
+                                *SettingsExport.redact(snapshotMap(settings)).entries
+                                    .map { it.key to it.value }
+                                    .toTypedArray(),
+                            ),
+                    )
             "importSettings" -> {
                 val json = payload?.get("json")?.toString().orEmpty()
                 val parsed = Json.parseObject(json).toMutableMap()
@@ -172,6 +179,8 @@ class JbUiBridge {
                                 ?: return@mapNotNull null
                             m.remove("apiKey")
                             m.remove("hasApiKey")
+                            m.remove("authHeaderTemplate")
+                            m.remove("extraHeadersJson")
                             m
                         }
                 }

@@ -19,6 +19,7 @@ import io.autocomplete.engine.Trigger
 import io.autocomplete.plugin.AutoCompleteAppService
 import io.autocomplete.util.ContextProbe
 import io.autocomplete.util.LanguageMap
+import java.nio.charset.StandardCharsets
 import kotlinx.coroutines.suspendCancellableCoroutine
 import kotlin.coroutines.resume
 
@@ -142,7 +143,7 @@ class AutoCompleteInlineProvider : InlineCompletionProvider {
                 prefix = prefix,
                 suffix = suffix,
                 offset = safe,
-                size = text.length.toLong(),
+                size = text.toByteArray(StandardCharsets.UTF_8).size.toLong(),
                 project = project,
                 context = ContextHints(inComment = probe.inComment, inString = probe.inString),
             )

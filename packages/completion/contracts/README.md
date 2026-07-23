@@ -6,7 +6,7 @@ Shared behavioural contracts and test data for the Kotlin JetBrains engine, Type
 
 | File/directory | Purpose |
 |---|---|
-| `settings.schema.json` | JSON Schema for cross-host settings/profiles; secrets must not appear in snapshot/export |
+| `settings.schema.json` | JSON Schema for cross-host portable settings/profiles; dedicated secrets never appear in snapshot/export |
 | `defaults.json` | Default settings document matching the schema |
 | `templates.json` | FIM/chat templates, wire formats, stop tokens, and model-name detection rules |
 | `language-map.json` | Extension/alias → language-id mapping |
@@ -20,4 +20,4 @@ When changing a settings key, template, language rule, or shared behaviour:
 3. run relevant tests for both sides;
 4. update user docs, especially `docs/SETTINGS*`, `docs/PROVIDERS*`, and `docs/IMPLEMENTATION_STATUS*`.
 
-Security boundary: fixtures, defaults, schema examples, and bridge payloads must never contain an API key, plaintext Authorization header, real private endpoint, or user code.
+Security boundary: fixtures, defaults, schema examples, and portable exports must never contain an API key, plaintext Authorization header, real private endpoint, or user code. Local UI snapshots expose `hasApiKey` only; their editable `extraHeadersJson` is plaintext, non-sensitive routing metadata and must never carry credentials.

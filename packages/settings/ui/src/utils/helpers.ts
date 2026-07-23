@@ -93,7 +93,26 @@ export function validateForm(form: Profile, hasProfiles: boolean): string[] {
   const eh = form.extraHeadersJson ?? "";
   if (eh.trim()) {
     try {
-      JSON.parse(eh);
+      const parsed = JSON.parse(eh);
+      if (
+        parsed === null ||
+        typeof parsed !== "object" ||
+        Array.isArray(parsed) ||
+        Object.keys(parsed).some((key) =>
+          [
+            "authorization",
+            "proxy-authorization",
+            "cookie",
+            "set-cookie",
+            "x-api-key",
+            "api-key",
+            "x-auth-token",
+            "x-access-token",
+          ].includes(key.trim().toLowerCase()),
+        )
+      ) {
+        errors.push("extraHeadersJson must not contain credential headers");
+      }
     } catch {
       errors.push("extraHeadersJson must be a JSON object");
     }

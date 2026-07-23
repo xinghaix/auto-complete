@@ -216,6 +216,7 @@
   "scripts": {
     "build": "node scripts/build.mjs",
     "package": "node scripts/package-vsix.mjs",
+    "test": "tsx --test src/config/settingsExport.test.ts && npm run typecheck",
     "typecheck": "tsc -p tsconfig.json --noEmit"
   },
   "dependencies": {
@@ -225,6 +226,7 @@
     "@types/node": "^22.10.0",
     "@types/vscode": "^1.85.0",
     "esbuild": "^0.25.0",
+    "tsx": "^4.19.2",
     "typescript": "^5.7.2"
   },
   "repository": {

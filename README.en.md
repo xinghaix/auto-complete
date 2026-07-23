@@ -4,116 +4,75 @@
 
 <p align="center"><img src="docs/assets/logo.svg" width="96" height="96" alt="Auto Complete logo"/></p>
 
-Lightweight, bring-your-own-endpoint **AI inline code completion**. The project contains two independent hosts:
+> Lightweight, bring-your-own-endpoint AI inline completion for JetBrains and VS Code.
 
-| Host | Runtime engine | Current delivery |
-|---|---|---|
-| JetBrains | Kotlin/JVM `packages/completion/engine-jvm/` + `apps/jetbrains/plugin/` | Install-from-Disk ZIP |
-| VS Code | TypeScript `packages/completion/engine-ts/` + `apps/vscode/extension/` | Install-from-VSIX package |
-| Shared UI/spec | Vue `packages/settings/ui/` + `packages/completion/contracts/` | Embedded by both hosts; shared templates, settings contract, fixtures |
+Auto Complete renders the next piece of code as ghost text in your editor. You choose the OpenAI-compatible service, model, and optional API key; the product requires no account system and no hosted gateway.
 
-JetBrains and VS Code do not call one another through an Extension Host, RPC, or `kilo serve`. Configure your own `baseUrl`, model, and optional API key; the host renders completion as ghost text.
+## Why Auto Complete
 
-**License:** Apache-2.0 · **Stage:** open-source preview.
+- **Your endpoint**: works with Ollama, vLLM, OpenAI-compatible services, and enterprise gateways.
+- **Two independent hosts**: native JetBrains and VS Code integrations with no Extension Host bridge, RPC, or `kilo serve` dependency.
+- **Conservative privacy defaults**: requests contain only budget-trimmed prefix/suffix from the current file; repository context, recent files, and prompt-body logs are off by default.
+- **A practical completion pipeline**: template selection, cache, debounce, cancellation, backoff, and post-processing run in the local host/engine.
+- **Observable and configurable**: profiles, model probes, connection tests, template tests, and a Settings + Logs panel are available now.
 
-## Features
-
-- OpenAI-compatible HTTP endpoints with advanced header/path/template overrides; supports Ollama, vLLM, compatible gateways, and similar services
-- OpenAI FIM, Qwen, DeepSeek, StarCoder, and pseudo-FIM Chat templates with model-name detection
-- Saved profiles, model listing, connection tests, and one/all-template probes
-- Adaptive debounce, cancellation, generation stale drop, cache, skip, filtering, and error backoff
-- Prefix/suffix budgets; no repository or recent-file context by default
-- JetBrains PasswordSafe / VS Code SecretStorage; exports contain no secret
-- Shared Settings + Logs Web UI (JetBrains JCEF / VS Code Webview) plus host-native log entry points
-- Settings UI localisation for English, Chinese, Japanese, and Korean
-
-Known host differences—VS Code has not yet matched JetBrains for `.gitignore`, recent-file context, and comment/string detection—are explicit in [implementation status](docs/IMPLEMENTATION_STATUS.en.md).
-
-## Quick install
+## Install now
 
 ### JetBrains
 
-Requires **IntelliJ Platform 2024.2+ (build 242+)**. JCEF is required for the Web settings panel; newer IDEs may need **Web Browser (JCEF)** enabled.
+Requires **IntelliJ Platform 2024.2+ (build 242+)**.
 
-1. Download `auto-complete-*.zip` from GitHub Releases, or build it below.
+1. Download `auto-complete-*.zip` from GitHub Releases.
 2. IDE → **Settings/Preferences → Plugins → ⚙ → Install Plugin from Disk…**.
-3. Select the ZIP and restart.
-4. Open the right-side **Auto Complete** tool window, or use the **Auto Complete** actions in the Tools menu.
-5. Create a profile, enter Base URL, model, and optional API key, then run **Test connection** first.
+3. Select the ZIP and restart the IDE.
+4. Open the **Auto Complete** tool window; create a profile with Base URL, model, and optional API key.
+5. Run **Test connection** before coding.
 
-Full compatibility notes: [docs/COMPATIBILITY.md](docs/COMPATIBILITY.md).
+[JCEF compatibility and troubleshooting →](docs/COMPATIBILITY.md)
 
 ### VS Code
 
 Requires VS Code `^1.85.0`.
 
-1. Obtain `auto-complete-*.vsix`, or run local packaging.
+1. Obtain `auto-complete-*.vsix`.
 2. Extensions → … → **Install from VSIX…**, then reload the window.
 3. Run **Auto Complete: Open Settings Panel**, create a profile, and test the connection.
-4. **Auto Complete: Show Logs** opens the Logs tab and OutputChannel.
 
-More: [apps/vscode/extension/README.md](apps/vscode/extension/README.md).
+[VS Code guide →](apps/vscode/extension/README.md)
 
-## Build and verify locally
-
-Requires **JDK 21**, **Node.js 18+**, and npm. From the repository root:
-
-```bash
-npm install
-./gradlew :core:test :plugin:test
-npm run test:js
-npm run build:js
-./gradlew :plugin:buildPlugin
-```
-
-JetBrains development sandbox:
-
-```bash
-./gradlew :plugin:runIde
-```
-
-Package both hosts:
-
-```bash
-./scripts/package-local.sh
-# or npm run package:local
-```
-
-| Artifact | Path |
-|---|---|
-| JetBrains ZIP | `apps/jetbrains/plugin/build/distributions/auto-complete-*.zip` |
-| VS Code VSIX | `apps/vscode/extension/dist-vsix/auto-complete-*.vsix` |
-
-For one host: `SKIP_JB=1 ./scripts/package-local.sh` or `SKIP_VSCODE=1 ./scripts/package-local.sh`.
-
-> The packaging script explicitly runs only `:core:test`; run the full JVM and JS tests above before release.
-
-## Local endpoint example
+## First configuration
 
 ```text
 Base URL: http://127.0.0.1:11434/v1
 Model:    qwen2.5-coder:7b
-API key:  empty only when the service has no auth
-Template: AUTO (or QWEN / CHAT etc. for the service)
+API key:  empty when the service has no authentication
+Template: AUTO
 ```
 
-Model and endpoint support for templates varies. Use **Fetch models**, **Test connection**, and **Test template** instead of guessing a request format from the model name.
+A model name is not a request protocol. After configuration, use **Fetch models**, **Test connection**, and **Test template** to confirm what the endpoint actually supports.
 
-## Privacy and security
+[Endpoint, model, and template configuration →](docs/PROVIDERS.en.md)
 
-- API keys stay in the IDE secure store, never ordinary configuration, exports, or logs.
-- The default request contains budget-trimmed prefix/suffix from the current file; file path is on by default and can be disabled.
-- Prompt bodies, recent files, and repository-wide context are off by default.
-- Users configure remote endpoints themselves; review the provider's data policy.
+## Security and data boundary
 
-For reports, see [SECURITY.md](SECURITY.md).
+- Dedicated API keys live only in JetBrains PasswordSafe or VS Code SecretStorage.
+- Endpoint URLs cannot contain user credentials; common credential-style extra headers are rejected.
+- Exported settings omit API keys, auth-header templates, and extra headers.
+- File paths are on by default but can be disabled; recent-file context and prompt-body logs are off by default.
+
+[Settings, storage, and privacy →](docs/SETTINGS.en.md) · [Security reports →](SECURITY.md)
+
+## Host differences
+
+JetBrains and VS Code are not wrappers around one another. They share behavioural contracts while each implements its own editor adapter. VS Code has not yet fully matched JetBrains for `.gitignore`, recent-file context, or comment/string detection.
+
+[Implementation status and known differences →](docs/IMPLEMENTATION_STATUS.en.md)
 
 ## Documentation and contributing
 
-- [Documentation index](docs/README.en.md) / [中文](docs/README.md)
-- [Architecture](docs/ARCHITECTURE.en.md) · [Settings](docs/SETTINGS.en.md) · [Providers](docs/PROVIDERS.en.md) · [Performance](docs/PERFORMANCE.en.md)
-- [Build/release](docs/RELEASE.en.md) · [Implementation status](docs/IMPLEMENTATION_STATUS.en.md) · [Sources and attribution](docs/SOURCES.en.md)
-- [Contributing](CONTRIBUTING.md) / [中文](CONTRIBUTING.zh.md)
-- [Changelog](CHANGELOG.md)
+- **Use the product**: [documentation index](docs/README.en.md) · [settings](docs/SETTINGS.en.md) · [providers](docs/PROVIDERS.en.md) · [compatibility/troubleshooting](docs/COMPATIBILITY.md)
+- **Understand the implementation**: [architecture](docs/ARCHITECTURE.en.md) · [performance](docs/PERFORMANCE.en.md) · [UiBridge protocol](packages/completion/contracts/bridge-protocol.md)
+- **Build, test, and package**: [development and release guide](docs/RELEASE.en.md)
+- **Contribute**: [contributing guide](CONTRIBUTING.md) · [changelog](CHANGELOG.md)
 
-The project is independently implemented while informed by classic Kilo Code completion behaviour. See [NOTICE](NOTICE) and [sources](docs/SOURCES.en.md).
+**License:** Apache-2.0. This is an independent implementation informed by classic Kilo Code completion behaviour; see [NOTICE](NOTICE) and [sources and attribution](docs/SOURCES.en.md).

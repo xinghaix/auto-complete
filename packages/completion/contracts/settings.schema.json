@@ -2,7 +2,7 @@
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "https://github.com/auto-complete/settings.schema.json",
   "title": "AutoCompleteSettings",
-  "description": "Cross-host settings schema for JetBrains + VS Code. Keys are English; secrets never appear in snapshot/export.",
+  "description": "Cross-host portable-settings schema for JetBrains + VS Code. Dedicated API keys never appear in snapshots or exports; editable header fields can appear only in local UI snapshots and are omitted from exports.",
   "type": "object",
   "additionalProperties": false,
   "required": ["schemaVersion", "enabled", "profiles", "activeProfileId"],
@@ -109,7 +109,8 @@
         },
         "extraHeadersJson": {
           "type": "string",
-          "default": "{}"
+          "default": "{}",
+          "description": "Plaintext non-sensitive routing headers for local editing. Never place credentials here; portable exports omit this field."
         },
         "fimPath": { "type": "string", "default": "" },
         "chatPath": { "type": "string", "default": "/chat/completions" },
@@ -153,7 +154,7 @@
       }
     },
     "SettingsSnapshot": {
-      "description": "What UiBridge getSnapshot returns — same as root settings but profiles only expose hasApiKey, never apiKey plaintext",
+      "description": "What UiBridge getSnapshot returns — profiles expose hasApiKey but never apiKey plaintext. Local UI snapshots can include editable plaintext header fields; portable exports omit authHeaderTemplate and extraHeadersJson.",
       "allOf": [{ "$ref": "#" }]
     }
   }

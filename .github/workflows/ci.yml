@@ -24,6 +24,16 @@ jobs:
           distribution: temurin
           java-version: "21"
 
+      # buildPlugin packages the JCEF UI from packages/settings/ui/dist. This
+      # job has an isolated workspace, so it must build that asset itself.
+      - name: Set up Node 22 for embedded settings UI
+        uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+
+      - name: Build settings UI for JetBrains ZIP
+        run: npm install && npm run build:settings-ui
+
       - name: Setup Gradle
         uses: gradle/actions/setup-gradle@v4
 
@@ -32,6 +42,30 @@ jobs:
 
       - name: Build plugin ZIP
         run: ./gradlew :plugin:buildPlugin --stacktrace
+
+      - name: Verify ZIP embeds settings UI
+        run: |
+          python3 - <<'PY'
+          from io import BytesIO
+          from pathlib import Path
+          from zipfile import ZipFile
+
+          archives = list(Path("apps/jetbrains/plugin/build/distributions").glob("*.zip"))
+          assert archives, "plugin ZIP was not produced"
+          archive = max(archives, key=lambda path: path.stat().st_mtime)
+          with ZipFile(archive) as distribution:
+              jars = [name for name in distribution.namelist() if name.endswith(".jar")]
+              for name in jars:
+                  with ZipFile(BytesIO(distribution.read(name))) as jar:
+                      names = set(jar.namelist())
+                      if "settings-ui/index.html" in names and any(
+                          entry.startswith("settings-ui/assets/") for entry in names
+                      ):
+                          print(f"embedded settings UI verified in {name}")
+                          break
+              else:
+                  raise AssertionError("plugin ZIP has no JAR with settings-ui/index.html and assets")
+          PY
 
       - name: Upload ZIP distribution
         if: success()

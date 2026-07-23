@@ -298,19 +298,29 @@ async function mockHandle(msg: BridgeRequest): Promise<BridgeResponse> {
         },
       };
     case "exportSettings":
+      {
+        const { profiles, ...rest } = mockState;
+        const clean = {
+          ...rest,
+          profiles: profiles.map(({ apiKey: _apiKey, hasApiKey: _hasApiKey, authHeaderTemplate: _auth, extraHeadersJson: _headers, ...profile }) => profile),
+        };
       return {
         v: 1,
         id: msg.id,
         type: "exportResult",
         ok: true,
-        payload: { json: JSON.stringify(mockState, null, 2) },
+          payload: { json: JSON.stringify(clean, null, 2) },
       };
+      }
     case "importSettings": {
       try {
         const { json } = msg.payload as { json: string };
         const parsed = JSON.parse(json) as typeof mockState;
         if (parsed.profiles) {
-          mockState = { ...mockState, ...parsed };
+          const profiles = parsed.profiles.map(
+            ({ apiKey: _apiKey, hasApiKey: _hasApiKey, authHeaderTemplate: _auth, extraHeadersJson: _headers, ...profile }) => profile,
+          );
+          mockState = { ...mockState, ...parsed, profiles: profiles as typeof mockState.profiles };
           for (const p of mockState.profiles) p.hasApiKey = false;
         }
         return { v: 1, id: msg.id, type: "applyResult", ok: true, payload: { ok: true } };

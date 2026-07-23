@@ -40,10 +40,12 @@ promptTemplate: AUTO 或 QWEN
 
 ## 鉴权和额外头
 
-- 默认头模板为 `Authorization: Bearer ***`；`***` 由 API key 替换。
+- 默认头模板为 `Authorization: Bearer ***`；其中 `***` 由专用 API key 替换。
 - 空 API key 时不会发送默认鉴权头。
-- `extraHeadersJson` 必须是 JSON object，用于不兼容 `Authorization` 的网关或额外路由头。
+- `extraHeadersJson` 必须是 JSON object，仅用于非敏感路由头。它是本地明文配置且不会随可移植导出带出；常见凭据头名（`Authorization`、`Cookie`、`X-API-Key` 等）会被拒绝。
 - 日志对鉴权材料脱敏；不要把 key 放进 baseUrl、headers 示例、issue 或导出的配置。
+
+`baseUrl` 不得包含 `https://user:token@example.test/v1` 这样的 URL user-info；两个宿主都会拒绝它，避免凭据进入 URL 诊断。认证应放入专用 API key 字段。
 
 ## 连接、模型与模板探测
 

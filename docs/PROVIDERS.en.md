@@ -40,10 +40,12 @@ promptTemplate: AUTO or QWEN
 
 ## Authentication and extra headers
 
-- The default header template is `Authorization: Bearer ***`; `***` is replaced with the API key.
+- The default header template is `Authorization: Bearer ***`; `***` is replaced with the dedicated API key.
 - With an empty key, the default authorization header is omitted.
-- `extraHeadersJson` must be a JSON object for gateways that need different auth or routing headers.
+- `extraHeadersJson` must be a JSON object for non-sensitive routing headers. It is plaintext local configuration and omitted from portable exports; common credential header names (`Authorization`, `Cookie`, `X-API-Key`, and similar) are rejected.
 - Logs redact authentication material. Never put keys in a base URL, example headers, issues, or exported config.
+
+`baseUrl` must not contain URL user-info such as `https://user:token@example.test/v1`; both hosts reject it so credentials cannot enter URL diagnostics. Put authentication in the dedicated API-key field instead.
 
 ## Connection, model, and template probes
 

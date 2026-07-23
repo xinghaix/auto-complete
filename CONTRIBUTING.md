@@ -12,6 +12,7 @@ Requirements: **JDK 21**, **Node.js 18+**, and npm.
 
 ```bash
 npm install
+npm run build:settings-ui
 ./gradlew :core:test :plugin:test
 npm run test:js
 npm run build:js

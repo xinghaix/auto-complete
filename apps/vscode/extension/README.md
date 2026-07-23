@@ -1,6 +1,6 @@
 # Auto Complete (VS Code)
 
-[English](README.md) · [中文](README.zh.md) · [Documentation](../../docs/README.en.md)
+[Repository](https://github.com/xinghaix/auto-complete) · [Documentation](https://github.com/xinghaix/auto-complete)
 
 The VS Code host uses the TypeScript completion engine in `packages/completion/engine-ts` and embeds shared `packages/settings/ui` in a Webview. It runs independently from JetBrains and does not use a JetBrains plugin, an Extension Host bridge, or `kilo serve`.
 
@@ -13,8 +13,8 @@ Package from the repository root:
 
 ```bash
 npm install
-npm run test:core-ts
-npm run test:settings-ui
+npm run build:settings-ui
+npm run test:js
 npm run build:js
 npm run package:vscode
 ```
@@ -45,8 +45,8 @@ Keys live only in VS Code **SecretStorage**, not `settings.json`, global-state e
 - Workspace `.gitignore` is not currently injected into the TypeScript engine. Extra ignore globs are the reliable path filter.
 - The VS Code host does not currently provide recent-file snippets to the engine.
 
-These differences affect privacy and trigger scope. Do not assume full JetBrains parity; see [implementation status](../../docs/IMPLEMENTATION_STATUS.en.md).
+These differences affect privacy and trigger scope. Do not assume full JetBrains parity; see the [repository documentation](https://github.com/xinghaix/auto-complete).
 
 ## Logs and security
 
-Logs are batched into the Settings panel Logs tab and mirrored to the **Auto Complete** OutputChannel. Prompt-body logging is off by default. Never put API keys or authorization headers into logs, issues, or exports. Provider request/path rules are in [providers documentation](../../docs/PROVIDERS.en.md).
+Logs are batched into the Settings panel Logs tab and mirrored to the **Auto Complete** OutputChannel. Prompt-body logging is off by default. Keep credentials in the dedicated API-key field, not plaintext extra headers. Provider request/path rules are in the [repository documentation](https://github.com/xinghaix/auto-complete).

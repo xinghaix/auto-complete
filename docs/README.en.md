@@ -2,7 +2,7 @@
 
 [中文](README.md) · [English](README.en.md) · [Project overview](../README.en.md)
 
-Auto Complete is a dual-host AI inline-completion project: JetBrains uses Kotlin/JVM `core`, VS Code uses TypeScript `core-ts`, and both share settings/template/language-map/fixture specifications and a Vue settings UI. Hosts run independently; JetBrains does not depend on a VS Code Extension Host or `kilo serve`.
+Auto Complete is a dual-host AI inline-completion project: JetBrains uses the Kotlin/JVM engine at `packages/completion/engine-jvm` (Gradle logical module `core`), VS Code uses the TypeScript engine at `packages/completion/engine-ts` (npm package `core-ts`), and both share settings/template/language-map/fixture contracts in `packages/completion/contracts` plus the Vue UI at `packages/settings/ui`. Hosts run independently; JetBrains does not depend on a VS Code Extension Host or `kilo serve`.
 
 ## Start here
 

@@ -17,6 +17,7 @@ import {
   toSnapshot,
   type StoredProfile,
 } from "../config/settings";
+import { redactSettingsExport } from "../config/settingsExport";
 
 export type BridgeMessage = {
   v: 1;
@@ -111,12 +112,7 @@ export class VsCodeUiBridge {
             theme: vscodeThemeKind(),
           });
         case "exportSettings": {
-          const snap = await toSnapshot(this.context);
-          // strip hasApiKey noise is fine; never include secrets
-          const clean = {
-            ...snap,
-            profiles: snap.profiles.map(({ hasApiKey: _h, ...rest }) => rest),
-          };
+          const clean = redactSettingsExport(await toSnapshot(this.context));
           return this.ok(msg, "exportResult", { json: JSON.stringify(clean, null, 2) });
         }
         case "importSettings":
@@ -231,10 +227,13 @@ export class VsCodeUiBridge {
     // force no secrets
     if (Array.isArray(data.profiles)) {
       data.profiles = (data.profiles as Record<string, unknown>[]).map((p) => {
-        const { hasApiKey: _h, apiKey: _k, ...rest } = p as Record<string, unknown> & {
-          hasApiKey?: unknown;
-          apiKey?: unknown;
-        };
+        const { hasApiKey: _hasApiKey, apiKey: _apiKey, authHeaderTemplate: _auth, extraHeadersJson: _headers, ...rest } =
+          p as Record<string, unknown> & {
+            hasApiKey?: unknown;
+            apiKey?: unknown;
+            authHeaderTemplate?: unknown;
+            extraHeadersJson?: unknown;
+          };
         return rest;
       });
     }

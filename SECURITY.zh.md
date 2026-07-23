@@ -21,7 +21,7 @@
 
 - API key 只能存放在 JetBrains PasswordSafe 或 VS Code SecretStorage。
 - key、Authorization header、个人 endpoint 不得进入源码、文档、fixture、导出设置、CI 日志或 Issue 评论。
-- UiBridge snapshot 与导出只含 `hasApiKey`，绝不能返回明文 secret。
+- UiBridge snapshot 只含 `hasApiKey`，绝不能返回专用 API key 明文；可编辑的头字段仅限本地编辑。可移植导出会移除 `apiKey`、`hasApiKey`、`authHeaderTemplate` 和 `extraHeadersJson`。
 - 设置 UI 不得直接发 provider HTTP；探测必须经宿主和引擎客户端。
 - 补全会向用户配置的 endpoint 发送裁剪 prefix/suffix。文件路径默认发送；最近打开文件上下文和 prompt 正文日志均为默认关闭的 opt-in 功能。
 - CI 和普通 PR 构建不得依赖 Marketplace/signing secret。

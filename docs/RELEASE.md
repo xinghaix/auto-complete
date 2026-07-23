@@ -27,6 +27,7 @@ export JAVA_HOME=/opt/homebrew/opt/openjdk@21/libexec/openjdk.jdk/Contents/Home
 
 ```bash
 npm install
+npm run build:settings-ui
 ./gradlew :core:test :plugin:test
 npm run test:js
 npm run build:js
@@ -86,10 +87,10 @@ SKIP_VSCODE=1 ./scripts/package-local.sh  # 仅 JetBrains
 
 `.github/workflows/ci.yml` 有两个 job：
 
-- **JVM (JDK 21)**：`./gradlew :core:test :plugin:test --stacktrace`、`./gradlew :plugin:buildPlugin --stacktrace`，并上传 zip artifact；
-- **JS (Node 22)**：`npm install`、`npm run test:js`、`npm run build:js`。
+- **JVM（JDK 21 + Node 22）**：在同一独立工作区构建 `settings-ui`，运行 `./gradlew :core:test :plugin:test --stacktrace`、构建插件 ZIP、验证 ZIP 内嵌 UI assets，再上传 ZIP artifact；
+- **JS (Node 22)**：`npm install`、`npm run build:settings-ui`、`npm run test:js`、`npm run build:js`，随后打包并上传 VSIX artifact。
 
-CI 在 `main`/PR 上只构建和测试；推送 `v*` tag 时，在 JVM 和 JS job 成功后自动下载 ZIP/VSIX artifact 并创建 GitHub Release。若同一 tag 已有 release，workflow 会跳过发布，绝不覆盖或重复上传。Marketplace 与签名仍未自动化。
+CI 会在推送到 `main` 或 `master` 以及对应 PR 时构建和测试；推送 `v*` tag 时，在 JVM 和 JS job 成功后自动下载 ZIP/VSIX artifact 并创建 GitHub Release。若同一 tag 已有 release，workflow 会跳过发布，绝不覆盖或重复上传。Marketplace 与签名仍未自动化。
 
 ## 版本与发布清单
 

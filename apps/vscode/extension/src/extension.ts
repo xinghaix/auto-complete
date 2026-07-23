@@ -133,11 +133,15 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
 
 async function updateStatusBar(): Promise<void> {
   if (!statusBar) return;
-  const enabled = vscode.workspace.getConfiguration("autoComplete").get("enabled", true);
+  const config = vscode.workspace.getConfiguration("autoComplete");
+  const enabled = config.get("enabled", true);
+  const showStatusBar = config.get("showStatusBar", true);
   // model may come from globalState profile — show config mirror
-  const model = vscode.workspace.getConfiguration("autoComplete").get("model", "");
+  const model = config.get("model", "");
   statusBar.text = enabled ? `$(sparkle) AC: ${model || "on"}` : "$(circle-slash) AC off";
   statusBar.tooltip = "Auto Complete — open settings panel";
+  if (showStatusBar) statusBar.show();
+  else statusBar.hide();
 }
 
 export function deactivate(): void {

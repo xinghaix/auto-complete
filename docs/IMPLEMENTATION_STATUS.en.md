@@ -13,7 +13,7 @@
 | Providers | OpenAI FIM, Qwen/DeepSeek/StarCoder token FIM, pseudo-FIM chat, template/connection/model probes | Equivalent template categories and HTTP-client semantics |
 | Settings | Multi-profile, PasswordSafe, PersistentState, JCEF UiBridge, IDE proxy/trust-store support | Multi-profile, SecretStorage, globalState/config mirror, Webview UiBridge |
 | Shared UI/spec | — | Vue 3 `settings-ui` (en/zh/ja/ko), `shared-spec` schema/templates/language map/bridge/fixtures |
-| CI | JDK 21 tests + `buildPlugin` + ZIP artifact | Node 22 JS tests + JS build |
+| CI | JDK 21 tests + `buildPlugin` + ZIP artifact | Node 22 builds settings UI, runs JS tests/build, then packages and uploads VSIX |
 
 JetBrains support is **IntelliJ Platform 2024.2+ / build 242+**. JCEF is required for the Web settings panel, but `com.intellij.modules.jcef` is optional on newer IDEs; older platforms discover available JCEF reflectively. See [COMPATIBILITY.md](COMPATIBILITY.md). The VS Code extension declares `^1.85.0`.
 
@@ -34,7 +34,7 @@ JetBrains support is **IntelliJ Platform 2024.2+ / build 242+**. JCEF is require
 |---|---|
 | Comment/string detection | JetBrains supplies `ContextProbe` hints. The VS Code provider currently fixes `inComment=false` and `inString=false`, so those switches are not syntax-enforced there yet. |
 | `.gitignore` | JetBrains loads it during project attachment. VS Code currently does not inject workspace `.gitignore` into the TS engine, so its extra globs are the reliable path filter. |
-| Recent-file context | JetBrains collects open-file snippets. VS Code currently supplies no recent-file snippets to the TS engine. |
+| Recent-file context | JetBrains collects open-file snippets and omits their paths when `sendFilePath=false`, but does not yet apply ignore/size/language eligibility to every related file. VS Code currently supplies no recent-file snippets to the TS engine. |
 | Settings entry | JetBrains has only the JCEF tool-window entry, no Swing Configurable. VS Code has a Webview and mirrors selected common settings to native Settings. |
 | Secret/config naming | Both hosts provide equivalent concepts but internal persistence keys/names differ; do not manually copy storage files. |
 | Publishing automation | CI builds/tests; a pushed `v*` tag creates a same-tag GitHub Release only when one does not already exist, then uploads ZIP/VSIX. Signing and Marketplace remain manual. |
@@ -46,6 +46,7 @@ README, release notes, and Marketplace copy must not hide these gaps. Any claim 
 
 ```bash
 npm install
+npm run build:settings-ui
 ./gradlew :core:test :plugin:test
 npm run test:js
 npm run build:js

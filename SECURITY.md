@@ -21,7 +21,7 @@ Include the affected version or commit, host (JetBrains/VS Code), impact, minima
 
 - API keys must be stored only in JetBrains PasswordSafe or VS Code SecretStorage.
 - Keys, Authorization headers, and personal endpoints must not enter source, docs, fixtures, exported settings, CI logs, or issue comments.
-- UiBridge snapshots and exports expose `hasApiKey` only; they must not return plaintext secrets.
+- UiBridge snapshots expose `hasApiKey`, never the dedicated API key. They retain editable plaintext header fields only for local editing; portable exports omit `apiKey`, `hasApiKey`, `authHeaderTemplate`, and `extraHeadersJson`.
 - Settings UI must not directly call provider HTTP. Probes go through the host and engine client.
 - Completion sends trimmed prefix/suffix to user-configured endpoints. File paths are on by default; recent-open-file context and prompt-body logging are opt-in and disabled by default.
 - CI and ordinary PR builds must not require Marketplace/signing secrets.
