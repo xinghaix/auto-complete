@@ -6,6 +6,7 @@ import com.intellij.openapi.diagnostic.Logger
 import com.intellij.openapi.extensions.PluginId
 import com.intellij.openapi.util.Disposer
 import java.awt.BorderLayout
+import java.lang.reflect.InvocationTargetException
 import javax.swing.JComponent
 import javax.swing.JPanel
 
@@ -56,9 +57,22 @@ internal object SettingsJcefHost {
                 }
             MountResult.Ok(controller)
         } catch (t: Throwable) {
+            // Method.invoke wraps the failure from mount() in InvocationTargetException.
+            // Keeping that wrapper hid the actionable JCEF error from the user as just
+            // "InvocationTargetException" while idea.log already contained its cause.
             log.warn("JCEF host mount failed", t)
-            MountResult.Failed(t)
+            MountResult.Failed(unwrapMountFailure(t))
         }
+    }
+
+    internal fun unwrapMountFailure(error: Throwable): Throwable {
+        var current = error
+        while (current is InvocationTargetException) {
+            val cause = current.targetException ?: break
+            if (cause === current) break
+            current = cause
+        }
+        return current
     }
 
     private fun canLoad(fqcn: String): Boolean =

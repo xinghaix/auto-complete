@@ -2,6 +2,8 @@
 
 ## [Unreleased]
 
+## [0.2.1] - 2026-07-24
+
 ### Added
 
 - Settings UI: **Configure in Keymap…** jumps to host keyboard shortcuts for manual trigger (`openKeymap` bridge; JB `AutoComplete.Trigger`, VS Code `autoComplete.trigger`)
@@ -12,6 +14,10 @@
 - JetBrains install docs prioritize [Marketplace plugin 33040](https://plugins.jetbrains.com/plugin/33040-auto-complete); signed ZIP is the fallback
 - CI ships **signed** JetBrains ZIP only (`*-signed.zip`); unsigned ZIPs are no longer release artifacts
 - Marketplace widget id `33040` documented for site embeds
+
+### Fixed
+
+- `[jetbrains]` Preserve and surface the real JCEF initialization cause instead of showing only the reflection wrapper `InvocationTargetException`
 
 ## [0.2.0] - 2026-07-21
 
