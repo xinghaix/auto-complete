@@ -1,6 +1,6 @@
 {
   "name": "@auto-complete/settings-ui",
-  "version": "0.2.2",
+  "version": "0.2.3",
   "private": true,
   "description": "Shared Web settings + logs UI for VS Code Webview and JetBrains JCEF (Vue 3)",
   "license": "Apache-2.0",

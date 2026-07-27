@@ -2,6 +2,8 @@
 
 ## [Unreleased]
 
+## [0.2.3] - 2026-07-27
+
 ### Fixed
 
 - `[settings-ui]` Opaque floating dropdowns in dark theme (Windows JCEF “see-through” / stacking bleed over page content)

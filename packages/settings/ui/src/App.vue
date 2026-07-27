@@ -107,7 +107,7 @@ const importJsonText = ref("");
 const GITHUB_REPO_URL = "https://github.com/xinghaix/auto-complete";
 const GITHUB_ISSUES_URL = "https://github.com/xinghaix/auto-complete/issues";
 /** UI package version; monorepo keeps hosts aligned at release. */
-const appVersion = "0.2.2";
+const appVersion = "0.2.3";
 
 let saveTimer: ReturnType<typeof setTimeout> | null = null;
 let saveStatusTimer: ReturnType<typeof setTimeout> | null = null;

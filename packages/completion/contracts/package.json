@@ -1,6 +1,6 @@
 {
   "name": "@auto-complete/shared-spec",
-  "version": "0.2.2",
+  "version": "0.2.3",
   "private": true,
   "description": "Shared schema, templates, language map, bridge protocol, and golden fixtures for dual-engine auto-complete",
   "license": "Apache-2.0",
