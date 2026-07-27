@@ -4,7 +4,6 @@ import com.intellij.notification.NotificationGroupManager
 import com.intellij.notification.NotificationType
 import com.intellij.openapi.Disposable
 import com.intellij.openapi.application.ApplicationManager
-import com.intellij.openapi.application.ModalityState
 import com.intellij.openapi.components.Service
 import com.intellij.openapi.diagnostic.Logger
 import com.intellij.openapi.fileEditor.FileEditorManager
@@ -12,7 +11,6 @@ import com.intellij.openapi.fileEditor.FileEditorManagerEvent
 import com.intellij.openapi.fileEditor.FileEditorManagerListener
 import com.intellij.openapi.project.Project
 import com.intellij.openapi.project.ProjectManager
-import com.intellij.openapi.project.ProjectManagerListener
 import com.intellij.openapi.vfs.VfsUtil
 import com.intellij.openapi.vfs.VirtualFile
 import io.autocomplete.config.AutoCompleteSettingsService
@@ -77,28 +75,6 @@ class AutoCompleteAppService : Disposable {
             ProjectManager.getInstance().openProjects.forEach { ProjectSupport.refreshRecent(it) }
         }
         engine.reloadCaches()
-        ApplicationManager.getApplication().messageBus.connect(this).subscribe(
-            ProjectManager.TOPIC,
-            object : ProjectManagerListener {
-                override fun projectOpened(project: Project) {
-                    ProjectSupport.attach(project)
-                }
-
-                override fun projectClosed(project: Project) {
-                    ProjectSupport.detach(project)
-                }
-            },
-        )
-        // Do NOT call ProjectSupport.attach synchronously here: attach → getInstance()
-        // re-enters this constructor and throws CycleInitializationException, which
-        // breaks LogPanel, status bar, and settings.
-        ApplicationManager.getApplication().invokeLater(
-            {
-                if (ApplicationManager.getApplication().isDisposed) return@invokeLater
-                ProjectManager.getInstance().openProjects.forEach { ProjectSupport.attach(it) }
-            },
-            ModalityState.any(),
-        )
     }
 
     override fun dispose() {

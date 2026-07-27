@@ -27,6 +27,7 @@
         <applicationService serviceImplementation="io.autocomplete.config.AutoCompleteSettingsService"/>
         <applicationService serviceImplementation="io.autocomplete.plugin.AutoCompleteAppService"/>
         <projectService serviceImplementation="io.autocomplete.plugin.AutoCompleteProjectService"/>
+        <postStartupActivity implementation="io.autocomplete.plugin.AutoCompleteProjectActivity"/>
 
         <!-- No applicationConfigurable: single entry = tool window Web UI (Settings | Logs). -->
 
@@ -45,11 +46,6 @@
                            displayType="BALLOON"
                            isLogByDefault="true"/>
     </extensions>
-
-    <applicationListeners>
-        <listener class="io.autocomplete.plugin.AutoCompleteLifecycleListener"
-                  topic="com.intellij.ide.AppLifecycleListener"/>
-    </applicationListeners>
 
     <actions>
         <group id="AutoComplete.Menu"

@@ -1,14 +1,14 @@
 package io.autocomplete.plugin
 
-import com.intellij.ide.AppLifecycleListener
 import com.intellij.openapi.diagnostic.Logger
+import com.intellij.openapi.project.Project
+import com.intellij.openapi.startup.ProjectActivity
 
-class AutoCompleteLifecycleListener : AppLifecycleListener {
-    private val log = Logger.getInstance(AutoCompleteLifecycleListener::class.java)
+class AutoCompleteProjectActivity : ProjectActivity {
+    private val log = Logger.getInstance(AutoCompleteProjectActivity::class.java)
 
-    override fun appStarted() {
-        // Force service initialization so status/log are ready.
-        runCatching { AutoCompleteAppService.getInstance() }
-            .onFailure { log.warn("Auto Complete init failed", it) }
+    override suspend fun execute(project: Project) {
+        runCatching { AutoCompleteProjectService.getInstance(project) }
+            .onFailure { log.warn("Auto Complete project init failed", it) }
     }
 }
