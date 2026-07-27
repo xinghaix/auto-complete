@@ -3,23 +3,26 @@
 :root {
   color-scheme: light;
 
-  /* Light defaults (JB New UI-ish) */
-  --bg: #f7f8fa;
-  --panel: #ffffff;
-  --fg: #000000d9;
-  --muted: #0000008c;
-  --border: #0000001a;
+  /*
+   * Prefer host tokens when present (VS Code). Fallbacks are solid hex literals —
+   * never `var(--self)` (cyclic custom props can resolve to transparent in some CEF builds).
+   */
+  --bg: var(--vscode-sideBar-background, #f7f8fa);
+  --panel: var(--vscode-editor-background, #ffffff);
+  --fg: var(--vscode-foreground, #000000d9);
+  --muted: var(--vscode-descriptionForeground, #0000008c);
+  --border: var(--vscode-panel-border, #0000001a);
   --border-strong: #00000026;
-  --input-bg: #ffffff;
-  --input-fg: #000000d9;
-  --input-border: #00000033;
+  --input-bg: var(--vscode-input-background, #ffffff);
+  --input-fg: var(--vscode-input-foreground, #000000d9);
+  --input-border: var(--vscode-input-border, #00000033);
   --hover: #0000000a;
-  --active-tab: #3574f0;
-  --btn: #3574f0;
+  --active-tab: var(--vscode-focusBorder, #3574f0);
+  --btn: var(--vscode-button-background, #3574f0);
   --btn-hover: #3369d6;
-  --btn-fg: #ffffff;
-  --btn2: #0000000d;
-  --btn2-fg: #000000d9;
+  --btn-fg: var(--vscode-button-foreground, #ffffff);
+  --btn2: var(--vscode-button-secondaryBackground, #0000000d);
+  --btn2-fg: var(--vscode-button-secondaryForeground, #000000d9);
   --btn2-border: #00000026;
   --ok-bg: #e6f4ea;
   --ok-fg: #137333;
@@ -30,27 +33,24 @@
   --err-bg: #fce8e6;
   --err-fg: #c5221f;
   --err-border: #f5c6c2;
+  /* Opaque menu surfaces (Windows JCEF paints semi-transparent layers poorly in dark). */
+  --menu-bg: #ffffff;
+  --menu-item-hover: #f0f1f3;
+  --menu-item-active: #e8f0fe;
   /* Shared name column width is set per .group-card via JS measure (--label-w) */
   --label-max: min(42vw, 16rem);
   --radius: 4px;
-  --font: system-ui, -apple-system, "Segoe UI", "JetBrains Sans", "Helvetica Neue", Arial, sans-serif;
+  --font: var(
+    --vscode-font-family,
+    system-ui,
+    -apple-system,
+    "Segoe UI",
+    "JetBrains Sans",
+    "Helvetica Neue",
+    Arial,
+    sans-serif
+  );
   --mono: "JetBrains Mono", ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
-
-  /* Prefer host tokens when present (VS Code / future JB theme push) */
-  --bg: var(--vscode-sideBar-background, var(--bg));
-  --panel: var(--vscode-editor-background, var(--panel));
-  --fg: var(--vscode-foreground, var(--fg));
-  --muted: var(--vscode-descriptionForeground, var(--muted));
-  --border: var(--vscode-panel-border, var(--border));
-  --input-bg: var(--vscode-input-background, var(--input-bg));
-  --input-fg: var(--vscode-input-foreground, var(--input-fg));
-  --input-border: var(--vscode-input-border, var(--input-border));
-  --btn: var(--vscode-button-background, var(--btn));
-  --btn-fg: var(--vscode-button-foreground, var(--btn-fg));
-  --btn2: var(--vscode-button-secondaryBackground, var(--btn2));
-  --btn2-fg: var(--vscode-button-secondaryForeground, var(--btn2-fg));
-  --active-tab: var(--vscode-focusBorder, var(--active-tab));
-  --font: var(--vscode-font-family, var(--font));
 }
 
 /*
@@ -86,6 +86,9 @@ html[data-theme-pref="light"] {
   --err-bg: #fce8e6;
   --err-fg: #c5221f;
   --err-border: #f5c6c2;
+  --menu-bg: #ffffff;
+  --menu-item-hover: #f0f1f3;
+  --menu-item-active: #e8f0fe;
 }
 
 html[data-theme="dark"],
@@ -101,7 +104,7 @@ html[data-theme-pref="dark"] {
   --input-bg: #2b2d30;
   --input-fg: #dfe1e5;
   --input-border: #4e5157;
-  --hover: #ffffff0a;
+  --hover: #ffffff14;
   --active-tab: #548af7;
   --btn: #3574f0;
   --btn-hover: #4681f4;
@@ -118,6 +121,10 @@ html[data-theme-pref="dark"] {
   --err-bg: #3d2424;
   --err-fg: #f28b82;
   --err-border: #5c3030;
+  /* Solid opaque menu chrome — avoid alpha surfaces under Windows JCEF */
+  --menu-bg: #1e1f22;
+  --menu-item-hover: #2b2d30;
+  --menu-item-active: #2a3a5c;
 }
 
 *,
@@ -690,10 +697,14 @@ html[data-theme-pref="dark"] .btn-secondary:hover:not(:disabled) {
 /* ── floating menus (Teleport → body, position:fixed) ──
  * JCEF clips native <select> and in-tree absolute menus under overflow
  * ancestors. Body-teleported fixed menus avoid both failure modes.
+ *
+ * Windows JCEF dark theme: semi-transparent backgrounds / color-mix(…, transparent)
+ * and isolation+alpha compositing can paint the page through the popup (“穿模”).
+ * Menus must use fully opaque solid colors and a simple stacking context.
  */
 .floating-menu {
   position: fixed;
-  z-index: 10000;
+  z-index: 2147483000;
   margin: 0;
   padding: 4px;
   list-style: none;
@@ -701,18 +712,24 @@ html[data-theme-pref="dark"] .btn-secondary:hover:not(:disabled) {
   overflow-y: auto;
   border: 1px solid var(--border-strong);
   border-radius: var(--radius);
-  background: var(--panel);
+  /* Explicit opaque fill — do not rely on inherited alpha or color-mix */
+  background-color: var(--menu-bg, var(--panel));
+  background-image: none;
   color: var(--fg);
-  box-shadow: 0 8px 24px #00000040;
+  opacity: 1;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.35);
   box-sizing: border-box;
-  /* Isolate from page stacking / pointer quirks under JCEF */
-  isolation: isolate;
   pointer-events: auto;
+  /* Promote a clean layer without isolation+alpha bleed on Windows CEF */
+  transform: translateZ(0);
+  -webkit-backface-visibility: hidden;
+  backface-visibility: hidden;
 }
 
 .floating-menu li {
   margin: 0;
   padding: 0;
+  background: transparent;
 }
 
 .floating-menu-item {
@@ -723,22 +740,55 @@ html[data-theme-pref="dark"] .btn-secondary:hover:not(:disabled) {
   padding: 6px 8px;
   border: 0;
   border-radius: 3px;
-  background: transparent;
+  background-color: transparent;
+  background-image: none;
   color: var(--fg);
   font: inherit;
   font-size: 12.5px;
   text-align: left;
   cursor: pointer;
   pointer-events: auto;
+  opacity: 1;
 }
 
 .floating-menu-item:hover {
-  background: var(--hover);
+  /* Solid hover tile (not #rrggbbaa on the whole menu surface) */
+  background-color: var(--menu-item-hover, var(--hover));
+  background-image: none;
 }
 
 .floating-menu-item.active {
-  background: color-mix(in srgb, var(--active-tab) 16%, transparent);
+  /* Avoid color-mix(..., transparent) — broken/alpha-bleed on some Windows JCEF builds */
+  background-color: var(--menu-item-active, var(--menu-item-hover));
+  background-image: none;
   font-weight: 500;
+}
+
+/* Hard fallbacks if theme vars ever fail to resolve */
+html[data-theme="dark"] .floating-menu,
+html[data-theme="high-contrast"] .floating-menu,
+html[data-theme-pref="dark"] .floating-menu {
+  background-color: #1e1f22;
+  border-color: #5a5d63;
+  color: #dfe1e5;
+}
+
+html[data-theme="dark"] .floating-menu-item:hover,
+html[data-theme="high-contrast"] .floating-menu-item:hover,
+html[data-theme-pref="dark"] .floating-menu-item:hover {
+  background-color: #2b2d30;
+}
+
+html[data-theme="dark"] .floating-menu-item.active,
+html[data-theme="high-contrast"] .floating-menu-item.active,
+html[data-theme-pref="dark"] .floating-menu-item.active {
+  background-color: #2a3a5c;
+}
+
+html[data-theme-pref="light"] .floating-menu {
+  background-color: #ffffff;
+  border-color: #00000026;
+  color: #000000d9;
 }
 
 /* select-combo trigger (replaces native <select>) */

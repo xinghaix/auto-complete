@@ -2,6 +2,10 @@
 
 ## [Unreleased]
 
+### Fixed
+
+- `[settings-ui]` Opaque floating dropdowns in dark theme (Windows JCEF “see-through” / stacking bleed over page content)
+
 ### Changed
 
 - `[jetbrains]` Keep `com.intellij.modules.jcef` optional for 2024.2+ compatibility; show a Swing recovery panel with install steps when JCEF is unavailable (settings UI remains JCEF-only when the browser works)
