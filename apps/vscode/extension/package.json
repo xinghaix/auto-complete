@@ -2,7 +2,7 @@
   "name": "auto-complete",
   "displayName": "Auto Complete",
   "description": "Inline AI code completion. Bring your own OpenAI-compatible endpoint (Ollama, etc.).",
-  "version": "0.2.1",
+  "version": "0.2.2",
   "publisher": "auto-complete",
   "license": "Apache-2.0",
   "icon": "media/icon.png",
