@@ -8,10 +8,16 @@ For **end users**: install, connect a model, tune behaviour. Maintainers: [DEV.e
 
 | Host | Requires | Install | Open settings |
 |---|---|---|---|
-| **JetBrains** | Platform **2024.2+**, settings need **JCEF** | [Marketplace](https://plugins.jetbrains.com/plugin/33040-auto-complete) (preferred); or Release **`*-signed.zip`** → Install from Disk | **Auto Complete** tool window |
+| **JetBrains** | Platform **2024.2+**; settings need **JCEF** (embedded browser) | [Marketplace](https://plugins.jetbrains.com/plugin/33040-auto-complete) (preferred); or Release **`*-signed.zip`** → Install from Disk | **Auto Complete** tool window |
 | **VS Code** | **1.85+** | Release / local **VSIX** | Command **Auto Complete: Open Settings Panel** |
 
-If JetBrains reports JCEF unavailable: enable *Web Browser (JCEF)* and restart; do not disable `ide.browser.jcef.enabled` in the Registry.
+JetBrains settings / logs use a **JCEF web panel**. `com.intellij.modules.jcef` is an **optional** dependency so both 2024.2 (platform/JBR JCEF) and 2026 (standalone *Web Browser (JCEF)* plugin) work.
+
+- **2024.2–2025.x:** JCEF ships with the official IDE / JetBrains Runtime; no separate plugin. Do not boot the IDE on a plain OpenJDK without JCEF.
+- **2026+:** If the settings panel fails to open, enable the bundled *Web Browser (JCEF)* under **Settings → Plugins**, then **fully restart** the IDE.
+- **Any version:** Find Action → Registry… and keep `ide.browser.jcef.enabled` checked.
+
+When JCEF is unavailable, the tool window shows a **Swing recovery page** (no JCEF) with diagnosis and steps. Inline completion can still run if a profile is already saved.
 
 ## 2. First setup (~1 minute)
 
@@ -106,7 +112,7 @@ Security: [SECURITY.md](../SECURITY.md)
 | Connection failed | Base URL prefix; template match; key/auth header; URL + status in logs |
 | 401 / 403 | Key and auth; correct cloud base (e.g. DeepSeek beta) |
 | Connected but empty | `EMPTY`: try another template or confirm real FIM |
-| JetBrains blank settings / JCEF | Enable Web Browser (JCEF); reinstall a fresh package |
+| JetBrains blank settings / recovery page | Follow the panel: 2026+ enable *Web Browser (JCEF)* and restart; 2024.2 use a JBR with JCEF; check Registry `ide.browser.jcef.enabled`; reinstall a fresh ZIP if needed |
 | Stale ghost text after typing | Should cancel; if not, check logs and open an issue |
 
 Maintainers / architecture summary: [DEV.en.md](DEV.en.md)

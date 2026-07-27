@@ -64,7 +64,7 @@ intellijPlatform {
               <li>Single-process Kotlin — no VS Code host bridge</li>
             </ul>
             <p><b>Requires IntelliJ Platform 2024.2+ (build 242+)</b>.
-            Settings are Web/JCEF only (optional jcef module on 2025.3+/2026).
+            Settings use Web/JCEF (optional <code>com.intellij.modules.jcef</code> on 2026+).
             Apache-2.0. Prefer JetBrains Marketplace (or a signed ZIP).
             Keys stay in the IDE PasswordSafe.</p>
             """.trimIndent(),

@@ -2,6 +2,10 @@
 
 ## [Unreleased]
 
+### Changed
+
+- `[jetbrains]` Keep `com.intellij.modules.jcef` optional for 2024.2+ compatibility; show a Swing recovery panel with install steps when JCEF is unavailable (settings UI remains JCEF-only when the browser works)
+
 ## [0.2.2] - 2026-07-27
 
 ### Changed

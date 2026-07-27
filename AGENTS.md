@@ -39,7 +39,7 @@ Open-source preview:
 - Do not default to whole-file, whole-repository, or recent-file context.
 - Settings UI must not directly call user provider HTTP: use UI Bridge → host → engine client.
 - Preserve cancellation and generation checks; cancellation is a normal path.
-- Keep `com.intellij.modules.jcef` optional. Load JCEF through `SettingsJcefHost` reflection; do not place `JBCefBrowser` types on `SettingsWebPanel`.
+- Keep `com.intellij.modules.jcef` **optional** (2024.2 platform/JBR JCEF vs 2026 Web Browser plugin). Load JCEF through `SettingsJcefHost` reflection; do not place `JBCefBrowser` types on `SettingsWebPanel`. When JCEF is missing, show a **Swing** recovery panel with steps (never depend on JCEF for that UI).
 - JetBrains minimum remains 2024.2 / `pluginSinceBuild=242` unless `docs/GUIDE.md` / `docs/DEV.md` and tests are deliberately updated.
 - No Agent/Next Edit product scope in the completion path.
 - Prefer cross-host **behavioural** parity (schema, settings-ui, engine gates). Allow only platform-forced differences (storage, chrome, secret APIs, commands). Document intentional gaps in `docs/DEV.md` (allowed host gaps) and user-visible notes in `docs/GUIDE.md`.

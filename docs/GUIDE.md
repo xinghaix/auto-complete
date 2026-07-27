@@ -8,10 +8,16 @@
 
 | 宿主 | 要求 | 安装 | 打开设置 |
 |---|---|---|---|
-| **JetBrains** | 平台 **2024.2+**，设置页需 **JCEF** | [Marketplace](https://plugins.jetbrains.com/plugin/33040-auto-complete)（优先）；或 Release 的 **`*-signed.zip`** → 从磁盘安装 | 右侧 **Auto Complete** 工具窗口 |
+| **JetBrains** | 平台 **2024.2+**；设置页需 **JCEF**（内嵌浏览器） | [Marketplace](https://plugins.jetbrains.com/plugin/33040-auto-complete)（优先）；或 Release 的 **`*-signed.zip`** → 从磁盘安装 | 右侧 **Auto Complete** 工具窗口 |
 | **VS Code** | **1.85+** | Release / 本地 **VSIX** → 从 VSIX 安装 | 命令 **Auto Complete: Open Settings Panel** |
 
-JetBrains 若提示 JCEF 不可用：启用 *Web Browser (JCEF)* 并重启；Registry 勿关 `ide.browser.jcef.enabled`。
+JetBrains 设置 / 日志为 **JCEF Web 面板**（`com.intellij.modules.jcef` 为**可选**依赖，以便兼容 2024.2 平台内置 JCEF 与 2026 独立插件）。
+
+- **2024.2–2025.x**：JCEF 随官方 IDE / JetBrains Runtime 提供，一般无需单独装插件。请勿用去掉 JCEF 的普通 OpenJDK 启动 IDE。
+- **2026+**：若设置页打不开，到 **设置 → 插件** 启用捆绑的 *Web Browser (JCEF)*，然后**完全重启** IDE。
+- **任何版本**：查找操作 → Registry…，保持 `ide.browser.jcef.enabled` 勾选。
+
+若 JCEF 不可用，工具窗口会显示 **Swing 恢复页**（不依赖 JCEF），含缺失项诊断与步骤；行内补全在已有配置时可继续工作。
 
 ## 2. 第一次配置（约 1 分钟）
 
@@ -106,7 +112,7 @@ JetBrains 另有 snooze（暂停一段时间）；VS Code 多用开关命令。
 | 连接失败 | Base URL 是否带对前缀；模板是否匹配；密钥与鉴权头；看日志里的 URL 与状态码 |
 | 401 / 403 | 密钥与鉴权；云服务是否用对 base（如 DeepSeek beta） |
 | 通了无建议 | 结果 `EMPTY`：换模板或确认模型真支持 FIM |
-| JetBrains 设置页空白 / JCEF | 启用 Web Browser (JCEF)；换新打包的 ZIP |
+| JetBrains 设置页空白 / 恢复页 | 按面板步骤：2026+ 启用 *Web Browser (JCEF)* 并重启；2024.2 用带 JCEF 的 JBR；检查 Registry `ide.browser.jcef.enabled`；仍不行则换新 ZIP |
 | 继续输入后旧建议闪回 | 应自动取消；若仍出现请看日志并开 Issue |
 
 维护者 / 架构摘要：[DEV.md](DEV.md)

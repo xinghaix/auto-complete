@@ -1,6 +1,6 @@
 <!--
-  Loaded only when com.intellij.modules.jcef is present (2025.3.1+ alias / 2026.2 bundled plugin).
-  Empty extension file: existence of the optional <depends> attaches JCEF to our classloader.
+  Loaded when com.intellij.modules.jcef is present (2026.x bundled Web Browser plugin).
+  Empty config-file: optional <depends> still attaches the JCEF plugin classloader as a parent.
 -->
 <idea-plugin>
 </idea-plugin>

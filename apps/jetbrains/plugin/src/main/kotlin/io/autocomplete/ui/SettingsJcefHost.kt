@@ -1,9 +1,7 @@
 package io.autocomplete.ui
 
-import com.intellij.ide.plugins.PluginManagerCore
 import com.intellij.openapi.Disposable
 import com.intellij.openapi.diagnostic.Logger
-import com.intellij.openapi.extensions.PluginId
 import com.intellij.openapi.util.Disposer
 import java.awt.BorderLayout
 import java.lang.reflect.InvocationTargetException
@@ -12,20 +10,16 @@ import javax.swing.JPanel
 
 /**
  * Reflective JCEF loader — keeps [SettingsWebPanel] free of jcef types.
+ * Presence checks delegate to [JcefEnvironment] (shared with the Swing recovery panel).
  */
 internal object SettingsJcefHost {
     private val log = Logger.getInstance(SettingsJcefHost::class.java)
 
-    private const val JCEF_PLUGIN_ID = "com.intellij.modules.jcef"
-    private const val JBCEF_BROWSER = "com.intellij.ui.jcef.JBCefBrowser"
     private const val IMPL = "io.autocomplete.ui.SettingsJcefHostImpl"
 
-    fun isJcefClassReachable(): Boolean = canLoad(JBCEF_BROWSER)
+    fun isJcefClassReachable(): Boolean = JcefEnvironment.isJcefClassReachable()
 
-    fun isJcefModulePluginPresent(): Boolean =
-        runCatching {
-            PluginManagerCore.getPlugin(PluginId.getId(JCEF_PLUGIN_ID)) != null
-        }.getOrDefault(false)
+    fun isJcefModulePluginPresent(): Boolean = JcefEnvironment.isJcefModulePluginPresent()
 
     fun tryMount(
         panel: JPanel,
@@ -33,7 +27,9 @@ internal object SettingsJcefHost {
         initialTab: String,
     ): MountResult {
         if (!isJcefClassReachable()) {
-            log.info("JBCefBrowser not reachable; jcef module present=${isJcefModulePluginPresent()}")
+            log.info(
+                "JBCefBrowser not reachable; jcef module present=${isJcefModulePluginPresent()}",
+            )
             return MountResult.Unavailable
         }
         return try {
@@ -46,8 +42,9 @@ internal object SettingsJcefHost {
                     String::class.java,
                 )
             val session = method.invoke(null, panel, parentDisposable, initialTab)
-            if (session is Disposable) {
-                Disposer.register(parentDisposable, session)
+            val disposableSession = session as? Disposable
+            if (disposableSession != null) {
+                Disposer.register(parentDisposable, disposableSession)
             }
             val controller =
                 if (session is WebTabController) {
@@ -55,7 +52,7 @@ internal object SettingsJcefHost {
                 } else {
                     WebTabController { /* no-op */ }
                 }
-            MountResult.Ok(controller)
+            MountResult.Ok(controller, disposableSession)
         } catch (t: Throwable) {
             // Method.invoke wraps the failure from mount() in InvocationTargetException.
             // Keeping that wrapper hid the actionable JCEF error from the user as just
@@ -75,17 +72,11 @@ internal object SettingsJcefHost {
         return current
     }
 
-    private fun canLoad(fqcn: String): Boolean =
-        try {
-            Class.forName(fqcn, false, SettingsJcefHost::class.java.classLoader)
-            true
-        } catch (_: Throwable) {
-            false
-        }
-
     sealed class MountResult {
         data class Ok(
             val controller: WebTabController,
+            /** JCEF session; registered on [parentDisposable] and may be disposed to remount. */
+            val session: Disposable? = null,
         ) : MountResult()
 
         data object Unavailable : MountResult()

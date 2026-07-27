@@ -14,13 +14,18 @@
       <li>Single-process Kotlin — no VS Code host bridge</li>
     </ul>
     <p><b>Requires IntelliJ Platform 2024.2+ (build 242+)</b>.
-    Settings need working JCEF. See docs/GUIDE.md.</p>
+    Settings use an embedded Web panel (JCEF). On 2026+ enable the bundled
+    <b>Web Browser (JCEF)</b> plugin if the panel is blank. See docs/GUIDE.md.</p>
     <p>Apache-2.0 open source. Prefer JetBrains Marketplace (or signed ZIP from GitHub Releases).
     Keys stay in the IDE PasswordSafe.</p>
     ]]></description>
 
     <depends>com.intellij.modules.platform</depends>
-    <!-- Optional: 2025.3+/2026 attaches JCEF plugin as parent classloader. -->
+    <!--
+      Optional: on 2026+ attaches the Web Browser (JCEF) plugin classloader.
+      On 2024.2–2025.x JCEF lives in the platform/JBR — this module id may be absent.
+      Settings UI is JCEF-only; missing JCEF shows a Swing recovery panel (not Web).
+    -->
     <depends optional="true" config-file="auto-complete-jcef.xml">com.intellij.modules.jcef</depends>
 
     <extensions defaultExtensionNs="com.intellij">
