@@ -11,8 +11,48 @@ permissions:
   contents: read
 
 jobs:
+  validate-release-tag:
+    name: Validate release tag
+    runs-on: ubuntu-latest
+    outputs:
+      is_main_release_tag: ${{ steps.gate.outputs.is_main_release_tag }}
+    steps:
+      - name: Checkout full history
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Validate annotated tag targets main history
+        id: gate
+        shell: bash
+        run: |
+          set -euo pipefail
+          if [ "${GITHUB_EVENT_NAME}" != "push" ] || [[ "${GITHUB_REF}" != refs/tags/v* ]]; then
+            echo "is_main_release_tag=false" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+
+          TAG_TYPE="$(git cat-file -t "$GITHUB_REF" 2>/dev/null || true)"
+          if [ "$TAG_TYPE" != "tag" ]; then
+            echo "is_main_release_tag=false" >> "$GITHUB_OUTPUT"
+            echo "::error::${GITHUB_REF_NAME} must be an annotated tag."
+            exit 1
+          fi
+
+          git fetch --no-tags origin +refs/heads/main:refs/remotes/origin/main
+          TARGET="$(git rev-list -n 1 "$GITHUB_REF")"
+          if ! git merge-base --is-ancestor "$TARGET" origin/main; then
+            echo "is_main_release_tag=false" >> "$GITHUB_OUTPUT"
+            echo "::error::${GITHUB_REF_NAME} targets ${TARGET}, which is not in origin/main history."
+            exit 1
+          fi
+
+          echo "is_main_release_tag=true" >> "$GITHUB_OUTPUT"
+          echo "${GITHUB_REF_NAME} targets ${TARGET} in origin/main history."
+
   jvm:
     name: JVM (JDK 21)
+    needs: [validate-release-tag]
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
@@ -40,70 +80,9 @@ jobs:
       - name: Unit tests
         run: ./gradlew :core:test :plugin:test --stacktrace
 
-      # Distribution ZIP is always signed. Secrets required on main/tag; PRs may skip the artifact.
-      - name: Build and sign plugin ZIP
-        id: sign
-        env:
-          CERTIFICATE_CHAIN: ${{ secrets.CERTIFICATE_CHAIN }}
-          PRIVATE_KEY: ${{ secrets.PRIVATE_KEY }}
-          PRIVATE_KEY_PASSWORD: ${{ secrets.PRIVATE_KEY_PASSWORD }}
-        run: |
-          set -euo pipefail
-          DIST="apps/jetbrains/plugin/build/distributions"
-          if [ -z "${CERTIFICATE_CHAIN:-}" ] || [ -z "${PRIVATE_KEY:-}" ]; then
-            if [ "${{ github.event_name }}" = "pull_request" ]; then
-              echo "PR without signing secrets — tests only (no ZIP artifact)."
-              echo "signed=false" >> "$GITHUB_OUTPUT"
-              exit 0
-            fi
-            echo "::error::CERTIFICATE_CHAIN and PRIVATE_KEY secrets are required to build the JetBrains distribution ZIP."
-            exit 1
-          fi
-          ./gradlew :plugin:buildPlugin :plugin:signPlugin --stacktrace
-          SIGNED="$(ls -1t "$DIST"/*-signed.zip 2>/dev/null | head -1 || true)"
-          if [ -z "$SIGNED" ]; then
-            echo "::error::signPlugin did not produce a *-signed.zip under $DIST"
-            ls -la "$DIST" || true
-            exit 1
-          fi
-          # Keep only the signed archive for upload / Release (no unsigned ZIP).
-          find "$DIST" -type f -name '*.zip' ! -name '*-signed.zip' -delete
-          echo "signed=true" >> "$GITHUB_OUTPUT"
-          echo "Signed ZIP: $SIGNED"
-          ls -la "$DIST"
-
-      - name: Verify signed ZIP embeds settings UI
-        if: steps.sign.outputs.signed == 'true'
-        run: |
-          python3 - <<'PY2'
-          from io import BytesIO
-          from pathlib import Path
-          from zipfile import ZipFile
-          archives = list(Path("apps/jetbrains/plugin/build/distributions").glob("*-signed.zip"))
-          assert archives, "signed plugin ZIP was not produced"
-          with ZipFile(max(archives, key=lambda p: p.stat().st_mtime)) as outer:
-              for name in outer.namelist():
-                  if not name.endswith(".jar"):
-                      continue
-                  with ZipFile(BytesIO(outer.read(name))) as jar:
-                      entries = set(jar.namelist())
-                      if "settings-ui/index.html" in entries and any(e.startswith("settings-ui/assets/") for e in entries):
-                          print(f"embedded settings UI verified in {name}")
-                          break
-              else:
-                  raise AssertionError("signed ZIP is missing packaged settings-ui assets")
-          PY2
-
-      - name: Upload signed ZIP distribution
-        if: success() && steps.sign.outputs.signed == 'true'
-        uses: actions/upload-artifact@v4
-        with:
-          name: auto-complete-zip
-          path: apps/jetbrains/plugin/build/distributions/*-signed.zip
-          if-no-files-found: error
-
   js:
     name: JS (core-ts + settings-ui + vscode)
+    needs: [validate-release-tag]
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
@@ -127,11 +106,111 @@ jobs:
       - name: Build JS packages
         run: npm run build:js
 
+  package-jetbrains:
+    name: Package signed JetBrains ZIP
+    needs: [validate-release-tag, jvm]
+    if: needs.validate-release-tag.outputs.is_main_release_tag == 'true'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up JDK 21
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "21"
+
+      - name: Set up Node 22 for embedded settings UI
+        uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+
+      - name: Setup Gradle
+        uses: gradle/actions/setup-gradle@v4
+
+      - name: Build settings UI (required for JCEF bundle)
+        run: |
+          npm install
+          npm run build:settings-ui
+
+      # Distribution ZIP is always signed and only release tags can package it.
+      - name: Build and sign plugin ZIP
+        env:
+          CERTIFICATE_CHAIN: ${{ secrets.CERTIFICATE_CHAIN }}
+          PRIVATE_KEY: ${{ secrets.PRIVATE_KEY }}
+          PRIVATE_KEY_PASSWORD: ${{ secrets.PRIVATE_KEY_PASSWORD }}
+        run: |
+          set -euo pipefail
+          DIST="apps/jetbrains/plugin/build/distributions"
+          if [ -z "${CERTIFICATE_CHAIN:-}" ] || [ -z "${PRIVATE_KEY:-}" ]; then
+            echo "::error::CERTIFICATE_CHAIN and PRIVATE_KEY secrets are required to build the JetBrains distribution ZIP."
+            exit 1
+          fi
+          ./gradlew :plugin:buildPlugin :plugin:signPlugin --stacktrace
+          SIGNED="$(ls -1t "$DIST"/*-signed.zip 2>/dev/null | head -1 || true)"
+          if [ -z "$SIGNED" ]; then
+            echo "::error::signPlugin did not produce a *-signed.zip under $DIST"
+            ls -la "$DIST" || true
+            exit 1
+          fi
+          # Keep only the signed archive for upload / Release (no unsigned ZIP).
+          find "$DIST" -type f -name '*.zip' ! -name '*-signed.zip' -delete
+          echo "Signed ZIP: $SIGNED"
+          ls -la "$DIST"
+
+      - name: Verify signed ZIP embeds settings UI
+        run: |
+          python3 - <<'PY2'
+          from io import BytesIO
+          from pathlib import Path
+          from zipfile import ZipFile
+          archives = list(Path("apps/jetbrains/plugin/build/distributions").glob("*-signed.zip"))
+          assert archives, "signed plugin ZIP was not produced"
+          with ZipFile(max(archives, key=lambda p: p.stat().st_mtime)) as outer:
+              for name in outer.namelist():
+                  if not name.endswith(".jar"):
+                      continue
+                  with ZipFile(BytesIO(outer.read(name))) as jar:
+                      entries = set(jar.namelist())
+                      if "settings-ui/index.html" in entries and any(e.startswith("settings-ui/assets/") for e in entries):
+                          print(f"embedded settings UI verified in {name}")
+                          break
+              else:
+                  raise AssertionError("signed ZIP is missing packaged settings-ui assets")
+          PY2
+
+      - name: Upload signed ZIP distribution
+        uses: actions/upload-artifact@v4
+        with:
+          name: auto-complete-zip
+          path: apps/jetbrains/plugin/build/distributions/*-signed.zip
+          if-no-files-found: error
+
+  package-vscode:
+    name: Package VS Code VSIX
+    needs: [validate-release-tag, js]
+    if: needs.validate-release-tag.outputs.is_main_release_tag == 'true'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Node 22
+        uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+
+      - name: Install
+        run: npm install
+
+      - name: Build JS packages
+        run: npm run build:js
+
       - name: Package VS Code extension
         run: npm run package:vscode
 
       - name: Upload VSIX distribution
-        if: success()
         uses: actions/upload-artifact@v4
         with:
           name: auto-complete-vsix
@@ -140,9 +219,9 @@ jobs:
 
   release:
     name: Publish GitHub Release
-    needs: [jvm, js]
+    needs: [validate-release-tag, package-jetbrains, package-vscode]
     runs-on: ubuntu-latest
-    if: github.event_name == 'push' && startsWith(github.ref, 'refs/tags/v')
+    if: needs.validate-release-tag.outputs.is_main_release_tag == 'true'
     permissions:
       contents: write
     concurrency:
@@ -192,12 +271,12 @@ jobs:
             --title "Auto Complete $VERSION" \
             --generate-notes
 
-  # Optional Marketplace API publish on tags when PUBLISH_TOKEN is set.
+  # Optional Marketplace API publish on validated main release tags when PUBLISH_TOKEN is set.
   marketplace:
     name: Publish JetBrains Marketplace
-    needs: [jvm]
+    needs: [validate-release-tag, package-jetbrains]
     runs-on: ubuntu-latest
-    if: github.event_name == 'push' && startsWith(github.ref, 'refs/tags/v')
+    if: needs.validate-release-tag.outputs.is_main_release_tag == 'true'
     # Uncomment for manual approval:
     # environment: marketplace
     permissions:
