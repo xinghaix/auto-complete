@@ -73,12 +73,12 @@ Official: [Plugin Signing](https://plugins.jetbrains.com/docs/intellij/plugin-si
 
 | Scenario | Behaviour |
 |---|---|
-| PR without signing secrets | Tests; no JB ZIP upload |
-| main / tag with secrets | `buildPlugin` + `signPlugin`; **signed ZIP only** |
-| Push `v*` | GitHub Release: signed ZIP + VSIX |
-| `v*` + `PUBLISH_TOKEN` | Optional Marketplace API publish |
+| PR / main push | Tests and build checks; no distribution artifacts |
+| Annotated `v*` tag targeting `main` history | `buildPlugin` + `signPlugin`; upload **signed ZIP only**, package VSIX, and create a GitHub Release |
+| Valid `v*` tag + `PUBLISH_TOKEN` | Optional Marketplace API publish |
+| Side-branch, lightweight, or not-yet-merged `v*` tag | CI fails; no package, GitHub Release, or Marketplace publish |
 
-Checklist: bump versions → `CHANGELOG.md` → full tests → smoke (Marketplace or signed ZIP) → annotated tag `vX.Y.Z`. Keys/tokens only in Secrets.
+Checklist: bump versions → `CHANGELOG.md` → full tests → merge and verify the release commit on `main` → smoke (Marketplace or signed ZIP) → create annotated tag `vX.Y.Z` from that commit. CI verifies that the tag target is in `main` history. Keys/tokens only in Secrets.
 
 ## Architecture (short)
 

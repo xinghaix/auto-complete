@@ -73,12 +73,12 @@ npm run build:settings-ui
 
 | 场景 | 行为 |
 |---|---|
-| PR 无签名 Secrets | 测试；不上传 JB ZIP |
-| main / tag 有 Secrets | `buildPlugin` + `signPlugin`，仅 `*-signed.zip` |
-| 推送 `v*` | GitHub Release：signed ZIP + VSIX |
-| `v*` + `PUBLISH_TOKEN` | 可选 Marketplace API 发布 |
+| PR / main push | 测试与构建检查；不生成分发产物 |
+| 指向 `main` 历史的注释 `v*` tag | `buildPlugin` + `signPlugin`，仅上传 `*-signed.zip`；打包 VSIX 并创建 GitHub Release |
+| 合格 `v*` tag + `PUBLISH_TOKEN` | 可选 Marketplace API 发布 |
+| 侧分支、轻量或未合入 main 的 `v*` tag | CI 失败；不打包、不创建 Release、不发布 Marketplace |
 
-清单：对齐版本号 → 更新 `CHANGELOG.md` → 完整测试 → smoke（Marketplace 或 signed ZIP）→ 注释 tag `vX.Y.Z`。私钥 / Token 只放 Secrets。
+清单：对齐版本号 → 更新 `CHANGELOG.md` → 完整测试 → 将 release commit 合入并验证 `main` → smoke（Marketplace 或 signed ZIP）→ 从该提交创建注释 tag `vX.Y.Z`。CI 会验证 tag 的目标提交位于 `main` 历史中。私钥 / Token 只放 Secrets。
 
 ## 架构与目录（极简）
 
