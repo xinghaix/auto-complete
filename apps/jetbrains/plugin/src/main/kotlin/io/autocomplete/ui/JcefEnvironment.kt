@@ -1,6 +1,6 @@
 package io.autocomplete.ui
 
-import com.intellij.ide.plugins.PluginManagerCore
+import com.intellij.ide.plugins.PluginManager
 import com.intellij.openapi.application.ApplicationInfo
 import com.intellij.openapi.extensions.PluginId
 import com.intellij.openapi.util.SystemInfo
@@ -41,7 +41,7 @@ internal object JcefEnvironment {
 
     fun isJcefModulePluginPresent(): Boolean =
         runCatching {
-            PluginManagerCore.getPlugin(PluginId.getId(JCEF_PLUGIN_ID)) != null
+            PluginManager.isPluginInstalled(PluginId.getId(JCEF_PLUGIN_ID))
         }.getOrDefault(false)
 
     /**

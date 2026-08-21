@@ -2,6 +2,12 @@
 
 ## [Unreleased]
 
+## [0.2.4] - 2026-08-21
+
+### Fixed
+
+- `[jetbrains]` Replace the internal plugin descriptor lookup with the public plugin installation check API for IntelliJ IDEA 2026.2 compatibility.
+
 ## [0.2.3] - 2026-07-27
 
 ### Fixed
