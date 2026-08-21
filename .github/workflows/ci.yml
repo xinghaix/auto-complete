@@ -32,7 +32,10 @@ jobs:
             exit 0
           fi
 
-          TAG_TYPE="$(git cat-file -t "$GITHUB_REF" 2>/dev/null || true)"
+          TAG_REF="refs/tags/${GITHUB_REF_NAME}"
+          # Checkout may leave an annotated tag ref peeled to its commit; fetch the tag object explicitly.
+          git fetch --force origin "${TAG_REF}:${TAG_REF}"
+          TAG_TYPE="$(git cat-file -t "$TAG_REF" 2>/dev/null || true)"
           if [ "$TAG_TYPE" != "tag" ]; then
             echo "is_main_release_tag=false" >> "$GITHUB_OUTPUT"
             echo "::error::${GITHUB_REF_NAME} must be an annotated tag."
@@ -40,7 +43,7 @@ jobs:
           fi
 
           git fetch --no-tags origin +refs/heads/main:refs/remotes/origin/main
-          TARGET="$(git rev-list -n 1 "$GITHUB_REF")"
+          TARGET="$(git rev-list -n 1 "${TAG_REF}^{commit}")"
           if ! git merge-base --is-ancestor "$TARGET" origin/main; then
             echo "is_main_release_tag=false" >> "$GITHUB_OUTPUT"
             echo "::error::${GITHUB_REF_NAME} targets ${TARGET}, which is not in origin/main history."
