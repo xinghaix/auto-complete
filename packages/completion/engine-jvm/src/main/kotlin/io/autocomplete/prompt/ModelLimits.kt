@@ -54,8 +54,11 @@ object ModelLimits {
             m.contains("starcoder2") -> 16_384
             m.contains("starcoder") || m.contains("santacoder") -> 8_192
             m.contains("codellama") || m.contains("code-llama") -> 16_384
+            m.contains("codegeex") -> 32_768
             m.contains("codegemma") -> 8_192
-            m.contains("gpt-4o") || m.contains("gpt-4.1") || m.contains("o1") || m.contains("o3") || m.contains("o4") ->
+            m.contains("gpt-4o") ||
+                m.contains("gpt-4.1") ||
+                PromptTemplateDetector.OPENAI_REASONING_REGEX.containsMatchIn(m) ->
                 128_000
             m.contains("gpt-4-turbo") || m.contains("gpt-4-1106") || m.contains("gpt-4-0125") -> 128_000
             m.contains("gpt-4") -> 8_192
@@ -76,6 +79,7 @@ object ModelLimits {
         val directKeys =
             listOf(
                 "context_length",
+                "contextLength",
                 "context_window",
                 "max_model_len",
                 "max_tokens",
@@ -87,13 +91,15 @@ object ModelLimits {
         }
         val meta = item["meta"] as? Map<*, *>
         if (meta != null) {
-            for (key in listOf("n_ctx_train", "context_length", "max_position_embeddings")) {
+            for (key in listOf("n_ctx_train", "context_length", "contextLength", "max_position_embeddings")) {
                 intFrom(meta[key])?.takeIf { it >= 512 }?.let { return it }
             }
         }
         val top = item["data"] as? Map<*, *>
         if (top != null) {
-            intFrom(top["context_length"])?.takeIf { it >= 512 }?.let { return it }
+            for (key in listOf("context_length", "contextLength")) {
+                intFrom(top[key])?.takeIf { it >= 512 }?.let { return it }
+            }
         }
         return null
     }

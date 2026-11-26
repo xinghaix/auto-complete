@@ -1,5 +1,6 @@
 package io.autocomplete.client
 
+import io.autocomplete.config.SettingsValidation
 import io.autocomplete.engine.Usage
 import io.autocomplete.log.LogLevel
 import io.autocomplete.prompt.ModelLimits
@@ -10,12 +11,18 @@ import io.autocomplete.prompt.TemplateProbeResult
 import io.autocomplete.prompt.TemplateProbeStatus
 import io.autocomplete.prompt.WireFormat
 import io.autocomplete.util.Json
+import io.autocomplete.util.SecretRedactor
+import java.io.BufferedReader
+import java.io.InputStreamReader
 import java.net.URI
 import java.net.http.HttpClient
 import java.net.http.HttpRequest
 import java.net.http.HttpResponse
 import java.net.http.HttpTimeoutException
+import java.nio.charset.StandardCharsets
 import java.time.Duration
+import java.util.concurrent.Executors
+import java.util.concurrent.ScheduledExecutorService
 import java.util.concurrent.TimeUnit
 import java.util.concurrent.TimeoutException
 import java.util.concurrent.atomic.AtomicBoolean
@@ -30,6 +37,7 @@ data class ProviderRequest(
     val stream: Boolean = false,
     val language: String? = null,
     val path: String? = null,
+    val stopAtNewline: Boolean = false,
 )
 
 data class ProviderResponse(
@@ -60,6 +68,7 @@ data class HttpLogEvent(
 
 enum class ProviderKind {
     OPENAI_COMPATIBLE,
+
     /**
      * Legacy alias of OpenAI-compatible + FIM template. Hidden in settings UI;
      * [normalize] maps it to [OPENAI_COMPATIBLE] on load/save.
@@ -95,7 +104,7 @@ data class ProviderConfig(
     val chatPath: String = "/chat/completions",
     val completionsPath: String = "",
     val requestStyle: RequestStyle = RequestStyle.AUTO,
-    /** Stored template id; [PromptTemplate.AUTO] resolves from model name. */
+    /** Stored template id; [PromptTemplate.AUTO] resolves from model name / baseUrl. */
     val promptTemplate: PromptTemplate = PromptTemplate.AUTO,
     val temperature: Double = 0.0,
     val maxTokens: Int = 128,
@@ -108,6 +117,8 @@ data class ProviderConfig(
     val settingsTimeoutMs: Int = DEFAULT_SETTINGS_TIMEOUT_MS,
     val stream: Boolean = false,
     val allowRemote: Boolean = true,
+    val extraBodyJson: String = "",
+    val stopSequences: String = "",
 ) {
     companion object {
         const val DEFAULT_TIMEOUT_MS: Int = 3_000
@@ -156,7 +167,7 @@ fun interface CompletionClient {
 
 class HttpCompletionClient(
     private val config: ProviderConfig,
-    private val http: HttpClient = createDefaultHttpClient(),
+    private val http: HttpClient = sharedDefaultHttpClient(),
     private val operation: String = "completion",
     private val onLog: (HttpLogEvent) -> Unit = {},
 ) : CompletionClient {
@@ -178,6 +189,7 @@ class HttpCompletionClient(
         val useStream = request.stream && config.stream
         val path = pathFor(template, config)
         val url = joinUrl(config.baseUrl, path)
+        val safeUrl = SecretRedactor.redactUrl(url)
         val body = bodyFor(template, request, config, useStream)
         val settingsOp = isSettingsOperation(operation)
         emitLog(
@@ -186,7 +198,7 @@ class HttpCompletionClient(
                 level = if (settingsOp) LogLevel.INFO else LogLevel.DEBUG,
                 operation = operation,
                 method = "POST",
-                url = url,
+                url = safeUrl,
                 model = request.model.ifBlank { config.model },
                 requestStyle = "${template.name}/${wire.name}",
                 message =
@@ -200,14 +212,15 @@ class HttpCompletionClient(
                 .header("Content-Type", "application/json")
                 .header("Accept", if (useStream) "text/event-stream" else "application/json")
                 .POST(HttpRequest.BodyPublishers.ofString(body))
-        applyAuth(builder, config)
+        // Extra headers run BEFORE auth and strictly filter out reserved & sensitive headers.
         applyExtraHeaders(builder, config.extraHeadersJson)
+        applyAuth(builder, config)
         token.throwIfCancelled()
         val httpRequest = builder.build()
         return if (useStream) {
-            completeStreaming(httpRequest, wire, template, token, hardTimeout)
+            completeStreaming(httpRequest, safeUrl, wire, template, token, hardTimeout, request.stopAtNewline)
         } else {
-            completeBlocking(httpRequest, wire, template, token, hardTimeout)
+            completeBlocking(httpRequest, safeUrl, wire, template, token, hardTimeout)
         }
     }
 
@@ -230,6 +243,7 @@ class HttpCompletionClient(
                 onLog = onLog,
             )
         val path = pathFor(concrete, probeConfig)
+        val safeUrl = SecretRedactor.redactUrl(joinUrl(probeConfig.baseUrl, path))
         val started = System.currentTimeMillis()
         return try {
             val resp = client.complete(probeRequest(), CancellationToken(), timeoutMs = settingsTimeoutMs())
@@ -243,6 +257,7 @@ class HttpCompletionClient(
                     latencyMs = latency,
                     preview = preview,
                     resolvedPath = path,
+                    resolvedUrl = safeUrl,
                     error = "empty completion",
                 )
             } else {
@@ -253,17 +268,20 @@ class HttpCompletionClient(
                     latencyMs = latency,
                     preview = preview,
                     resolvedPath = path,
+                    resolvedUrl = safeUrl,
                 )
             }
         } catch (e: Exception) {
             val status = (e as? HttpStatusException)?.status
+            val rawErr = e.message.orEmpty().ifBlank { e.javaClass.simpleName }
             TemplateProbeResult(
                 template = concrete,
                 status = TemplateProbeStatus.FAILED,
                 httpStatus = status,
                 latencyMs = System.currentTimeMillis() - started,
-                error = e.message.orEmpty().ifBlank { e.javaClass.simpleName },
+                error = SecretRedactor.redactText(rawErr, config.apiKey),
                 resolvedPath = path,
+                resolvedUrl = safeUrl,
             )
         }
     }
@@ -289,13 +307,14 @@ class HttpCompletionClient(
         var lastFailure: RuntimeException? = null
         for (path in paths) {
             val url = joinUrl(config.baseUrl, path)
+            val safeUrl = SecretRedactor.redactUrl(url)
             val started = System.currentTimeMillis()
             emitLog(
                 HttpLogEvent(
                     level = LogLevel.INFO,
                     operation = "list_models",
                     method = "GET",
-                    url = url,
+                    url = safeUrl,
                     message = "request start timeoutMs=$hardTimeout",
                 ),
             )
@@ -304,8 +323,8 @@ class HttpCompletionClient(
                     .timeout(Duration.ofMillis(hardTimeout.toLong()))
                     .header("Accept", "application/json")
                     .GET()
-            applyAuth(builder, config)
             applyExtraHeaders(builder, config.extraHeadersJson)
+            applyAuth(builder, config)
             val future = http.sendAsync(builder.build(), HttpResponse.BodyHandlers.ofString())
             val response =
                 try {
@@ -315,19 +334,19 @@ class HttpCompletionClient(
                 } catch (e: Exception) {
                     future.cancel(true)
                     val cause = rootCause(e)
-                    val detail = formatTransportError(cause, e, hardTimeout)
+                    val detail = SecretRedactor.redactText(formatTransportError(cause, e, hardTimeout), config.apiKey)
                     emitLog(
                         HttpLogEvent(
                             level = LogLevel.WARN,
                             operation = "list_models",
                             method = "GET",
-                            url = url,
+                            url = safeUrl,
                             latencyMs = System.currentTimeMillis() - started,
                             error = detail,
                             message = "request failed",
                         ),
                     )
-                    throw RuntimeException("GET $url failed: $detail", cause)
+                    throw RuntimeException("GET $safeUrl failed: $detail", cause)
                 }
             if (response.statusCode() in 200..299) {
                 val models = parseModels(response.body())
@@ -336,7 +355,7 @@ class HttpCompletionClient(
                         level = LogLevel.INFO,
                         operation = "list_models",
                         method = "GET",
-                        url = url,
+                        url = safeUrl,
                         status = response.statusCode(),
                         latencyMs = System.currentTimeMillis() - started,
                         responseChars = response.body().length,
@@ -345,21 +364,22 @@ class HttpCompletionClient(
                 )
                 return models
             }
+            val safeBody = SecretRedactor.redactText(response.body().take(300), config.apiKey)
             val failure =
                 HttpStatusException(
                     response.statusCode(),
-                    "GET $url -> HTTP ${response.statusCode()}: ${response.body().take(300)}",
+                    "GET $safeUrl -> HTTP ${response.statusCode()}: $safeBody",
                 )
             emitLog(
                 HttpLogEvent(
                     level = if (response.statusCode() in setOf(401, 403)) LogLevel.ERROR else LogLevel.WARN,
                     operation = "list_models",
                     method = "GET",
-                    url = url,
+                    url = safeUrl,
                     status = response.statusCode(),
                     latencyMs = System.currentTimeMillis() - started,
                     responseChars = response.body().length,
-                    error = response.body().take(300),
+                    error = safeBody,
                     message = if (path == paths.last()) "request failed" else "endpoint unavailable; trying fallback",
                 ),
             )
@@ -371,6 +391,7 @@ class HttpCompletionClient(
 
     private fun completeBlocking(
         request: HttpRequest,
+        safeUrl: String,
         wire: WireFormat,
         template: PromptTemplate,
         token: CancellationToken,
@@ -387,36 +408,39 @@ class HttpCompletionClient(
                     throw CancelledException()
                 }
                 val cause = rootCause(e)
-                val detail = formatTransportError(cause, e, timeoutMs)
-                emitFailure(request, template, started, null, detail)
-                throw RuntimeException("${request.method()} ${request.uri()} failed: $detail", e)
+                val detail = SecretRedactor.redactText(formatTransportError(cause, e, timeoutMs), config.apiKey)
+                emitFailure(request.method(), safeUrl, template, started, null, detail)
+                throw RuntimeException("${request.method()} $safeUrl failed: $detail", e)
             }
         token.throwIfCancelled()
         val status = response.statusCode()
         if (status !in 200..299) {
-            emitFailure(request, template, started, status, response.body().take(300), response.body().length)
+            val safeBody = SecretRedactor.redactText(response.body().take(300), config.apiKey)
+            emitFailure(request.method(), safeUrl, template, started, status, safeBody, response.body().length)
             throw HttpStatusException(
                 status,
-                "${request.method()} ${request.uri()} -> HTTP $status: ${response.body().take(300)}",
+                "${request.method()} $safeUrl -> HTTP $status: $safeBody",
             )
         }
         val text = parseText(wire, response.body())
         val usage = parseUsage(response.body())
-        emitSuccess(request, template, started, status, response.body().length, text.length)
+        emitSuccess(request.method(), safeUrl, template, started, status, response.body().length, text.length)
         return ProviderResponse(text = text, usage = usage, rawStatus = status)
     }
 
     private fun completeStreaming(
         request: HttpRequest,
+        safeUrl: String,
         wire: WireFormat,
         template: PromptTemplate,
         token: CancellationToken,
         timeoutMs: Int,
+        stopAtNewline: Boolean,
     ): ProviderResponse {
         val started = System.currentTimeMillis()
         val response =
             try {
-                val future = http.sendAsync(request, HttpResponse.BodyHandlers.ofLines())
+                val future = http.sendAsync(request, HttpResponse.BodyHandlers.ofInputStream())
                 token.onCancel { future.cancel(true) }
                 future.orTimeout(timeoutMs.toLong(), TimeUnit.MILLISECONDS).join()
             } catch (e: Exception) {
@@ -424,66 +448,109 @@ class HttpCompletionClient(
                     throw CancelledException()
                 }
                 val cause = rootCause(e)
-                val detail = formatTransportError(cause, e, timeoutMs)
-                emitFailure(request, template, started, null, detail)
-                throw RuntimeException("${request.method()} ${request.uri()} failed: $detail", e)
+                val detail = SecretRedactor.redactText(formatTransportError(cause, e, timeoutMs), config.apiKey)
+                emitFailure(request.method(), safeUrl, template, started, null, detail)
+                throw RuntimeException("${request.method()} $safeUrl failed: $detail", e)
             }
-        token.throwIfCancelled()
+
+        val stream = response.body()
         val status = response.statusCode()
-        if (status !in 200..299) {
-            emitFailure(request, template, started, status, "stream failed")
-            throw HttpStatusException(status, "${request.method()} ${request.uri()} -> HTTP $status: stream failed")
+        if (token.isCancelled()) {
+            runCatching { stream.close() }
+            throw CancelledException()
         }
+        if (status !in 200..299) {
+            val errorText =
+                runCatching {
+                    stream.use { input ->
+                        val buf = ByteArray(1024)
+                        val read = input.read(buf)
+                        if (read > 0) String(buf, 0, read, StandardCharsets.UTF_8) else "stream failed"
+                    }
+                }.getOrDefault("stream failed")
+            val safeError = SecretRedactor.redactText(errorText.take(300), config.apiKey)
+            emitFailure(request.method(), safeUrl, template, started, status, safeError)
+            throw HttpStatusException(status, "${request.method()} $safeUrl -> HTTP $status: $safeError")
+        }
+
+        val timedOut = AtomicBoolean(false)
+        token.onCancel { runCatching { stream.close() } }
+        val remainingMs = (timeoutMs.toLong() - (System.currentTimeMillis() - started)).coerceAtLeast(1L)
+        val watchdog =
+            streamWatchdog.schedule(
+                {
+                    timedOut.set(true)
+                    runCatching { stream.close() }
+                },
+                remainingMs,
+                TimeUnit.MILLISECONDS,
+            )
+
         val sb = StringBuilder()
+        var usage: Usage? = null
         try {
-            response.body().forEach { line ->
-                token.throwIfCancelled()
-                val trimmed = line.trim()
-                if (trimmed.isEmpty() || !trimmed.startsWith("data:")) return@forEach
-                val data = trimmed.removePrefix("data:").trim()
-                if (data == "[DONE]") return@forEach
-                sb.append(parseStreamDelta(wire, data))
+            stream.use { input ->
+                BufferedReader(InputStreamReader(input, StandardCharsets.UTF_8)).use { reader ->
+                    while (true) {
+                        token.throwIfCancelled()
+                        if (timedOut.get()) throw TimeoutException("timed out after ${timeoutMs}ms")
+                        val line = reader.readLine() ?: break
+                        token.throwIfCancelled()
+                        if (timedOut.get()) throw TimeoutException("timed out after ${timeoutMs}ms")
+                        val trimmed = line.trim()
+                        if (trimmed.isEmpty() || !trimmed.startsWith("data:")) continue
+                        val data = trimmed.removePrefix("data:").trim()
+                        if (data == "[DONE]") break
+                        val chunk = runCatching { Json.parseObject(data) }.getOrNull() ?: continue
+                        parseUsageFromMap(chunk)?.let { usage = it }
+                        val delta = parseStreamDeltaFromMap(wire, chunk)
+                        if (delta.isNotEmpty()) {
+                            sb.append(delta)
+                            if (stopAtNewline) {
+                                val firstNonWs = sb.indexOfFirst { !it.isWhitespace() }
+                                if (firstNonWs >= 0) {
+                                    val nlAfter = sb.indexOf('\n', startIndex = firstNonWs)
+                                    if (nlAfter >= 0) {
+                                        val end = if (nlAfter > 0 && sb[nlAfter - 1] == '\r') nlAfter - 1 else nlAfter
+                                        sb.setLength(end)
+                                        break
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
             }
         } catch (e: Exception) {
             if (token.isCancelled() || e is CancelledException) throw CancelledException()
-            throw e
-        }
-        val text = sb.toString()
-        emitSuccess(request, template, started, status, null, text.length)
-        return ProviderResponse(text = text, rawStatus = status)
-    }
-
-    private fun resolveTemplate(cfg: ProviderConfig): PromptTemplate {
-        val stored =
-            if (cfg.promptTemplate != PromptTemplate.AUTO) {
-                cfg.promptTemplate
-            } else {
-                // Backward compat: honor explicit legacy requestStyle when template is AUTO.
-                when (cfg.requestStyle) {
-                    RequestStyle.FIM -> PromptTemplate.CODESTRAL_API
-                    RequestStyle.CHAT -> PromptTemplate.CHAT
-                    RequestStyle.AUTO -> PromptTemplate.AUTO
+            val detail =
+                if (timedOut.get()) {
+                    "timed out after ${timeoutMs}ms"
+                } else {
+                    SecretRedactor.redactText(formatTransportError(rootCause(e), e, timeoutMs), config.apiKey)
                 }
-            }
-        return PromptTemplateDetector.resolve(stored, cfg.model, cfg.kind)
+            emitFailure(request.method(), safeUrl, template, started, null, detail)
+            throw RuntimeException("${request.method()} $safeUrl failed: $detail", e)
+        } finally {
+            watchdog.cancel(false)
+        }
+
+        if (token.isCancelled()) throw CancelledException()
+        if (timedOut.get()) {
+            val detail = "timed out after ${timeoutMs}ms"
+            emitFailure(request.method(), safeUrl, template, started, null, detail)
+            throw RuntimeException("${request.method()} $safeUrl failed: $detail")
+        }
+
+        val text = sb.toString()
+        emitSuccess(request.method(), safeUrl, template, started, status, null, text.length)
+        return ProviderResponse(text = text, usage = usage, rawStatus = status)
     }
 
     private fun pathFor(
         template: PromptTemplate,
         cfg: ProviderConfig,
-    ): String =
-        when (template.wireFormat()) {
-            // OpenAI-compatible FIM: always resolves to {host}/v1/fim/completions
-            // (baseUrl may already end with /v1, or be the bare host root).
-            WireFormat.FIM_FIELDS ->
-                cfg.fimPath.ifBlank { defaultOpenAiRelativePath(cfg.baseUrl, "/fim/completions") }
-            WireFormat.COMPLETION_PROMPT ->
-                cfg.completionsPath.ifBlank {
-                    cfg.fimPath.ifBlank { defaultOpenAiRelativePath(cfg.baseUrl, "/completions") }
-                }
-            WireFormat.CHAT_MESSAGES ->
-                cfg.chatPath.ifBlank { defaultOpenAiRelativePath(cfg.baseUrl, "/chat/completions") }
-        }
+    ): String = resolvePath(template, cfg)
 
     private fun bodyFor(
         template: PromptTemplate,
@@ -493,37 +560,28 @@ class HttpCompletionClient(
     ): String {
         val model = request.model.ifBlank { cfg.model }
         val maxTokens = request.maxTokens.coerceAtLeast(1)
-        return when (template.wireFormat()) {
-            WireFormat.FIM_FIELDS ->
-                Json.obj(
-                    "model" to model,
-                    "prompt" to request.prefix,
-                    "suffix" to request.suffix,
-                    "max_tokens" to maxTokens,
-                    "temperature" to request.temperature,
-                    "stream" to stream,
-                )
+        val customStops = parseStopSequences(cfg.stopSequences)
+        val combinedStops = (template.stopTokens() + customStops).distinct()
+        val payload = LinkedHashMap<String, Any?>()
+
+        when (template.wireFormat()) {
+            WireFormat.FIM_FIELDS -> {
+                payload["model"] = model
+                payload["prompt"] = request.prefix
+                payload["suffix"] = request.suffix
+                payload["max_tokens"] = maxTokens
+                payload["temperature"] = request.temperature
+                payload["stream"] = stream
+                if (combinedStops.isNotEmpty()) payload["stop"] = combinedStops
+            }
             WireFormat.COMPLETION_PROMPT -> {
                 val prompt = template.formatTokenPrompt(request.prefix, request.suffix)
-                val stops = template.stopTokens()
-                if (stops.isEmpty()) {
-                    Json.obj(
-                        "model" to model,
-                        "prompt" to prompt,
-                        "max_tokens" to maxTokens,
-                        "temperature" to request.temperature,
-                        "stream" to stream,
-                    )
-                } else {
-                    Json.obj(
-                        "model" to model,
-                        "prompt" to prompt,
-                        "max_tokens" to maxTokens,
-                        "temperature" to request.temperature,
-                        "stream" to stream,
-                        "stop" to stops,
-                    )
-                }
+                payload["model"] = model
+                payload["prompt"] = prompt
+                payload["max_tokens"] = maxTokens
+                payload["temperature"] = request.temperature
+                payload["stream"] = stream
+                if (combinedStops.isNotEmpty()) payload["stop"] = combinedStops
             }
             WireFormat.CHAT_MESSAGES -> {
                 val messages =
@@ -538,18 +596,43 @@ class HttpCompletionClient(
                             "content" to PromptBuilder.chatUserContent(request.prefix, request.suffix),
                         ),
                     )
-                Json.obj(
-                    "model" to model,
-                    "messages" to messages,
-                    "max_tokens" to maxTokens,
-                    "temperature" to request.temperature,
-                    "stream" to stream,
-                )
+                payload["model"] = model
+                payload["messages"] = messages
+                payload["max_tokens"] = maxTokens
+                payload["temperature"] = request.temperature
+                payload["stream"] = stream
+                if (combinedStops.isNotEmpty()) payload["stop"] = combinedStops
             }
+        }
+
+        mergeExtraBody(payload, cfg.extraBodyJson)
+        return Json.obj(*payload.entries.map { it.key to it.value }.toTypedArray())
+    }
+
+    private fun mergeExtraBody(
+        target: MutableMap<String, Any?>,
+        extraBodyJson: String,
+    ) {
+        if (extraBodyJson.isBlank()) return
+        val extra = runCatching { Json.parseObject(extraBodyJson) }.getOrNull() ?: return
+        for ((key, value) in extra) {
+            if (key in PROTECTED_BODY_KEYS) continue
+            if (key == "stop" && target.containsKey("stop")) {
+                val existing = (target["stop"] as? List<*>)?.mapNotNull { it?.toString() }.orEmpty()
+                val added =
+                    when (value) {
+                        is List<*> -> value.mapNotNull { it?.toString() }.filter { it.isNotEmpty() }
+                        is String -> if (value.isNotEmpty()) listOf(value) else emptyList()
+                        else -> emptyList()
+                    }
+                val merged = (existing + added).distinct()
+                if (merged.isNotEmpty()) target["stop"] = merged
+                continue
+            }
+            target[key] = value
         }
     }
 
-    @Suppress("UNCHECKED_CAST")
     private fun parseText(
         wire: WireFormat,
         body: String,
@@ -560,50 +643,59 @@ class HttpCompletionClient(
         return when (wire) {
             WireFormat.FIM_FIELDS, WireFormat.COMPLETION_PROMPT -> {
                 first?.get("text")?.toString().orEmpty()
-                    .ifBlank {
+                    .ifEmpty {
                         val msg = first?.get("message") as? Map<*, *>
                         msg?.get("content")?.toString().orEmpty()
-                    }.ifBlank { json["text"]?.toString().orEmpty() }
+                    }.ifEmpty { json["text"]?.toString().orEmpty() }
             }
             WireFormat.CHAT_MESSAGES -> {
                 val msg = first?.get("message") as? Map<*, *>
                 msg?.get("content")?.toString().orEmpty()
-                    .ifBlank { first?.get("text")?.toString().orEmpty() }
+                    .ifEmpty { first?.get("text")?.toString().orEmpty() }
             }
         }
     }
 
-    @Suppress("UNCHECKED_CAST")
     private fun parseStreamDelta(
         wire: WireFormat,
         data: String,
     ): String {
         val json = runCatching { Json.parseObject(data) }.getOrNull() ?: return ""
+        return parseStreamDeltaFromMap(wire, json)
+    }
+
+    private fun parseStreamDeltaFromMap(
+        wire: WireFormat,
+        json: Map<String, Any?>,
+    ): String {
         val choices = json["choices"] as? List<*>
         val first = choices?.firstOrNull() as? Map<*, *> ?: return ""
         return when (wire) {
             WireFormat.FIM_FIELDS, WireFormat.COMPLETION_PROMPT ->
                 first["text"]?.toString().orEmpty()
-                    .ifBlank {
+                    .ifEmpty {
                         val delta = first["delta"] as? Map<*, *>
                         delta?.get("content")?.toString().orEmpty()
                     }
             WireFormat.CHAT_MESSAGES -> {
                 val delta = first["delta"] as? Map<*, *>
                 delta?.get("content")?.toString().orEmpty()
-                    .ifBlank { first["text"]?.toString().orEmpty() }
+                    .ifEmpty { first["text"]?.toString().orEmpty() }
             }
         }
     }
 
-    @Suppress("UNCHECKED_CAST")
     private fun parseUsage(body: String): Usage? {
         val json = runCatching { Json.parseObject(body) }.getOrNull() ?: return null
+        return parseUsageFromMap(json)
+    }
+
+    private fun parseUsageFromMap(json: Map<String, Any?>): Usage? {
         val usage = json["usage"] as? Map<*, *> ?: return null
-        return Usage(
-            inputTokens = (usage["prompt_tokens"] as? Number)?.toInt(),
-            outputTokens = (usage["completion_tokens"] as? Number)?.toInt(),
-        )
+        val input = (usage["prompt_tokens"] as? Number)?.toInt()
+        val output = (usage["completion_tokens"] as? Number)?.toInt()
+        if (input == null && output == null) return null
+        return Usage(inputTokens = input, outputTokens = output)
     }
 
     private fun parseModels(body: String): List<RemoteModel> {
@@ -635,14 +727,19 @@ class HttpCompletionClient(
         if (key.isEmpty()) return
         val template = cfg.authHeaderTemplate.ifBlank { "Authorization: Bearer \${apiKey}" }
         val rendered = template.replace("\${apiKey}", key).replace("{{apiKey}}", key)
+        if (SettingsValidation.containsCrlfOrNul(rendered)) return
         val idx = rendered.indexOf(':')
         if (idx <= 0) {
-            builder.header("Authorization", rendered)
+            if (SettingsValidation.isValidHeaderValue(rendered)) {
+                builder.header("Authorization", rendered)
+            }
             return
         }
         val name = rendered.substring(0, idx).trim()
         val value = rendered.substring(idx + 1).trim()
-        if (name.isNotEmpty() && value.isNotEmpty()) builder.header(name, value)
+        if (SettingsValidation.isValidHeaderName(name) && value.isNotEmpty() && SettingsValidation.isValidHeaderValue(value)) {
+            builder.header(name, value)
+        }
     }
 
     private fun applyExtraHeaders(
@@ -652,13 +749,19 @@ class HttpCompletionClient(
         if (json.isBlank()) return
         val obj = runCatching { Json.parseObject(json) }.getOrNull() ?: return
         for ((key, value) in obj) {
-            val text = value?.toString() ?: continue
-            if (key.isNotBlank() && text.isNotBlank()) builder.header(key, text)
+            val trimmedKey = key.trim()
+            val text = value?.toString()?.trim() ?: continue
+            if (trimmedKey.isEmpty() || text.isEmpty()) continue
+            if (!SettingsValidation.isValidHeaderName(trimmedKey)) continue
+            if (!SettingsValidation.isValidHeaderValue(text)) continue
+            if (SettingsValidation.isBlockedExtraHeader(trimmedKey)) continue
+            runCatching { builder.header(trimmedKey, text) }
         }
     }
 
     private fun emitSuccess(
-        request: HttpRequest,
+        method: String,
+        safeUrl: String,
         template: PromptTemplate,
         started: Long,
         status: Int,
@@ -669,8 +772,8 @@ class HttpCompletionClient(
             HttpLogEvent(
                 level = LogLevel.INFO,
                 operation = operation,
-                method = request.method(),
-                url = request.uri().toString(),
+                method = method,
+                url = safeUrl,
                 model = config.model,
                 requestStyle = template.name,
                 status = status,
@@ -682,7 +785,8 @@ class HttpCompletionClient(
     }
 
     private fun emitFailure(
-        request: HttpRequest,
+        method: String,
+        safeUrl: String,
         template: PromptTemplate,
         started: Long,
         status: Int?,
@@ -693,8 +797,8 @@ class HttpCompletionClient(
             HttpLogEvent(
                 level = if (status in setOf(401, 403)) LogLevel.ERROR else LogLevel.WARN,
                 operation = operation,
-                method = request.method(),
-                url = request.uri().toString(),
+                method = method,
+                url = safeUrl,
                 model = config.model,
                 requestStyle = template.name,
                 status = status,
@@ -751,40 +855,136 @@ class HttpCompletionClient(
             )
 
     companion object {
+        private val PROTECTED_BODY_KEYS = setOf("model", "prompt", "suffix", "messages", "stream")
+
+        private val sharedDefaultClient: HttpClient by lazy { createDefaultHttpClient() }
+
+        private val streamWatchdog: ScheduledExecutorService =
+            Executors.newSingleThreadScheduledExecutor { r ->
+                Thread(r, "auto-complete-stream-watchdog").apply { isDaemon = true }
+            }
+
+        fun sharedDefaultHttpClient(): HttpClient = sharedDefaultClient
+
         fun createDefaultHttpClient(connectTimeoutMs: Long = 10_000L): HttpClient =
             HttpClient.newBuilder()
                 .connectTimeout(Duration.ofMillis(connectTimeoutMs.coerceIn(500L, 60_000L)))
                 .followRedirects(HttpClient.Redirect.NORMAL)
                 .build()
 
+        fun resolvePath(
+            template: PromptTemplate,
+            cfg: ProviderConfig,
+        ): String =
+            when (template.wireFormat()) {
+                WireFormat.FIM_FIELDS -> {
+                    val custom = cfg.fimPath.trim()
+                    when {
+                        custom.isNotEmpty() -> custom
+                        PromptTemplateDetector.isDeepSeekBetaUrl(cfg.baseUrl) ->
+                            defaultOpenAiRelativePath(cfg.baseUrl, "/completions")
+                        else -> defaultOpenAiRelativePath(cfg.baseUrl, "/fim/completions")
+                    }
+                }
+                WireFormat.COMPLETION_PROMPT -> {
+                    val customComp = cfg.completionsPath.trim()
+                    val customFim = cfg.fimPath.trim()
+                    when {
+                        customComp.isNotEmpty() -> customComp
+                        customFim.isNotEmpty() -> customFim
+                        else -> defaultOpenAiRelativePath(cfg.baseUrl, "/completions")
+                    }
+                }
+                WireFormat.CHAT_MESSAGES -> {
+                    val custom = cfg.chatPath.trim()
+                    if (custom.isNotEmpty()) custom else defaultOpenAiRelativePath(cfg.baseUrl, "/chat/completions")
+                }
+            }
+
+        fun resolveUrl(
+            template: PromptTemplate,
+            cfg: ProviderConfig,
+        ): String = joinUrl(cfg.baseUrl, resolvePath(template, cfg))
+
+        fun resolveTemplate(cfg: ProviderConfig): PromptTemplate {
+            val stored =
+                if (cfg.promptTemplate != PromptTemplate.AUTO) {
+                    cfg.promptTemplate
+                } else {
+                    // Backward compat: honor explicit legacy requestStyle when template is AUTO.
+                    when (cfg.requestStyle) {
+                        RequestStyle.FIM -> PromptTemplate.CODESTRAL_API
+                        RequestStyle.CHAT -> PromptTemplate.CHAT
+                        RequestStyle.AUTO -> PromptTemplate.AUTO
+                    }
+                }
+            return PromptTemplateDetector.resolve(stored, cfg.model, cfg.kind, cfg.baseUrl)
+        }
+
+        fun parseStopSequences(raw: String): List<String> {
+            val trimmed = raw.trim()
+            if (trimmed.isEmpty()) return emptyList()
+            if (trimmed.startsWith("[") && trimmed.endsWith("]")) {
+                val arr = runCatching { Json.parseArray(trimmed) }.getOrNull()
+                if (arr != null) {
+                    return arr.mapNotNull { (it as? String)?.takeIf { s -> s.isNotEmpty() } }.distinct()
+                }
+            }
+            val parts =
+                if (trimmed.contains('\n') || trimmed.contains('\r')) {
+                    trimmed.split(Regex("""\r?\n"""))
+                } else {
+                    trimmed.split(',')
+                }
+            return parts
+                .map { it.trim() }
+                .filter { it.isNotEmpty() }
+                .distinct()
+        }
+
         fun joinUrl(
             base: String,
             path: String,
         ): String {
-            val b = base.trim().trimEnd('/')
-            val p = if (path.startsWith("/")) path else "/$path"
-            return b + p
+            val b = base.trim()
+            val rawPath = path.trim()
+            val p = if (rawPath.startsWith("/")) rawPath else "/$rawPath"
+            val uri = runCatching { URI.create(b) }.getOrNull()
+            if (uri == null || uri.scheme.isNullOrBlank() || uri.rawAuthority.isNullOrBlank()) {
+                return b.trimEnd('/') + p
+            }
+            val pQueryIdx = p.indexOf('?')
+            val pPath = if (pQueryIdx >= 0) p.substring(0, pQueryIdx) else p
+            val pQuery = if (pQueryIdx >= 0) p.substring(pQueryIdx + 1) else null
+            val basePath = (uri.rawPath ?: "").trimEnd('/')
+            val combinedPath = basePath + pPath
+            val baseQuery = uri.rawQuery
+            val combinedQuery =
+                listOfNotNull(
+                    baseQuery?.takeIf { it.isNotEmpty() },
+                    pQuery?.takeIf { it.isNotEmpty() },
+                ).joinToString("&")
+            val fragment = uri.rawFragment?.let { "#$it" }.orEmpty()
+            val queryPart = if (combinedQuery.isNotEmpty()) "?$combinedQuery" else ""
+            return "${uri.scheme}://${uri.rawAuthority}$combinedPath$queryPart$fragment"
         }
 
         /**
-         * OpenAI-compatible layout: final URL is always `{scheme}://{host}/v1{suffix}`.
-         *
-         * - base `https://api.example.com/v1` + suffix `/fim/completions`
-         *   → path `/fim/completions`
-         * - base `https://api.example.com` + suffix `/fim/completions`
-         *   → path `/v1/fim/completions`
+         * OpenAI-compatible relative path resolution:
+         * - Only prepend `/v1` when `baseUrl` has an empty path (`""` or `"/"`).
+         * - Keep any non-empty path prefix (`/v1`, `/beta`, `/v2`, `/openai/v1beta`, etc.) intact.
          */
         fun defaultOpenAiRelativePath(
             baseUrl: String,
             v1Suffix: String,
         ): String {
             val suffix = if (v1Suffix.startsWith("/")) v1Suffix else "/$v1Suffix"
-            val basePath = runCatching { URI.create(baseUrl.trim()).path.trimEnd('/') }.getOrDefault("")
-            return if (basePath.endsWith("/v1")) suffix else "/v1$suffix"
+            val basePath = runCatching { URI.create(baseUrl.trim()).path.orEmpty().trimEnd('/') }.getOrDefault("")
+            return if (basePath.isEmpty()) "/v1$suffix" else suffix
         }
 
         private fun modelPaths(baseUrl: String): List<String> {
-            val path = runCatching { URI.create(baseUrl.trim()).path.trimEnd('/') }.getOrDefault("")
+            val path = runCatching { URI.create(baseUrl.trim()).path.orEmpty().trimEnd('/') }.getOrDefault("")
             return if (path.endsWith("/v1")) listOf("/models") else listOf("/models", "/v1/models")
         }
 
@@ -792,16 +992,23 @@ class HttpCompletionClient(
             baseUrl: String,
             allowRemote: Boolean,
         ) {
+            val trimmed = baseUrl.trim()
+            val safe = SecretRedactor.redactUrl(trimmed)
             val uri =
-                runCatching { URI.create(baseUrl.trim()) }
-                    .getOrElse { throw IllegalArgumentException("Invalid baseUrl: ${baseUrl.trim()}") }
-            if (uri.scheme.isNullOrBlank() || uri.host.isNullOrBlank()) {
-                throw IllegalArgumentException("Invalid baseUrl: ${baseUrl.trim()}")
+                runCatching { URI.create(trimmed) }
+                    .getOrElse { throw IllegalArgumentException("Invalid baseUrl: $safe") }
+            val scheme = uri.scheme?.lowercase()
+            if (scheme.isNullOrBlank() || uri.host.isNullOrBlank()) {
+                throw IllegalArgumentException("Invalid baseUrl: $safe")
             }
-            if (!allowRemote) {
-                val host = uri.host.lowercase()
-                val local = host == "localhost" || host == "127.0.0.1" || host == "::1" || host == "0.0.0.0"
-                if (!local) throw IllegalArgumentException("Remote baseUrl blocked by allowRemote=false: ${baseUrl.trim()}")
+            if (scheme != "http" && scheme != "https") {
+                throw IllegalArgumentException("Invalid baseUrl scheme (must be http or https): $safe")
+            }
+            if (!uri.userInfo.isNullOrBlank()) {
+                throw IllegalArgumentException("baseUrl must not contain user-info credentials: $safe")
+            }
+            if (!allowRemote && !SettingsValidation.isLocalHost(uri.host)) {
+                throw IllegalArgumentException("Remote baseUrl blocked by allowRemote=false: $safe")
             }
         }
     }

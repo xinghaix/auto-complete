@@ -54,6 +54,38 @@ class PromptTemplateTest {
     fun wireFormatsMatchExpectations() {
         assertEquals(WireFormat.FIM_FIELDS, PromptTemplate.CODESTRAL_API.wireFormat())
         assertEquals(WireFormat.COMPLETION_PROMPT, PromptTemplate.QWEN.wireFormat())
+        assertEquals(WireFormat.COMPLETION_PROMPT, PromptTemplate.CODELLAMA.wireFormat())
         assertEquals(WireFormat.CHAT_MESSAGES, PromptTemplate.CHAT.wireFormat())
+    }
+
+    @Test
+    fun avoidsO1O3O4SubstringMisclassificationAndSupportsModernModelsAndBaseUrlHints() {
+        // Real OpenAI reasoning models -> CHAT
+        assertEquals(PromptTemplate.CHAT, PromptTemplateDetector.detect("o1-mini"))
+        assertEquals(PromptTemplate.CHAT, PromptTemplateDetector.detect("openai/o3-mini"))
+        assertEquals(PromptTemplate.CHAT, PromptTemplateDetector.detect("o4-mini"))
+        assertTrue(PromptTemplateDetector.isRecognized("o3-mini"))
+
+        // Code models containing o1/o3/o4 as substrings -> NOT CHAT!
+        assertEquals(PromptTemplate.QWEN, PromptTemplateDetector.detect("demo1-coder"))
+        assertEquals(PromptTemplate.QWEN, PromptTemplateDetector.detect("proto3-coder"))
+        assertEquals(PromptTemplate.QWEN, PromptTemplateDetector.detect("foo4-code"))
+
+        // Modern FIM families & CodeLlama native <PRE>/<SUF>/<MID>
+        assertEquals(PromptTemplate.QWEN, PromptTemplateDetector.detect("qwen3-coder:30b"))
+        assertEquals(PromptTemplate.QWEN, PromptTemplateDetector.detect("codegeex4-all-9b"))
+        assertEquals(PromptTemplate.CODELLAMA, PromptTemplateDetector.detect("codellama:7b-code"))
+        assertEquals("<PRE>abc<SUF>def<MID>", PromptTemplate.CODELLAMA.formatTokenPrompt("abc", "def"))
+        assertTrue(PromptTemplate.CODELLAMA.stopTokens().contains("<EOT>"))
+
+        // Base URL hints
+        assertEquals(
+            PromptTemplate.CODESTRAL_API,
+            PromptTemplateDetector.detect("deepseek-chat", baseUrl = "https://api.deepseek.com/beta"),
+        )
+        assertEquals(
+            PromptTemplate.CODESTRAL_API,
+            PromptTemplateDetector.detect("mistral-small", baseUrl = "https://api.mistral.ai/v1"),
+        )
     }
 }

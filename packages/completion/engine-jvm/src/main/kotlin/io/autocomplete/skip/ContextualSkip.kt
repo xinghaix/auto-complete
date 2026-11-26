@@ -69,7 +69,7 @@ object ContextualSkip {
         prefix: String,
         languageId: String,
     ): Boolean {
-        val trimmed = prefix.trimEnd()
+        val trimmed = prefix.substringAfterLast('\n').trimEnd()
         if (trimmed.isEmpty()) return false
         val terms = languageTerminators[languageId.lowercase()] ?: defaultTerminators
         return terms.any { term ->

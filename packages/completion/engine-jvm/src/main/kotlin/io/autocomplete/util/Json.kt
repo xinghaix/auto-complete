@@ -14,6 +14,8 @@ object Json {
                 when (c) {
                     '\\' -> append("\\\\")
                     '"' -> append("\\\"")
+                    '\b' -> append("\\b")
+                    '\u000C' -> append("\\f")
                     '\n' -> append("\\n")
                     '\r' -> append("\\r")
                     '\t' -> append("\\t")
@@ -25,6 +27,18 @@ object Json {
     private fun value(v: Any?): String =
         when (v) {
             null -> "null"
+            is Double ->
+                if (v.isFinite()) {
+                    v.toString()
+                } else {
+                    throw IllegalArgumentException("Non-finite JSON number: $v")
+                }
+            is Float ->
+                if (v.isFinite()) {
+                    v.toString()
+                } else {
+                    throw IllegalArgumentException("Non-finite JSON number: $v")
+                }
             is Number, is Boolean -> v.toString()
             is Map<*, *> ->
                 obj(
@@ -35,8 +49,11 @@ object Json {
         }
 
     fun parseObject(text: String): Map<String, Any?> {
-        // Minimal tolerant parser for our response shapes.
-        return SimpleJsonParser(text).parseObject()
+        return SimpleJsonParser(text).parseRootObject()
+    }
+
+    fun parseArray(text: String): List<Any?> {
+        return SimpleJsonParser(text).parseRootArray()
     }
 
     fun stringAt(
@@ -61,85 +78,111 @@ private class SimpleJsonParser(
     private val s: String,
 ) {
     private var i = 0
+    private var depth = 0
+
+    fun parseRootObject(): Map<String, Any?> {
+        val result = parseObject()
+        skipWs()
+        if (i != s.length) throw IllegalArgumentException("Unexpected trailing content at $i")
+        return result
+    }
+
+    fun parseRootArray(): List<Any?> {
+        skipWs()
+        val result = parseArray()
+        skipWs()
+        if (i != s.length) throw IllegalArgumentException("Unexpected trailing content at $i")
+        return result
+    }
 
     fun parseObject(): Map<String, Any?> {
-        skipWs()
-        expect('{')
-        val out = linkedMapOf<String, Any?>()
-        skipWs()
-        if (peek() == '}') {
-            i++
-            return out
-        }
-        while (true) {
+        enterContainer()
+        try {
             skipWs()
-            val key = parseString()
+            expect('{')
+            val out = linkedMapOf<String, Any?>()
             skipWs()
-            expect(':')
-            skipWs()
-            out[key] = parseValue()
-            skipWs()
-            when (peek()) {
-                ',' -> {
-                    i++
-                    continue
-                }
-                '}' -> {
-                    i++
-                    break
-                }
-                else -> break
+            if (peek() == '}') {
+                i++
+                return out
             }
+            while (true) {
+                skipWs()
+                val key = parseString()
+                skipWs()
+                expect(':')
+                skipWs()
+                out[key] = parseValue()
+                skipWs()
+                when (peek()) {
+                    ',' -> {
+                        i++
+                        continue
+                    }
+                    '}' -> {
+                        i++
+                        return out
+                    }
+                    else -> throw IllegalArgumentException("Expected ',' or '}' at $i")
+                }
+            }
+        } finally {
+            depth--
         }
-        return out
     }
 
     private fun parseArray(): List<Any?> {
-        expect('[')
-        val out = mutableListOf<Any?>()
-        skipWs()
-        if (peek() == ']') {
-            i++
-            return out
-        }
-        while (true) {
+        enterContainer()
+        try {
+            expect('[')
+            val out = mutableListOf<Any?>()
             skipWs()
-            out += parseValue()
-            skipWs()
-            when (peek()) {
-                ',' -> {
-                    i++
-                    continue
-                }
-                ']' -> {
-                    i++
-                    break
-                }
-                else -> break
+            if (peek() == ']') {
+                i++
+                return out
             }
+            while (true) {
+                skipWs()
+                out += parseValue()
+                skipWs()
+                when (peek()) {
+                    ',' -> {
+                        i++
+                        continue
+                    }
+                    ']' -> {
+                        i++
+                        return out
+                    }
+                    else -> throw IllegalArgumentException("Expected ',' or ']' at $i")
+                }
+            }
+        } finally {
+            depth--
         }
-        return out
     }
 
     private fun parseValue(): Any? {
         skipWs()
-        return when (peek()) {
+        if (i >= s.length) throw IllegalArgumentException("Unexpected end of JSON at $i")
+        return when (val c = s[i]) {
             '"' -> parseString()
             '{' -> parseObject()
             '[' -> parseArray()
             't' -> {
-                i += 4
+                expectLiteral("true")
                 true
             }
             'f' -> {
-                i += 5
+                expectLiteral("false")
                 false
             }
             'n' -> {
-                i += 4
+                expectLiteral("null")
                 null
             }
-            else -> parseNumber()
+            '-', in '0'..'9' -> parseNumber()
+            else -> throw IllegalArgumentException("Unexpected token '$c' at $i")
         }
     }
 
@@ -148,10 +191,10 @@ private class SimpleJsonParser(
         val sb = StringBuilder()
         while (i < s.length) {
             val c = s[i++]
-            when (c) {
-                '"' -> return sb.toString()
-                '\\' -> {
-                    if (i >= s.length) break
+            when {
+                c == '"' -> return sb.toString()
+                c == '\\' -> {
+                    if (i >= s.length) throw IllegalArgumentException("Unterminated escape sequence at $i")
                     when (val e = s[i++]) {
                         '"', '\\', '/' -> sb.append(e)
                         'b' -> sb.append('\b')
@@ -160,34 +203,92 @@ private class SimpleJsonParser(
                         'r' -> sb.append('\r')
                         't' -> sb.append('\t')
                         'u' -> {
-                            val hex = s.substring(i, minOf(i + 4, s.length))
-                            i += hex.length
-                            sb.append(hex.toIntOrNull(16)?.toChar() ?: '?')
+                            if (i + 4 > s.length) {
+                                throw IllegalArgumentException("Incomplete unicode escape at $i")
+                            }
+                            val hex = s.substring(i, i + 4)
+                            val code =
+                                hex.toIntOrNull(16)
+                                    ?: throw IllegalArgumentException("Invalid unicode escape '\\u$hex' at $i")
+                            i += 4
+                            sb.append(code.toChar())
                         }
-                        else -> sb.append(e)
+                        else -> throw IllegalArgumentException("Invalid escape '\\$e' at ${i - 1}")
                     }
                 }
+                c.code < 0x20 -> throw IllegalArgumentException("Unescaped control character in string at ${i - 1}")
                 else -> sb.append(c)
             }
         }
-        return sb.toString()
+        throw IllegalArgumentException("Unterminated string literal")
     }
 
     private fun parseNumber(): Number {
         val start = i
-        while (i < s.length && (s[i].isDigit() || s[i] in "+-.eE")) i++
+        if (i < s.length && s[i] == '-') i++
+        if (i >= s.length) throw IllegalArgumentException("Invalid number at $start")
+        if (s[i] == '0') {
+            i++
+            if (i < s.length && s[i] in '0'..'9') {
+                throw IllegalArgumentException("Leading zero in JSON number at $start")
+            }
+        } else if (s[i] in '1'..'9') {
+            while (i < s.length && s[i] in '0'..'9') i++
+        } else {
+            throw IllegalArgumentException("Invalid number at $start")
+        }
+        var isFloat = false
+        if (i < s.length && s[i] == '.') {
+            isFloat = true
+            i++
+            if (i >= s.length || s[i] !in '0'..'9') {
+                throw IllegalArgumentException("Invalid fraction in JSON number at $start")
+            }
+            while (i < s.length && s[i] in '0'..'9') i++
+        }
+        if (i < s.length && (s[i] == 'e' || s[i] == 'E')) {
+            isFloat = true
+            i++
+            if (i < s.length && (s[i] == '+' || s[i] == '-')) i++
+            if (i >= s.length || s[i] !in '0'..'9') {
+                throw IllegalArgumentException("Invalid exponent in JSON number at $start")
+            }
+            while (i < s.length && s[i] in '0'..'9') i++
+        }
         val raw = s.substring(start, i)
-        return raw.toLongOrNull() ?: raw.toDoubleOrNull() ?: 0
+        if (!isFloat) {
+            raw.toLongOrNull()?.let { return it }
+        }
+        val d = raw.toDoubleOrNull() ?: throw IllegalArgumentException("Invalid JSON number '$raw' at $start")
+        if (!d.isFinite()) throw IllegalArgumentException("Non-finite JSON number '$raw' at $start")
+        return d
+    }
+
+    private fun expectLiteral(literal: String) {
+        if (!s.regionMatches(i, literal, 0, literal.length)) {
+            throw IllegalArgumentException("Expected '$literal' at $i")
+        }
+        i += literal.length
+    }
+
+    private fun enterContainer() {
+        depth++
+        if (depth > MAX_DEPTH) throw IllegalArgumentException("JSON nesting depth exceeded")
     }
 
     private fun skipWs() {
-        while (i < s.length && s[i].isWhitespace()) i++
+        while (i < s.length && s[i] in JSON_WHITESPACE) i++
     }
 
     private fun peek(): Char = if (i < s.length) s[i] else '\u0000'
 
     private fun expect(c: Char) {
-        if (peek() != c) throw IllegalArgumentException("Expected $c at $i")
+        if (i >= s.length || s[i] != c) throw IllegalArgumentException("Expected '$c' at $i")
         i++
+    }
+
+    companion object {
+        private const val MAX_DEPTH = 128
+        private const val JSON_WHITESPACE = " \t\r\n"
     }
 }

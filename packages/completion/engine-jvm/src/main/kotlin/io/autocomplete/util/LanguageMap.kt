@@ -41,19 +41,35 @@ object LanguageMap {
             "dart" to "dart",
         )
 
+    private val aliases =
+        mapOf(
+            "c++" to "cpp",
+            "c#" to "csharp",
+            "objective-c" to "objectivec",
+            "shell" to "shellscript",
+            "shell script" to "shellscript",
+            "typescript jsx" to "typescriptreact",
+            "javascript jsx" to "javascriptreact",
+            "ecmascript 6" to "javascript",
+            "kotlin script" to "kotlin",
+        )
+
+    private val plaintextIds =
+        setOf(
+            "text",
+            "textmate",
+            "plaintext",
+            "plain text",
+            "plain_text",
+        )
+
     fun normalize(
         languageId: String?,
         path: String?,
     ): String {
         val raw = languageId?.trim()?.lowercase().orEmpty()
-        if (raw.isNotEmpty() && raw != "text" && raw != "textmate" && raw != "plaintext" && raw != "plain text") {
-            return when (raw) {
-                "c++" -> "cpp"
-                "c#" -> "csharp"
-                "objective-c" -> "objectivec"
-                "shell" -> "shellscript"
-                else -> raw
-            }
+        if (raw.isNotEmpty() && raw !in plaintextIds) {
+            return aliases[raw] ?: raw
         }
         val ext = path?.substringAfterLast('.', "")?.lowercase().orEmpty()
         return byExt[ext] ?: (raw.ifEmpty { "text" })

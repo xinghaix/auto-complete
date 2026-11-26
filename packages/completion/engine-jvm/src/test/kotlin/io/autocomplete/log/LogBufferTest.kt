@@ -53,4 +53,15 @@ class LogBufferTest {
         assertTrue(summary.contains("style=CHAT"))
         assertTrue(summary.contains("http=200"))
     }
+
+    @Test
+    fun listenersAreDispatchedOutsideSynchronizedLock() {
+        val logs = LogBuffer()
+        var heldLockInListener = true
+        logs.addListener {
+            heldLockInListener = Thread.holdsLock(logs)
+        }
+        logs.append(LogEntry(level = LogLevel.INFO, message = "outside"))
+        assertTrue(!heldLockInListener, "LogBuffer listener must be invoked outside synchronized lock")
+    }
 }

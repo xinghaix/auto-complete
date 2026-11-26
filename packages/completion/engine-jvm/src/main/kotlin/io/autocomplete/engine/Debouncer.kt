@@ -1,8 +1,5 @@
 package io.autocomplete.engine
 
-import kotlin.math.max
-import kotlin.math.min
-
 /**
  * Adaptive debounce delay calculator.
  */
@@ -15,9 +12,13 @@ object Debouncer {
     fun nextDelay(
         current: Long,
         latencySamples: List<Long>,
+        minMs: Long = MIN_MS,
+        maxMs: Long = MAX_MS,
     ): Long {
-        if (latencySamples.size < SAMPLE_SIZE) return current.coerceIn(MIN_MS, MAX_MS)
+        val lo = minMs.coerceAtLeast(0L)
+        val hi = maxOf(lo, maxMs.coerceAtLeast(0L))
+        if (latencySamples.size < SAMPLE_SIZE) return current.coerceIn(lo, hi)
         val avg = latencySamples.takeLast(SAMPLE_SIZE).average().toLong()
-        return max(MIN_MS, min(avg, MAX_MS))
+        return avg.coerceIn(lo, hi)
     }
 }

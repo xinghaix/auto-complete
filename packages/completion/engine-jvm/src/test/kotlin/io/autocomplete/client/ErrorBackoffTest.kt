@@ -41,4 +41,41 @@ class ErrorBackoffTest {
         assertEquals(ErrorKind.CANCEL, backoff.failure(CancelledException()))
         assertFalse(backoff.blocked())
     }
+
+    @Test
+    fun shouldProbeAllowsSingleProbePerFatalInterval() {
+        var now = 10_000L
+        val backoff = ErrorBackoff(fatalProbeIntervalMs = 5_000L, clock = { now })
+        backoff.failure(HttpStatusException(401, "HTTP 401"))
+        assertTrue(backoff.isFatal())
+        assertFalse(backoff.shouldProbe())
+        now += 5_000L
+        assertTrue(backoff.shouldProbe())
+        assertFalse(backoff.shouldProbe())
+        backoff.success()
+        assertFalse(backoff.isFatal())
+        assertFalse(backoff.blocked())
+    }
+
+    @Test
+    fun concurrentAccessIsThreadSafe() {
+        val backoff = ErrorBackoff(baseDelayMs = 1, maxDelayMs = 10, circuitThreshold = 50, circuitCooldownMs = 5)
+        val threads =
+            (1..8).map { idx ->
+                Thread {
+                    repeat(200) { n ->
+                        when ((idx + n) % 4) {
+                            0 -> backoff.failure(HttpStatusException(429, "HTTP 429"))
+                            1 -> backoff.blocked()
+                            2 -> backoff.shouldProbe()
+                            else -> backoff.reset()
+                        }
+                    }
+                }
+            }
+        threads.forEach { it.start() }
+        threads.forEach { it.join(5_000) }
+        backoff.reset()
+        assertFalse(backoff.blocked())
+    }
 }

@@ -1,7 +1,7 @@
 package io.autocomplete.client
 
 /**
- * Circuit breaker / exponential backoff for completion errors.
+ * Thread-safe circuit breaker / exponential backoff for completion errors.
  */
 enum class ErrorKind {
     FATAL,
@@ -25,6 +25,7 @@ class ErrorBackoff(
     private var failures: Int = 0
     private var blockedUntil: Long = 0
 
+    @Synchronized
     fun success() {
         fatal = false
         fatalStatus = null
@@ -34,8 +35,10 @@ class ErrorBackoff(
         blockedUntil = 0
     }
 
+    @Synchronized
     fun reset() = success()
 
+    @Synchronized
     fun failure(
         error: Throwable?,
         status: Int? = extractStatus(error),
@@ -61,6 +64,7 @@ class ErrorBackoff(
         return kind
     }
 
+    @Synchronized
     fun blocked(): Boolean {
         if (fatal) return true
         val now = clock()
@@ -75,8 +79,13 @@ class ErrorBackoff(
         return false
     }
 
+    @Synchronized
+    fun isFatal(): Boolean = fatal
+
+    @Synchronized
     fun getFatalStatus(): Int? = if (fatal) fatalStatus else null
 
+    @Synchronized
     fun shouldProbe(): Boolean {
         if (!fatal) return false
         val now = clock()

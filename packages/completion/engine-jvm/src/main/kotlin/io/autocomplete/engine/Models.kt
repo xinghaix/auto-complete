@@ -17,6 +17,7 @@ data class CompletionRequest(
     val fileSizeBytes: Long = 0,
     val context: ContextHints = ContextHints(),
     val projectKey: String = "",
+    val forceRefresh: Boolean = false,
 )
 
 enum class Trigger {
@@ -71,4 +72,17 @@ data class CacheHit(
     val text: String,
     val match: CacheMatchType,
     val source: CachedSuggestion,
+)
+
+data class SessionStats(
+    val totalRequests: Long = 0,
+    val cacheHits: Long = 0,
+    val cancelled: Long = 0,
+    val failed: Long = 0,
+    val accepted: Long = 0,
+    val p50LatencyMs: Long? = null,
+    val p95LatencyMs: Long? = null,
+    val currentDebounceMs: Long = Debouncer.INITIAL_MS,
+    val backoffBlocked: Boolean = false,
+    val backoffFatal: Boolean = false,
 )

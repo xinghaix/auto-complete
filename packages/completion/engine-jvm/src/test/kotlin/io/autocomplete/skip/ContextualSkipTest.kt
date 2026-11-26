@@ -28,4 +28,14 @@ class ContextualSkipTest {
         assertTrue(ContextualSkip.shouldSkip("val x = 1;", "", "kotlin"))
         assertFalse(ContextualSkip.shouldSkip("fun f() {\n    ", "", "kotlin"))
     }
+
+    @Test
+    fun endsWithTerminatorOnlyInspectsCurrentLine() {
+        assertFalse(ContextualSkip.endsWithTerminator("const a = 1;\n", "typescript"))
+        assertFalse(ContextualSkip.endsWithTerminator("const a = 1;\n    ", "typescript"))
+        assertFalse(ContextualSkip.endsWithTerminator("if (ok) {}\n    ", "kotlin"))
+        assertFalse(ContextualSkip.endsWithTerminator("foo(x)\n    ", "python"))
+        assertFalse(ContextualSkip.shouldSkip("const a = 1;\n    ", "", "typescript"))
+        assertTrue(ContextualSkip.endsWithTerminator("line1\nconst a = 1;  ", "typescript"))
+    }
 }

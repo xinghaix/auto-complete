@@ -39,11 +39,27 @@ class ModelLimitsTest {
                 "context_length" to 8192,
             )
         assertEquals(8192, ModelLimits.contextTokensFromModelObject(item))
+        val camel =
+            mapOf(
+                "id" to "demo-camel",
+                "contextLength" to 65536,
+            )
+        assertEquals(65536, ModelLimits.contextTokensFromModelObject(camel))
         val meta =
             mapOf(
                 "id" to "demo2",
                 "meta" to mapOf("n_ctx_train" to 32768),
             )
         assertEquals(32768, ModelLimits.contextTokensFromModelObject(meta))
+    }
+
+    @Test
+    fun reasoningRegexDoesNotMisclassifySubstringCoderModels() {
+        assertEquals(128_000, ModelLimits.estimateContextTokens("o1-mini"))
+        assertEquals(128_000, ModelLimits.estimateContextTokens("openai/o3-mini"))
+        assertEquals(8_192, ModelLimits.estimateContextTokens("demo1-coder"))
+        assertEquals(8_192, ModelLimits.estimateContextTokens("proto3-coder"))
+        assertEquals(32_768, ModelLimits.estimateContextTokens("qwen3-coder"))
+        assertEquals(32_768, ModelLimits.estimateContextTokens("codegeex4"))
     }
 }

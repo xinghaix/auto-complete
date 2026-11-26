@@ -78,10 +78,11 @@ class LogBuffer(
     @Synchronized
     fun retention(): Int = retention
 
-    @Synchronized
     fun append(entry: LogEntry) {
-        entries.addLast(entry)
-        trim()
+        synchronized(this) {
+            entries.addLast(entry)
+            trim()
+        }
         listeners.forEach { runCatching { it(entry) } }
     }
 
