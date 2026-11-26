@@ -1,0 +1,159 @@
+{
+  "name": "postprocess_regression",
+  "prefixOverlapCases": [
+    {
+      "id": "identifier_overlap_stripped",
+      "prefix": "const foo",
+      "suggestion": "foobar = 1",
+      "expected": "bar = 1"
+    },
+    {
+      "id": "multi_char_keyword_overlap_stripped",
+      "prefix": "return ",
+      "suggestion": "return 42",
+      "expected": "42"
+    },
+    {
+      "id": "equality_operator_preserved",
+      "prefix": "if (x =",
+      "suggestion": "= 0)",
+      "expected": "= 0)"
+    },
+    {
+      "id": "logical_and_preserved",
+      "prefix": "if (a &",
+      "suggestion": "& b)",
+      "expected": "& b)"
+    },
+    {
+      "id": "logical_or_preserved",
+      "prefix": "if (a |",
+      "suggestion": "| b)",
+      "expected": "| b)"
+    },
+    {
+      "id": "increment_operator_preserved",
+      "prefix": "i +",
+      "suggestion": "+ 1",
+      "expected": "+ 1"
+    },
+    {
+      "id": "scope_resolution_preserved",
+      "prefix": "std:",
+      "suggestion": ":string",
+      "expected": ":string"
+    },
+    {
+      "id": "numeric_literal_preserved",
+      "prefix": "const n = 10",
+      "suggestion": "0",
+      "expected": "0"
+    },
+    {
+      "id": "nested_paren_preserved",
+      "prefix": "foo(",
+      "suggestion": "(x)",
+      "expected": "(x)"
+    }
+  ],
+  "suffixOverlapCases": [
+    {
+      "id": "trim_closing_paren",
+      "suggestion": "a, b)",
+      "suffix": ")",
+      "expected": "a, b"
+    },
+    {
+      "id": "trim_semicolon_before_newline",
+      "suggestion": "return x;",
+      "suffix": ";\n}",
+      "expected": "return x"
+    },
+    {
+      "id": "trim_multi_char_suffix_overlap",
+      "suggestion": "bar(1, 2);",
+      "suffix": "2);\n",
+      "expected": "bar(1, "
+    },
+    {
+      "id": "no_overlap_unchanged",
+      "suggestion": "return 42",
+      "suffix": "\n}",
+      "expected": "return 42"
+    }
+  ],
+  "postprocessCases": [
+    {
+      "id": "preserve_leading_space_without_fence",
+      "raw": " 42",
+      "prefix": "const x =",
+      "suffix": "",
+      "firstLineOnly": false,
+      "expected": " 42"
+    },
+    {
+      "id": "preserve_python_indentation_without_fence",
+      "raw": "    return a + b",
+      "prefix": "def add(a, b):\n",
+      "suffix": "\n",
+      "firstLineOnly": false,
+      "expected": "    return a + b"
+    },
+    {
+      "id": "preserve_leading_newline_without_fence",
+      "raw": "\n  return 1",
+      "prefix": "function f() {",
+      "suffix": "\n}",
+      "firstLineOnly": false,
+      "expected": "\n  return 1"
+    },
+    {
+      "id": "strip_markdown_fence_keep_inner_indent",
+      "raw": "```ts\n  const x = 1\n```",
+      "prefix": "function f() {\n",
+      "suffix": "\n}",
+      "firstLineOnly": false,
+      "expected": "  const x = 1"
+    },
+    {
+      "id": "operator_safe_end_to_end",
+      "raw": "= 0)",
+      "prefix": "if (x =",
+      "suffix": " {",
+      "firstLineOnly": true,
+      "expected": "= 0)"
+    },
+    {
+      "id": "single_digit_completion_not_dropped_by_isUseless",
+      "raw": "0",
+      "prefix": "const n = 10",
+      "suffix": "",
+      "firstLineOnly": false,
+      "expected": "0"
+    },
+    {
+      "id": "single_operator_completion_not_dropped_by_isUseless",
+      "raw": "+",
+      "prefix": "i +",
+      "suffix": "",
+      "firstLineOnly": false,
+      "expected": "+"
+    },
+    {
+      "id": "first_line_only_preserves_leading_newline",
+      "raw": "\n    return 1\n    return 2",
+      "prefix": "if (ok) {",
+      "suffix": "",
+      "firstLineOnly": true,
+      "expected": "\n    return 1"
+    },
+    {
+      "id": "suffix_overlap_end_to_end",
+      "raw": "a + b)",
+      "prefix": "console.log(",
+      "suffix": ");",
+      "firstLineOnly": true,
+      "expected": "a + b"
+    }
+  ]
+}

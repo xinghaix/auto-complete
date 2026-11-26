@@ -10,6 +10,7 @@ export type PromptTemplateId =
   | "QWEN"
   | "DEEPSEEK"
   | "STARCODER"
+  | "CODELLAMA"
   | "CHAT";
 
 export type ProviderKind = "OPENAI_COMPATIBLE" | "MISTRAL_FIM" | "CUSTOM";
@@ -39,6 +40,7 @@ export interface CompletionRequest {
   fileSizeBytes?: number;
   context?: ContextHints;
   projectKey?: string;
+  forceRefresh?: boolean;
 }
 
 export interface Usage {
@@ -63,6 +65,19 @@ export type CompletionOutcome =
   | { kind: "skipped" }
   | { kind: "failed"; message: string; status?: number | null; errorKind?: string };
 
+export interface SessionStats {
+  totalRequests: number;
+  cacheHits: number;
+  cancelled: number;
+  failed: number;
+  accepted: number;
+  p50LatencyMs: number | null;
+  p95LatencyMs: number | null;
+  currentDebounceMs: number;
+  backoffBlocked: boolean;
+  backoffFatal: boolean;
+}
+
 export interface CachedSuggestion {
   scope: string;
   prefix: string;
@@ -83,6 +98,8 @@ export interface ProviderConfig {
   model: string;
   authHeaderTemplate?: string;
   extraHeadersJson?: string;
+  extraBodyJson?: string;
+  stopSequences?: string;
   fimPath?: string;
   chatPath?: string;
   completionsPath?: string;
@@ -103,6 +120,7 @@ export interface ProviderRequest {
   maxTokens: number;
   temperature: number;
   stream?: boolean;
+  stopAtNewline?: boolean;
   language?: string | null;
   path?: string | null;
 }

@@ -2,8 +2,12 @@
   "version": 1,
   "byExt": {
     "ts": "typescript",
+    "mts": "typescript",
+    "cts": "typescript",
     "tsx": "typescriptreact",
     "js": "javascript",
+    "mjs": "javascript",
+    "cjs": "javascript",
     "jsx": "javascriptreact",
     "py": "python",
     "java": "java",
@@ -24,25 +28,37 @@
     "scala": "scala",
     "md": "markdown",
     "json": "json",
+    "jsonc": "jsonc",
     "yml": "yaml",
     "yaml": "yaml",
+    "toml": "toml",
     "sh": "shellscript",
     "bash": "shellscript",
     "zsh": "shellscript",
     "sql": "sql",
     "css": "css",
     "scss": "scss",
+    "less": "less",
     "html": "html",
     "xml": "xml",
     "vue": "vue",
     "svelte": "svelte",
-    "dart": "dart"
+    "dart": "dart",
+    "lua": "lua"
   },
   "aliases": {
     "c++": "cpp",
     "c#": "csharp",
     "objective-c": "objectivec",
-    "shell": "shellscript"
+    "shell": "shellscript",
+    "shell script": "shellscript",
+    "typescript jsx": "typescriptreact",
+    "javascript jsx": "javascriptreact",
+    "ecmascript 6": "javascript",
+    "tsx": "typescriptreact",
+    "jsx": "javascriptreact",
+    "golang": "go",
+    "yml": "yaml"
   },
-  "plaintextIds": ["text", "textmate", "plaintext", "plain text"]
+  "plaintextIds": ["text", "textmate", "plaintext", "plain text", "plain_text"]
 }

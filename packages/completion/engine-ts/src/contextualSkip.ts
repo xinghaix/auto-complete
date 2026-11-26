@@ -58,7 +58,8 @@ export function isMidWord(prefix: string, suffix: string): boolean {
 }
 
 export function endsWithTerminator(prefix: string, languageId: string): boolean {
-  const trimmed = prefix.replace(/\s+$/, "");
+  const currentLine = prefix.slice(prefix.lastIndexOf("\n") + 1);
+  const trimmed = currentLine.trimEnd();
   if (!trimmed) return false;
   const terms = languageTerminators[languageId.toLowerCase()] ?? defaultTerminators;
   return terms.some((term) => {

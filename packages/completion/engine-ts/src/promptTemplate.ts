@@ -7,6 +7,9 @@ export interface TemplateMeta {
   stopTokens: string[];
 }
 
+/** Word-boundary matcher for OpenAI o1/o3/o4 models so `demo1-coder`/`proto3-coder` are not misclassified. */
+export const OPENAI_O_SERIES_RE = /(?:^|[-_/:])o[134](?:$|[-_.:])/;
+
 const META: Record<Exclude<PromptTemplateId, "AUTO">, TemplateMeta> = {
   CODESTRAL_API: {
     id: "CODESTRAL_API",
@@ -55,6 +58,12 @@ const META: Record<Exclude<PromptTemplateId, "AUTO">, TemplateMeta> = {
       "<|eos|>",
     ],
   },
+  CODELLAMA: {
+    id: "CODELLAMA",
+    shortLabel: "(fim) CodeLlama",
+    wireFormat: "COMPLETION_PROMPT",
+    stopTokens: ["<EOT>", "<PRE>", "<SUF>", "<MID>", "</s>", "<|endoftext|>"],
+  },
   CHAT: {
     id: "CHAT",
     shortLabel: "(chat) Pseudo-FIM",
@@ -86,7 +95,7 @@ export function shortLabel(t: PromptTemplateId): string {
 
 export function stopTokens(t: PromptTemplateId): string[] {
   if (t === "AUTO") return [];
-  return META[t].stopTokens;
+  return [...META[t].stopTokens];
 }
 
 export function formatTokenPrompt(t: PromptTemplateId, prefix: string, suffix: string): string {
@@ -97,13 +106,15 @@ export function formatTokenPrompt(t: PromptTemplateId, prefix: string, suffix: s
       return `<｜fim▁begin｜>${prefix}<｜fim▁hole｜>${suffix}<｜fim▁end｜>`;
     case "STARCODER":
       return `<fim_prefix>${prefix}<fim_suffix>${suffix}<fim_middle>`;
+    case "CODELLAMA":
+      return `<PRE>${prefix}<SUF>${suffix}<MID>`;
     default:
       return prefix;
   }
 }
 
 export function probeCandidates(): PromptTemplateId[] {
-  return ["CODESTRAL_API", "QWEN", "DEEPSEEK", "STARCODER", "CHAT"];
+  return ["CODESTRAL_API", "QWEN", "DEEPSEEK", "STARCODER", "CODELLAMA", "CHAT"];
 }
 
 export function fromLegacyRequestStyle(requestStyle: string | null | undefined): PromptTemplateId {
@@ -117,34 +128,59 @@ export function fromLegacyRequestStyle(requestStyle: string | null | undefined):
   }
 }
 
+export function isDeepSeekBetaUrl(baseUrl: string): boolean {
+  const raw = baseUrl.trim();
+  if (!raw) return false;
+  try {
+    const u = new URL(raw);
+    const host = u.hostname.toLowerCase();
+    const path = u.pathname.toLowerCase().replace(/\/+$/, "");
+    return (
+      (host === "deepseek.com" || host.endsWith(".deepseek.com")) &&
+      (path === "/beta" || path.startsWith("/beta/"))
+    );
+  } catch {
+    return /deepseek\.com\/beta(?:\/|$|\?)/i.test(raw);
+  }
+}
+
+export function isMistralUrl(baseUrl: string): boolean {
+  const raw = baseUrl.trim();
+  if (!raw) return false;
+  try {
+    const u = new URL(raw);
+    const host = u.hostname.toLowerCase();
+    return host === "mistral.ai" || host.endsWith(".mistral.ai");
+  } catch {
+    return /mistral\.ai(?:\/|$|\?)/i.test(raw);
+  }
+}
+
 export function detectTemplate(
   model: string,
   providerKind: ProviderKind = "OPENAI_COMPATIBLE",
+  baseUrl = "",
 ): PromptTemplateId {
   if (providerKind === "MISTRAL_FIM") return "CODESTRAL_API";
   const m = model.trim().toLowerCase();
   if (!m) return "CHAT";
+  if (baseUrl && (isDeepSeekBetaUrl(baseUrl) || isMistralUrl(baseUrl))) {
+    return "CODESTRAL_API";
+  }
   if (m.includes("codestral") || m.includes("mistral-code") || m.includes("devstral")) {
     return "CODESTRAL_API";
   }
   if (m.includes("deepseek") && (m.includes("coder") || m.includes("code"))) return "DEEPSEEK";
-  if (m.includes("qwen") || m.includes("codegemma")) return "QWEN";
-  if (
-    m.includes("starcoder") ||
-    m.includes("santacoder") ||
-    m.includes("codellama") ||
-    m.includes("code-llama") ||
-    m.includes("crystalcoder")
-  ) {
+  if (m.includes("qwen") || m.includes("codegemma") || m.includes("codegeex")) return "QWEN";
+  if (m.includes("codellama") || m.includes("code-llama")) return "CODELLAMA";
+  if (m.includes("starcoder") || m.includes("santacoder") || m.includes("crystalcoder")) {
     return "STARCODER";
   }
   if (
     m.includes("gpt-") ||
     m.includes("claude") ||
-    m.includes("o1") ||
-    m.includes("o3") ||
-    m.includes("o4") ||
-    m.includes("chatgpt")
+    m.includes("chatgpt") ||
+    OPENAI_O_SERIES_RE.test(m)
   ) {
     return "CHAT";
   }
@@ -152,23 +188,28 @@ export function detectTemplate(
   return "CHAT";
 }
 
+export const detectPromptTemplate = detectTemplate;
+
 export function resolveTemplate(
   stored: PromptTemplateId,
   model: string,
-  providerKind: ProviderKind,
+  providerKind: ProviderKind = "OPENAI_COMPATIBLE",
+  baseUrl = "",
 ): PromptTemplateId {
-  return isAuto(stored) ? detectTemplate(model, providerKind) : stored;
+  return isAuto(stored) ? detectTemplate(model, providerKind, baseUrl) : stored;
 }
 
 export function isRecognized(
   model: string,
   providerKind: ProviderKind = "OPENAI_COMPATIBLE",
+  baseUrl = "",
 ): boolean {
   if (!model.trim()) return false;
-  const detected = detectTemplate(model, providerKind);
+  const detected = detectTemplate(model, providerKind, baseUrl);
   if (detected !== "CHAT") return true;
   const m = model.toLowerCase();
-  return ["gpt-", "claude", "o1", "o3", "o4", "chatgpt", "instruct", "chat"].some((k) =>
-    m.includes(k),
+  return (
+    ["gpt-", "claude", "chatgpt", "instruct", "chat"].some((k) => m.includes(k)) ||
+    OPENAI_O_SERIES_RE.test(m)
   );
 }

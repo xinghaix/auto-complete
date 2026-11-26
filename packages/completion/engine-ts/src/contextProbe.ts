@@ -7,48 +7,68 @@ export type ContextProbeResult = {
   inString: boolean;
 };
 
+const MAX_SCAN_CHARS = 65_536;
+
 export function inspectContext(prefix: string, language: string): ContextProbeResult {
-  const line = prefix.slice(prefix.lastIndexOf("\n") + 1);
   const lang = language.toLowerCase();
-  if (isLineComment(line, lang)) return { inComment: true, inString: false };
+  const src = sliceScanWindow(prefix);
 
   let inLineComment = false;
-  let inBlockComment = false;
+  let blockCommentEnd: string | null = null;
   let stringDelim: string | null = null;
+  let stringMultiline = false;
   let escape = false;
   let i = 0;
-  while (i < prefix.length) {
-    const c = prefix[i]!;
-    const n = prefix[i + 1];
+
+  while (i < src.length) {
+    const c = src[i]!;
+    const n = src[i + 1];
+    const n2 = src[i + 2];
+
     if (inLineComment) {
       if (c === "\n") inLineComment = false;
       i++;
       continue;
     }
-    if (inBlockComment) {
-      if (c === "*" && n === "/") {
-        inBlockComment = false;
-        i += 2;
+
+    if (blockCommentEnd !== null) {
+      if (src.startsWith(blockCommentEnd, i)) {
+        i += blockCommentEnd.length;
+        blockCommentEnd = null;
         continue;
       }
       i++;
       continue;
     }
-    if (stringDelim != null) {
+
+    if (stringDelim !== null) {
       if (escape) {
         escape = false;
         i++;
         continue;
       }
-      if (c === "\\") {
+      if (c === "\\" && lang !== "sql" && lang !== "mysql" && lang !== "postgresql") {
         escape = true;
         i++;
         continue;
       }
-      if (c === stringDelim) stringDelim = null;
+      if (!stringMultiline && c === "\n") {
+        // Unclosed single-line string resets at newline so it cannot poison subsequent lines.
+        stringDelim = null;
+        i++;
+        continue;
+      }
+      if (src.startsWith(stringDelim, i)) {
+        i += stringDelim.length;
+        stringDelim = null;
+        stringMultiline = false;
+        continue;
+      }
       i++;
       continue;
     }
+
+    // Comments
     if (c === "/" && n === "/" && supportsSlashComments(lang)) {
       inLineComment = true;
       i += 2;
@@ -59,30 +79,90 @@ export function inspectContext(prefix: string, language: string): ContextProbeRe
       i++;
       continue;
     }
-    if (c === "/" && n === "*" && supportsBlockComments(lang)) {
-      inBlockComment = true;
+    if (c === "-" && n === "-" && supportsDashComments(lang)) {
+      inLineComment = true;
       i += 2;
       continue;
     }
-    if (c === '"' || c === "'" || c === "`") {
-      stringDelim = c;
+    if (c === "/" && n === "*" && supportsBlockComments(lang)) {
+      blockCommentEnd = "*/";
+      i += 2;
+      continue;
+    }
+    if (c === "<" && n === "!" && n2 === "-" && src[i + 3] === "-" && supportsHtmlComments(lang)) {
+      blockCommentEnd = "-->";
+      i += 4;
+      continue;
+    }
+
+    // Triple-quoted multiline strings (Python """/''', Kotlin/Java/Scala/Swift """)
+    if (c === '"' && n === '"' && n2 === '"' && supportsTripleDoubleQuotes(lang)) {
+      stringDelim = '"""';
+      stringMultiline = true;
+      i += 3;
+      continue;
+    }
+    if (c === "'" && n === "'" && n2 === "'" && lang === "python") {
+      stringDelim = "'''";
+      stringMultiline = true;
+      i += 3;
+      continue;
+    }
+
+    // Backtick template / raw multiline strings (JS/TS/Go/etc.)
+    if (c === "`" && supportsBacktickStrings(lang)) {
+      stringDelim = "`";
+      stringMultiline = true;
       i++;
       continue;
     }
+
+    // Rust lifetimes `'a`, `'static`, `'_` vs char literals `'x'` / `'\n'`
+    if (c === "'" && lang === "rust") {
+      if (n === "\\") {
+        stringDelim = "'";
+        stringMultiline = false;
+        i++;
+        continue;
+      }
+      if (n !== undefined && n2 === "'") {
+        // Closed char literal e.g. 'a'
+        i += 3;
+        continue;
+      }
+      if (n !== undefined && /[A-Za-z_]/.test(n)) {
+        // Lifetime identifier such as 'a, 'static, '_ — do not enter string state.
+        i += 2;
+        while (i < src.length && /[A-Za-z0-9_]/.test(src[i]!)) i++;
+        continue;
+      }
+      stringDelim = "'";
+      stringMultiline = false;
+      i++;
+      continue;
+    }
+
+    if ((c === '"' || c === "'") && supportsQuotes(lang)) {
+      stringDelim = c;
+      stringMultiline = false;
+      i++;
+      continue;
+    }
+
     i++;
   }
+
   return {
-    inComment: inLineComment || inBlockComment,
-    inString: stringDelim != null,
+    inComment: inLineComment || blockCommentEnd !== null,
+    inString: stringDelim !== null,
   };
 }
 
-function isLineComment(line: string, lang: string): boolean {
-  const t = line.trimStart();
-  if (supportsSlashComments(lang) && t.startsWith("//")) return true;
-  if (supportsHashComments(lang) && t.startsWith("#")) return true;
-  if ((lang === "python" || lang === "ruby") && t.startsWith("#")) return true;
-  return false;
+function sliceScanWindow(prefix: string): string {
+  if (prefix.length <= MAX_SCAN_CHARS) return prefix;
+  const start = prefix.length - MAX_SCAN_CHARS;
+  const nl = prefix.indexOf("\n", start);
+  return nl >= 0 ? prefix.slice(nl + 1) : prefix.slice(start);
 }
 
 function supportsSlashComments(lang: string): boolean {
@@ -101,7 +181,8 @@ function supportsSlashComments(lang: string): boolean {
     lang === "csharp" ||
     lang === "php" ||
     lang === "swift" ||
-    lang === "dart"
+    lang === "dart" ||
+    lang === "jsonc"
   );
 }
 
@@ -115,6 +196,16 @@ function supportsHashComments(lang: string): boolean {
     lang === "sh" ||
     lang === "yaml" ||
     lang === "toml"
+  );
+}
+
+function supportsDashComments(lang: string): boolean {
+  return (
+    lang === "sql" ||
+    lang === "mysql" ||
+    lang === "postgresql" ||
+    lang === "lua" ||
+    lang === "haskell"
   );
 }
 
@@ -133,8 +224,51 @@ function supportsBlockComments(lang: string): boolean {
     lang === "cpp" ||
     lang === "csharp" ||
     lang === "php" ||
+    lang === "swift" ||
+    lang === "dart" ||
     lang === "css" ||
     lang === "scss" ||
-    lang === "less"
+    lang === "less" ||
+    lang === "sql" ||
+    lang === "mysql" ||
+    lang === "postgresql"
   );
+}
+
+function supportsHtmlComments(lang: string): boolean {
+  return (
+    lang === "html" ||
+    lang === "xml" ||
+    lang === "vue" ||
+    lang === "svelte" ||
+    lang === "markdown"
+  );
+}
+
+function supportsTripleDoubleQuotes(lang: string): boolean {
+  return (
+    lang === "python" ||
+    lang === "kotlin" ||
+    lang === "java" ||
+    lang === "scala" ||
+    lang === "swift"
+  );
+}
+
+function supportsBacktickStrings(lang: string): boolean {
+  return (
+    lang === "javascript" ||
+    lang === "javascriptreact" ||
+    lang === "typescript" ||
+    lang === "typescriptreact" ||
+    lang === "go" ||
+    lang === "shellscript" ||
+    lang === "bash" ||
+    lang === "zsh" ||
+    lang === "sh"
+  );
+}
+
+function supportsQuotes(lang: string): boolean {
+  return lang !== "markdown" && lang !== "text" && lang !== "plaintext";
 }

@@ -1,0 +1,61 @@
+{
+  "name": "contextual_skip_regression",
+  "cases": [
+    {
+      "id": "skip_after_semicolon_same_line",
+      "prefix": "const a = 1;",
+      "suffix": "",
+      "language": "typescript",
+      "expectedSkip": true
+    },
+    {
+      "id": "skip_after_semicolon_trailing_spaces",
+      "prefix": "const a = 1;   ",
+      "suffix": "",
+      "language": "typescript",
+      "expectedSkip": true
+    },
+    {
+      "id": "allow_new_line_after_semicolon",
+      "prefix": "const a = 1;\n",
+      "suffix": "",
+      "language": "typescript",
+      "expectedSkip": false
+    },
+    {
+      "id": "allow_indented_new_line_after_semicolon",
+      "prefix": "function f() {\n  const a = 1;\n  ",
+      "suffix": "\n}",
+      "language": "typescript",
+      "expectedSkip": false
+    },
+    {
+      "id": "allow_new_line_after_closing_brace",
+      "prefix": "if (ok) {\n  run();\n}\n",
+      "suffix": "",
+      "language": "java",
+      "expectedSkip": false
+    },
+    {
+      "id": "skip_after_closing_paren_python",
+      "prefix": "print(x)",
+      "suffix": "",
+      "language": "python",
+      "expectedSkip": true
+    },
+    {
+      "id": "allow_new_line_after_closing_paren_python",
+      "prefix": "print(x)\n",
+      "suffix": "",
+      "language": "python",
+      "expectedSkip": false
+    },
+    {
+      "id": "skip_mid_word",
+      "prefix": "const fo",
+      "suffix": "obar",
+      "language": "typescript",
+      "expectedSkip": true
+    }
+  ]
+}

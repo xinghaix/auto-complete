@@ -1,0 +1,104 @@
+{
+  "name": "ignore_rules_regression",
+  "cases": [
+    {
+      "id": "default_build_ignores_nested_build_dir",
+      "globs": ["**/build/**"],
+      "respectGitignore": false,
+      "gitignore": [],
+      "path": "/proj/build/out.js",
+      "relativePath": "build/out.js",
+      "expectedIgnored": true
+    },
+    {
+      "id": "default_build_does_not_ignore_rebuild_dir",
+      "globs": ["**/build/**"],
+      "respectGitignore": false,
+      "gitignore": [],
+      "path": "/proj/src/rebuild/app.ts",
+      "relativePath": "src/rebuild/app.ts",
+      "expectedIgnored": false
+    },
+    {
+      "id": "default_build_does_not_ignore_builder_file",
+      "globs": ["**/build/**", "build"],
+      "respectGitignore": false,
+      "gitignore": [],
+      "path": "/proj/src/builder.ts",
+      "relativePath": "src/builder.ts",
+      "expectedIgnored": false
+    },
+    {
+      "id": "default_build_does_not_ignore_build_gradle_kts",
+      "globs": ["**/build/**", "build/"],
+      "respectGitignore": false,
+      "gitignore": [],
+      "path": "/proj/build.gradle.kts",
+      "relativePath": "build.gradle.kts",
+      "expectedIgnored": false
+    },
+    {
+      "id": "default_dist_does_not_ignore_redist",
+      "globs": ["**/dist/**"],
+      "respectGitignore": false,
+      "gitignore": [],
+      "path": "/proj/src/redist/a.ts",
+      "relativePath": "src/redist/a.ts",
+      "expectedIgnored": false
+    },
+    {
+      "id": "star_log_ignores_log_not_logger",
+      "globs": ["*.log"],
+      "respectGitignore": false,
+      "gitignore": [],
+      "path": "/proj/src/my.logger.ts",
+      "relativePath": "src/my.logger.ts",
+      "expectedIgnored": false
+    },
+    {
+      "id": "star_log_ignores_actual_log",
+      "globs": ["*.log"],
+      "respectGitignore": false,
+      "gitignore": [],
+      "path": "/proj/app.log",
+      "relativePath": "app.log",
+      "expectedIgnored": true
+    },
+    {
+      "id": "trailing_slash_dir_rule_matches_children",
+      "globs": ["build/"],
+      "respectGitignore": false,
+      "gitignore": [],
+      "path": "/proj/sub/build/gen.ts",
+      "relativePath": "sub/build/gen.ts",
+      "expectedIgnored": true
+    },
+    {
+      "id": "root_anchored_rule_matches_root_only",
+      "globs": ["/dist/"],
+      "respectGitignore": false,
+      "gitignore": [],
+      "path": "/proj/dist/bundle.js",
+      "relativePath": "dist/bundle.js",
+      "expectedIgnored": true
+    },
+    {
+      "id": "root_anchored_rule_skips_nested_dir",
+      "globs": ["/dist/"],
+      "respectGitignore": false,
+      "gitignore": [],
+      "path": "/proj/packages/ui/dist/bundle.js",
+      "relativePath": "packages/ui/dist/bundle.js",
+      "expectedIgnored": false
+    },
+    {
+      "id": "negation_re_includes_file",
+      "globs": ["*.log", "!important.log"],
+      "respectGitignore": false,
+      "gitignore": [],
+      "path": "/proj/important.log",
+      "relativePath": "important.log",
+      "expectedIgnored": false
+    }
+  ]
+}

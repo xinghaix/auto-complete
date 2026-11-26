@@ -1,6 +1,6 @@
 import { PromptLruCache, SuggestionCache } from "./cache.js";
 import { shouldSkip } from "./contextualSkip.js";
-import { Debouncer } from "./debouncer.js";
+import { Debouncer, normalizeDebounceBounds } from "./debouncer.js";
 import {
   CancellationToken,
   CancelledError,
@@ -8,16 +8,19 @@ import {
   HttpStatusError,
 } from "./errorBackoff.js";
 import { HttpCompletionClient, type CompletionClient } from "./httpClient.js";
-import { DEFAULT_GLOBS, IgnoreRules } from "./ignoreRules.js";
+import { IgnoreRules } from "./ignoreRules.js";
 import { formatLogSummary, LogBuffer, type LogEntry, type LogLevel } from "./logBuffer.js";
 import { buildPrompt, lruKey } from "./promptBuilder.js";
-import { postprocess, shouldShowOnlyFirstLine } from "./suggestionFilter.js";
+import { resolveTemplate } from "./promptTemplate.js";
+import { isMidLine, postprocess, shouldShowOnlyFirstLine } from "./suggestionFilter.js";
 import type {
   CachedSuggestion,
   CompletionOutcome,
   CompletionRequest,
   EngineSettings,
   ProviderConfig,
+  RequestStyle,
+  SessionStats,
 } from "./types.js";
 import { isEnabledNow } from "./types.js";
 
@@ -49,14 +52,21 @@ interface Job {
  * Core completion pipeline with cancelable async jobs (TypeScript dual of CompletionEngine).
  */
 export class CompletionEngine {
-  private generation = 0;
+  private generationCounter = 0;
+  private globalGeneration = 0;
+  private cancelAllFloor = -1;
+  private scopeGenerations = new Map<string, number>();
   private inflight = new Map<string, Job>();
-  private globalInflight = 0;
   private latencySamples: number[] = [];
   private debounceMs = Debouncer.INITIAL_MS;
   private history: SuggestionCache;
   private lru: PromptLruCache;
-  readonly backoff = new ErrorBackoff();
+  private totalRequestsCount = 0;
+  private cacheHitsCount = 0;
+  private cancelledCount = 0;
+  private failedCount = 0;
+  private acceptedCount = 0;
+  readonly backoff: ErrorBackoff;
   readonly logs: LogBuffer;
 
   constructor(
@@ -66,33 +76,72 @@ export class CompletionEngine {
     private clientFactory?: (cfg: ProviderConfig) => CompletionClient,
     private sleeper: (ms: number, token: CancellationToken) => Promise<void> = sleepCancelable,
     private onFatal?: (status: number | null, message: string) => void,
+    backoff?: ErrorBackoff,
   ) {
     this.logs = logs ?? new LogBuffer();
+    this.backoff = backoff ?? new ErrorBackoff();
     const s = settings();
     this.history = new SuggestionCache(s.cacheSize);
     this.lru = new PromptLruCache(s.lruSize);
-    this.debounceMs = clamp(
-      s.debounceInitialMs,
-      Debouncer.MIN_MS,
-      Debouncer.MAX_MS,
-    );
+    const { min, max } = normalizeDebounceBounds(s.debounceMinMs, s.debounceMaxMs);
+    this.debounceMs = clamp(s.debounceInitialMs, min, max);
   }
 
-  currentGeneration(): number {
-    return this.generation;
+  currentGeneration(scope?: string): number {
+    if (scope !== undefined) {
+      return Math.max(this.scopeGenerations.get(scope) ?? 0, this.globalGeneration);
+    }
+    return this.globalGeneration;
   }
 
-  nextGeneration(): number {
-    this.generation += 1;
-    return this.generation;
+  nextGeneration(scope?: string): number {
+    const next = ++this.generationCounter;
+    if (scope !== undefined) {
+      this.scopeGenerations.set(scope, next);
+    } else {
+      this.globalGeneration = next;
+    }
+    return next;
+  }
+
+  resetBackoff(): void {
+    this.backoff.reset();
+  }
+
+  clearCaches(): void {
+    this.history.clear();
+    this.lru.clear();
+    this.backoff.reset();
   }
 
   reloadCaches(): void {
     const s = this.settings();
     this.history = new SuggestionCache(s.cacheSize);
     this.lru = new PromptLruCache(s.lruSize);
-    this.debounceMs = clamp(s.debounceInitialMs, Debouncer.MIN_MS, Debouncer.MAX_MS);
+    this.backoff.reset();
+    const { min, max } = normalizeDebounceBounds(s.debounceMinMs, s.debounceMaxMs);
+    this.debounceMs = clamp(s.debounceInitialMs, min, max);
     this.logs.setRetention(s.logRetention);
+  }
+
+  recordAccepted(): void {
+    this.acceptedCount += 1;
+  }
+
+  sessionStats(): SessionStats {
+    const sorted = [...this.latencySamples].sort((a, b) => a - b);
+    return {
+      totalRequests: this.totalRequestsCount,
+      cacheHits: this.cacheHitsCount,
+      cancelled: this.cancelledCount,
+      failed: this.failedCount,
+      accepted: this.acceptedCount,
+      p50LatencyMs: percentile(sorted, 0.5),
+      p95LatencyMs: percentile(sorted, 0.95),
+      currentDebounceMs: this.debounceMs,
+      backoffBlocked: this.backoff.blocked(),
+      backoffFatal: this.backoff.isFatal(),
+    };
   }
 
   async complete(
@@ -110,138 +159,67 @@ export class CompletionEngine {
     token = new CancellationToken(),
   ): Promise<CompletionOutcome> {
     const s = this.settings();
+    const logLevel = s.logLevel;
     if (!isEnabledNow(s)) {
-      this.log("DEBUG", request, { message: "skip disabled or snoozed" });
+      this.log("DEBUG", request, { message: "skip disabled or snoozed" }, logLevel);
       return { kind: "skipped" };
     }
     if (request.trigger === "AUTO" && !s.autoTrigger) {
-      this.log("DEBUG", request, { message: "skip automatic trigger disabled" });
+      this.log("DEBUG", request, { message: "skip automatic trigger disabled" }, logLevel);
       return { kind: "skipped" };
     }
     const disabled = languageSet(s.disabledLanguages);
     if (disabled.has(request.language.toLowerCase())) {
-      this.log("DEBUG", request, { message: `skip disabled language=${request.language}` });
+      this.log("DEBUG", request, { message: `skip disabled language=${request.language}` }, logLevel);
       return { kind: "skipped" };
     }
     if (!s.enableInComments && request.context?.inComment) {
-      this.log("DEBUG", request, { message: "skip comment" });
+      this.log("DEBUG", request, { message: "skip comment" }, logLevel);
       return { kind: "skipped" };
     }
     if (!s.enableInStrings && request.context?.inString) {
-      this.log("DEBUG", request, { message: "skip string" });
+      this.log("DEBUG", request, { message: "skip string" }, logLevel);
       return { kind: "skipped" };
     }
     const maxBytes = Math.max(1, s.maxFileSizeKb) * 1024;
     if ((request.fileSizeBytes ?? 0) > 0 && (request.fileSizeBytes ?? 0) > maxBytes) {
-      this.log("DEBUG", request, { message: "skip oversized file" });
+      this.log("DEBUG", request, { message: "skip oversized file" }, logLevel);
       return { kind: "skipped" };
     }
     const ignore = new IgnoreRules(
-      s.ignoreGlobs?.length ? s.ignoreGlobs : DEFAULT_GLOBS,
+      s.ignoreGlobs ?? [],
       s.respectGitignore,
       this.projectContexts.gitignorePatterns(request.projectKey ?? ""),
     );
     if (request.path && ignore.isIgnored(request.path)) {
-      this.log("DEBUG", request, { message: "skip ignored path" });
+      this.log("DEBUG", request, { message: "skip ignored path" }, logLevel);
       return { kind: "skipped" };
     }
     if (s.validationErrors.length) {
-      this.log("WARN", request, { message: "settings invalid" });
+      this.log("WARN", request, { message: "settings invalid" }, logLevel);
       return { kind: "skipped" };
     }
 
     const scope = request.path || "untitled";
-    const hit = this.history.find(scope, request.prefix, request.suffix);
-    if (hit) {
-      const firstOnly =
-        s.firstLineOnlyWhenMidLine && shouldShowOnlyFirstLine(request.prefix, hit.text);
-      const text = postprocess(hit.text, request.prefix, request.suffix, firstOnly);
-      if (text) {
-        this.log("INFO", request, {
-          cacheHit: true,
-          latencyMs: 0,
-          message: `cache ${hit.match.toLowerCase()}`,
-        });
-        return {
-          kind: "success",
-          response: {
-            id: request.id,
-            text,
-            latencyMs: 0,
-            cached: true,
-            model: s.model,
-            generation: request.generation,
-          },
-        };
-      }
-    }
-
-    if (
-      request.trigger === "AUTO" &&
-      shouldSkip(request.prefix, request.suffix, request.language)
-    ) {
-      this.log("DEBUG", request, { message: "contextual skip" });
-      return { kind: "skipped" };
-    }
-
-    if (this.backoff.blocked()) {
-      this.log("DEBUG", request, {
-        message: `backoff blocked status=${this.backoff.getFatalStatus()}`,
-      });
-      return { kind: "skipped" };
-    }
-
-    if (debounce) {
-      const delay = clamp(
-        this.debounceMs,
-        Math.max(Debouncer.MIN_MS, s.debounceMinMs),
-        Math.max(Debouncer.MIN_MS, s.debounceMaxMs),
-      );
-      try {
-        await this.sleeper(delay, token);
-      } catch (e) {
-        if (e instanceof CancelledError) return { kind: "cancelled" };
-        throw e;
-      }
-      if (token.isCancelled() || request.generation !== this.generation) {
-        return { kind: "cancelled" };
-      }
-    }
-
-    const started = Date.now();
-    try {
-      token.throwIfCancelled();
-      const prompt = buildPrompt({
-        prefix: request.prefix,
-        suffix: request.suffix,
-        maxPrefixChars: s.maxPrefixChars,
-        maxSuffixChars: s.maxSuffixChars,
-        path: request.path,
-        language: request.language,
-        sendFilePath: s.sendFilePath,
-        recentSnippets: this.projectContexts.recentSnippets(
-          request.projectKey ?? "",
-          s.enableRecentFileContext,
-          s.recentFileLimit,
-          s.recentFileMaxChars,
-        ),
-      });
-      if (s.logPromptBodies) {
-        this.log("DEBUG", request, {
-          message: `prompt prefix=${prompt.prefix.slice(0, 200)} suffix=${prompt.suffix.slice(0, 80)}`,
-          prefixChars: prompt.prefix.length,
-          suffixChars: prompt.suffix.length,
-        });
-      }
-      const key = lruKey(request.language, s.model, prompt.prefix, prompt.suffix);
-      const lruHit = this.lru.get(key);
-      if (lruHit) {
+    if (!request.forceRefresh) {
+      const hit = this.history.find(scope, request.prefix, request.suffix);
+      if (hit) {
         const firstOnly =
-          s.firstLineOnlyWhenMidLine && shouldShowOnlyFirstLine(request.prefix, lruHit);
-        const text = postprocess(lruHit, request.prefix, request.suffix, firstOnly);
+          s.firstLineOnlyWhenMidLine && shouldShowOnlyFirstLine(request.prefix, hit.text);
+        const text = postprocess(hit.text, request.prefix, request.suffix, firstOnly);
         if (text) {
-          this.history.put({ scope, prefix: request.prefix, suffix: request.suffix, text });
-          this.log("INFO", request, { cacheHit: true, latencyMs: 0, message: "lru hit" });
+          this.totalRequestsCount += 1;
+          this.cacheHitsCount += 1;
+          this.log(
+            "INFO",
+            request,
+            {
+              cacheHit: true,
+              latencyMs: 0,
+              message: `cache ${hit.match.toLowerCase()}`,
+            },
+            logLevel,
+          );
           return {
             kind: "success",
             response: {
@@ -255,9 +233,128 @@ export class CompletionEngine {
           };
         }
       }
+    }
 
+    if (
+      request.trigger === "AUTO" &&
+      shouldSkip(request.prefix, request.suffix, request.language)
+    ) {
+      this.log("DEBUG", request, { message: "contextual skip" }, logLevel);
+      return { kind: "skipped" };
+    }
+
+    const prompt = buildPrompt({
+      prefix: request.prefix,
+      suffix: request.suffix,
+      maxPrefixChars: s.maxPrefixChars,
+      maxSuffixChars: s.maxSuffixChars,
+      path: request.path,
+      language: request.language,
+      sendFilePath: s.sendFilePath,
+      recentSnippets: this.projectContexts.recentSnippets(
+        request.projectKey ?? "",
+        s.enableRecentFileContext,
+        s.recentFileLimit,
+        s.recentFileMaxChars,
+      ),
+    });
+    const effectiveTemplate = effectivePromptTemplate(s.providerConfig);
+    const key = lruKey(request.language, s.model, prompt.prefix, prompt.suffix, {
+      promptTemplate: effectiveTemplate,
+      baseUrl: s.providerConfig.baseUrl,
+      temperature: s.temperature,
+      maxTokens: s.maxTokens,
+      firstLineOnlyWhenMidLine: s.firstLineOnlyWhenMidLine,
+    });
+
+    // Check LRU cache BEFORE debounce so identical prompts return immediately at 0ms.
+    if (!request.forceRefresh) {
+      const lruHit = this.lru.get(key);
+      if (lruHit) {
+        const firstOnly =
+          s.firstLineOnlyWhenMidLine && shouldShowOnlyFirstLine(request.prefix, lruHit);
+        const text = postprocess(lruHit, request.prefix, request.suffix, firstOnly);
+        if (text) {
+          this.totalRequestsCount += 1;
+          this.cacheHitsCount += 1;
+          this.history.put({ scope, prefix: request.prefix, suffix: request.suffix, text });
+          this.log("INFO", request, { cacheHit: true, latencyMs: 0, message: "lru hit" }, logLevel);
+          return {
+            kind: "success",
+            response: {
+              id: request.id,
+              text,
+              latencyMs: 0,
+              cached: true,
+              model: s.model,
+              generation: request.generation,
+            },
+          };
+        }
+      }
+    }
+
+    if (this.backoff.blocked()) {
+      const allowProbe = request.trigger === "MANUAL" || this.backoff.shouldProbe();
+      if (!allowProbe) {
+        this.log(
+          "DEBUG",
+          request,
+          { message: `backoff blocked status=${this.backoff.getFatalStatus()}` },
+          logLevel,
+        );
+        return { kind: "skipped" };
+      }
+      this.log(
+        "DEBUG",
+        request,
+        { message: `backoff probe allowed trigger=${request.trigger}` },
+        logLevel,
+      );
+    }
+
+    this.totalRequestsCount += 1;
+
+    if (debounce) {
+      const { min, max } = normalizeDebounceBounds(s.debounceMinMs, s.debounceMaxMs);
+      const delay = clamp(this.debounceMs, min, max);
+      if (delay > 0) {
+        try {
+          await this.sleeper(delay, token);
+        } catch (e) {
+          if (e instanceof CancelledError) {
+            this.cancelledCount += 1;
+            return { kind: "cancelled" };
+          }
+          throw e;
+        }
+      }
+      if (token.isCancelled() || this.isGenerationStale(scope, request.generation)) {
+        this.cancelledCount += 1;
+        return { kind: "cancelled" };
+      }
+    }
+
+    const started = Date.now();
+    try {
       token.throwIfCancelled();
-      if (request.generation !== this.generation) return { kind: "cancelled" };
+      if (this.isGenerationStale(scope, request.generation)) {
+        this.cancelledCount += 1;
+        return { kind: "cancelled" };
+      }
+
+      if (s.logPromptBodies) {
+        this.log(
+          "DEBUG",
+          request,
+          {
+            message: `prompt prefix=${prompt.prefix.slice(0, 200)} suffix=${prompt.suffix.slice(0, 80)}`,
+            prefixChars: prompt.prefix.length,
+            suffixChars: prompt.suffix.length,
+          },
+          logLevel,
+        );
+      }
 
       const providerConfig: ProviderConfig = {
         ...s.providerConfig,
@@ -266,8 +363,10 @@ export class CompletionEngine {
       const client =
         this.clientFactory?.(providerConfig) ??
         new HttpCompletionClient(providerConfig, "completion", (event) => {
-          this.logHttp(request, event);
+          this.logHttp(request, event, logLevel);
         });
+
+      const stopAtNewline = s.firstLineOnlyWhenMidLine && isMidLine(request.prefix);
 
       const providerResponse = await client.complete(
         {
@@ -277,17 +376,19 @@ export class CompletionEngine {
           maxTokens: s.maxTokens,
           temperature: s.temperature,
           stream: s.stream,
+          stopAtNewline,
           language: request.language,
           path: request.path,
         },
         token,
       );
 
-      if (token.isCancelled() || request.generation !== this.generation) {
+      if (token.isCancelled() || this.isGenerationStale(scope, request.generation)) {
+        this.cancelledCount += 1;
         return { kind: "cancelled" };
       }
       const latency = Date.now() - started;
-      this.recordLatency(latency);
+      this.recordLatency(latency, s);
       this.backoff.success();
 
       const firstOnly =
@@ -300,13 +401,18 @@ export class CompletionEngine {
         firstOnly,
       );
       if (!text) {
-        this.log("INFO", request, {
-          latencyMs: latency,
-          status: providerResponse.rawStatus,
-          message: "empty after filter",
-          prefixChars: prompt.prefix.length,
-          suffixChars: prompt.suffix.length,
-        });
+        this.log(
+          "INFO",
+          request,
+          {
+            latencyMs: latency,
+            status: providerResponse.rawStatus,
+            message: "empty after filter",
+            prefixChars: prompt.prefix.length,
+            suffixChars: prompt.suffix.length,
+          },
+          logLevel,
+        );
         return { kind: "skipped" };
       }
       this.history.put({
@@ -319,13 +425,18 @@ export class CompletionEngine {
       const costMsg = s.showCostApprox
         ? ` tokens=${providerResponse.usage?.inputTokens ?? 0}/${providerResponse.usage?.outputTokens ?? 0}`
         : "";
-      this.log("INFO", request, {
-        latencyMs: latency,
-        status: providerResponse.rawStatus,
-        message: `ok model=${s.model}${costMsg}`,
-        prefixChars: prompt.prefix.length,
-        suffixChars: prompt.suffix.length,
-      });
+      this.log(
+        "INFO",
+        request,
+        {
+          latencyMs: latency,
+          status: providerResponse.rawStatus,
+          message: `ok model=${s.model}${costMsg}`,
+          prefixChars: prompt.prefix.length,
+          suffixChars: prompt.suffix.length,
+        },
+        logLevel,
+      );
       return {
         kind: "success",
         response: {
@@ -339,17 +450,28 @@ export class CompletionEngine {
         },
       };
     } catch (e) {
-      if (e instanceof CancelledError || token.isCancelled() || request.generation !== this.generation) {
-        this.log("DEBUG", request, { message: "cancelled" });
+      if (
+        e instanceof CancelledError ||
+        token.isCancelled() ||
+        this.isGenerationStale(scope, request.generation)
+      ) {
+        this.cancelledCount += 1;
+        this.log("DEBUG", request, { message: "cancelled" }, logLevel);
         return { kind: "cancelled" };
       }
+      this.failedCount += 1;
       const status = e instanceof HttpStatusError ? e.status : null;
       const kind = this.backoff.failure(e, status);
-      this.log(kind === "FATAL" ? "ERROR" : "WARN", request, {
-        status,
-        error: e instanceof Error ? e.message : String(e),
-        message: `fail kind=${kind}`,
-      });
+      this.log(
+        kind === "FATAL" ? "ERROR" : "WARN",
+        request,
+        {
+          status,
+          error: e instanceof Error ? e.message : String(e),
+          message: `fail kind=${kind}`,
+        },
+        logLevel,
+      );
       if (kind === "FATAL" && s.notifyOnFatalError) {
         this.onFatal?.(status, e instanceof Error ? e.message : String(e));
       }
@@ -372,35 +494,37 @@ export class CompletionEngine {
 
     const s = this.settings();
     const max = Math.max(1, s.maxInFlight);
-    if (this.globalInflight >= max) {
+    while (this.inflight.size >= max) {
+      let evicted = false;
       for (const key of this.inflight.keys()) {
         if (key !== scope) {
           this.cancelScope(key);
+          evicted = true;
           break;
         }
       }
+      if (!evicted) break;
     }
 
     const token = new CancellationToken();
-    const gen = request.generation === 0 ? this.nextGeneration() : request.generation;
+    const gen = request.generation === 0 ? this.nextGeneration(scope) : request.generation;
     const req = request.generation === gen ? request : { ...request, generation: gen };
 
     this.inflight.set(scope, { id: req.id, generation: req.generation, token });
-    this.globalInflight += 1;
 
     void (async () => {
       try {
         const outcome = await this.completeSync(req, debounce, token);
-        if (!token.isCancelled() && req.generation === this.generation) {
+        if (!token.isCancelled() && !this.isGenerationStale(scope, req.generation)) {
           onDone(outcome);
         } else {
+          if (outcome.kind !== "cancelled") this.cancelledCount += 1;
           onDone({ kind: "cancelled" });
         }
       } catch (e) {
         if (e instanceof CancelledError) onDone({ kind: "cancelled" });
         else onDone({ kind: "failed", message: e instanceof Error ? e.message : String(e) });
       } finally {
-        this.globalInflight = Math.max(0, this.globalInflight - 1);
         const current = this.inflight.get(scope);
         if (current?.id === req.id) this.inflight.delete(scope);
       }
@@ -408,7 +532,12 @@ export class CompletionEngine {
   }
 
   cancelAll(): void {
-    this.generation += 1;
+    const next = ++this.generationCounter;
+    this.globalGeneration = next;
+    this.cancelAllFloor = next;
+    for (const scope of this.scopeGenerations.keys()) {
+      this.scopeGenerations.set(scope, next);
+    }
     for (const scope of [...this.inflight.keys()]) this.cancelScope(scope);
   }
 
@@ -428,22 +557,24 @@ export class CompletionEngine {
     return crypto.randomUUID();
   }
 
-  private recordLatency(ms: number): void {
+  private isGenerationStale(scope: string, gen: number): boolean {
+    if (gen <= this.cancelAllFloor) return true;
+    const expected = Math.max(this.scopeGenerations.get(scope) ?? 0, this.globalGeneration);
+    return gen !== expected;
+  }
+
+  private recordLatency(ms: number, s: EngineSettings): void {
     this.latencySamples.push(ms);
     while (this.latencySamples.length > 50) this.latencySamples.shift();
-    this.debounceMs = Debouncer.nextDelay(this.debounceMs, this.latencySamples);
-    const s = this.settings();
-    this.debounceMs = clamp(
-      this.debounceMs,
-      Math.max(Debouncer.MIN_MS, s.debounceMinMs),
-      Math.max(Debouncer.MIN_MS, Math.min(Debouncer.MAX_MS, s.debounceMaxMs)),
-    );
+    const { min, max } = normalizeDebounceBounds(s.debounceMinMs, s.debounceMaxMs);
+    this.debounceMs = Debouncer.nextDelay(this.debounceMs, this.latencySamples, min, max);
   }
 
   private log(
     level: LogLevel,
     request: CompletionRequest,
     extra: Partial<LogEntry> = {},
+    configuredLevel?: string,
   ): void {
     const entry: LogEntry = {
       time: new Date().toISOString(),
@@ -453,7 +584,7 @@ export class CompletionEngine {
       trigger: request.trigger,
       ...extra,
     };
-    this.logs.appendIfEnabled(entry, this.settings().logLevel);
+    this.logs.appendIfEnabled(entry, configuredLevel ?? this.settings().logLevel);
   }
 
   private logHttp(
@@ -471,6 +602,7 @@ export class CompletionEngine {
       message?: string;
       error?: string;
     },
+    configuredLevel?: string,
   ): void {
     this.logs.appendIfEnabled(
       {
@@ -490,9 +622,25 @@ export class CompletionEngine {
         message: event.message,
         error: event.error,
       },
-      this.settings().logLevel,
+      configuredLevel ?? this.settings().logLevel,
     );
   }
+}
+
+function effectivePromptTemplate(cfg: ProviderConfig): string {
+  let stored = cfg.promptTemplate ?? "AUTO";
+  if (stored === "AUTO") {
+    const style = (cfg.requestStyle ?? "AUTO") as RequestStyle;
+    if (style === "FIM") stored = "CODESTRAL_API";
+    else if (style === "CHAT") stored = "CHAT";
+  }
+  return resolveTemplate(stored, cfg.model, cfg.kind, cfg.baseUrl);
+}
+
+function percentile(sorted: number[], p: number): number | null {
+  if (sorted.length === 0) return null;
+  const idx = Math.min(sorted.length - 1, Math.max(0, Math.ceil(sorted.length * p) - 1));
+  return sorted[idx]!;
 }
 
 async function sleepCancelable(ms: number, token: CancellationToken): Promise<void> {
@@ -502,8 +650,12 @@ async function sleepCancelable(ms: number, token: CancellationToken): Promise<vo
     const remain = end - Date.now();
     if (remain <= 0) break;
     await new Promise<void>((resolve, reject) => {
-      const t = setTimeout(resolve, Math.min(20, remain));
-      token.onCancel(() => {
+      let unsubscribe: (() => void) | null = null;
+      const t = setTimeout(() => {
+        unsubscribe?.();
+        resolve();
+      }, Math.min(20, remain));
+      unsubscribe = token.onCancel(() => {
         clearTimeout(t);
         reject(new CancelledError());
       });
