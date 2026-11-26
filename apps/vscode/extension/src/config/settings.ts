@@ -1,12 +1,16 @@
-import * as vscode from "vscode";
+import type * as vscode from "vscode";
 import { randomUUID } from "crypto";
 import type { EngineSettings, PromptTemplateId, ProviderConfig } from "@auto-complete/core-ts";
 import { validateSettings } from "@auto-complete/core-ts";
+import { getVscode } from "../vscodeApi";
 
 const PROFILES_KEY = "autoComplete.profiles.v1";
 const PROFILES_INITIALIZED_KEY = "autoComplete.profilesInitialized.v1";
 const ACTIVE_KEY = "autoComplete.activeProfileId";
 const GLOBAL_KEY = "autoComplete.global.v1";
+
+export const DEFAULT_AUTH_HEADER_TEMPLATE = "Authorization: Bearer ${apiKey}";
+export const DEFAULT_NEW_PROFILE_NAME = "New Profile";
 
 export type StoredProfile = {
   id: string;
@@ -16,6 +20,8 @@ export type StoredProfile = {
   model: string;
   authHeaderTemplate?: string;
   extraHeadersJson?: string;
+  extraBodyJson?: string;
+  stopSequences?: string;
   fimPath?: string;
   chatPath?: string;
   completionsPath?: string;
@@ -30,6 +36,76 @@ export type StoredProfile = {
   maxPrefixChars?: number;
   maxSuffixChars?: number;
 };
+
+export type ProfilePreset = {
+  id: "ollama" | "deepseek-beta" | "mistral-codestral" | "vllm-lmstudio";
+  defaultName: string;
+  baseUrl: string;
+  promptTemplate: PromptTemplateId;
+  fimPath: string;
+  chatPath: string;
+  completionsPath: string;
+};
+
+const PRESET_DEFINITIONS: Record<ProfilePreset["id"], ProfilePreset> = {
+  ollama: {
+    id: "ollama",
+    defaultName: "Ollama",
+    baseUrl: "http://127.0.0.1:11434/v1",
+    promptTemplate: "AUTO",
+    fimPath: "",
+    chatPath: "/chat/completions",
+    completionsPath: "",
+  },
+  "deepseek-beta": {
+    id: "deepseek-beta",
+    defaultName: "DeepSeek Beta FIM",
+    baseUrl: "https://api.deepseek.com/beta",
+    promptTemplate: "CODESTRAL_API",
+    fimPath: "/completions",
+    chatPath: "/chat/completions",
+    completionsPath: "",
+  },
+  "mistral-codestral": {
+    id: "mistral-codestral",
+    defaultName: "Mistral Codestral",
+    baseUrl: "https://codestral.mistral.ai/v1",
+    promptTemplate: "CODESTRAL_API",
+    fimPath: "/fim/completions",
+    chatPath: "/chat/completions",
+    completionsPath: "",
+  },
+  "vllm-lmstudio": {
+    id: "vllm-lmstudio",
+    defaultName: "vLLM / LM Studio",
+    baseUrl: "http://127.0.0.1:8000/v1",
+    promptTemplate: "AUTO",
+    fimPath: "",
+    chatPath: "/chat/completions",
+    completionsPath: "",
+  },
+};
+
+const PRESET_ALIASES: Record<string, ProfilePreset["id"]> = {
+  ollama: "ollama",
+  deepseek: "deepseek-beta",
+  "deepseek-beta": "deepseek-beta",
+  "deepseek-beta-fim": "deepseek-beta",
+  mistral: "mistral-codestral",
+  "mistral-codestral": "mistral-codestral",
+  codestral: "mistral-codestral",
+  vllm: "vllm-lmstudio",
+  "vllm-lmstudio": "vllm-lmstudio",
+  lmstudio: "vllm-lmstudio",
+  "lm-studio": "vllm-lmstudio",
+};
+
+export function resolveProfilePreset(raw?: string | null): ProfilePreset | undefined {
+  const key = (raw ?? "").trim().toLowerCase();
+  if (!key) return undefined;
+  const canonical = PRESET_ALIASES[key];
+  return canonical ? PRESET_DEFINITIONS[canonical] : undefined;
+}
 
 export type UiTheme = "auto" | "light" | "dark";
 
@@ -70,7 +146,7 @@ export type GlobalPrefs = {
   uiLocale: string;
 };
 
-const DEFAULT_GLOBAL: GlobalPrefs = {
+export const DEFAULT_GLOBAL: GlobalPrefs = {
   enabled: true,
   autoTrigger: true,
   enableInComments: true,
@@ -111,10 +187,78 @@ const DEFAULT_GLOBAL: GlobalPrefs = {
   uiLocale: "auto",
 };
 
-function normalizeUiTheme(raw: unknown): UiTheme {
+/**
+ * Re-entrancy guard preventing mirrored `cfg.update(...)` calls from re-triggering
+ * `onDidChangeConfiguration` refresh storms.
+ */
+let suppressConfigChangeDepth = 0;
+
+export function isConfigChangeSuppressed(): boolean {
+  return suppressConfigChangeDepth > 0;
+}
+
+export async function withSuppressedConfigChange<T>(fn: () => Promise<T>): Promise<T> {
+  suppressConfigChangeDepth += 1;
+  try {
+    return await fn();
+  } finally {
+    suppressConfigChangeDepth = Math.max(0, suppressConfigChangeDepth - 1);
+  }
+}
+
+async function updateConfigIfChanged(
+  cfg: vscode.WorkspaceConfiguration,
+  key: string,
+  value: unknown,
+): Promise<boolean> {
+  const vscode = getVscode();
+  const inspected = cfg.inspect?.(key);
+  if (value === undefined) {
+    if (inspected && inspected.globalValue === undefined) return false;
+    await cfg.update(key, undefined, vscode.ConfigurationTarget.Global);
+    return true;
+  }
+  const current =
+    inspected && inspected.globalValue !== undefined ? inspected.globalValue : cfg.get(key);
+  if (Object.is(current, value)) return false;
+  await cfg.update(key, value, vscode.ConfigurationTarget.Global);
+  return true;
+}
+
+export function normalizeUiTheme(raw: unknown): UiTheme {
   const v = typeof raw === "string" ? raw.trim().toLowerCase() : "";
   if (v === "light" || v === "dark") return v;
   return "auto";
+}
+
+export function normalizeUiLocale(raw: unknown): string {
+  const v = typeof raw === "string" ? raw.trim().toLowerCase() : "";
+  if (v === "en" || v === "zh" || v === "ja" || v === "ko") return v;
+  return "auto";
+}
+
+export function normalizeDisabledLanguagesInput(raw: unknown): string | undefined {
+  if (typeof raw === "string") return raw;
+  if (Array.isArray(raw)) {
+    return raw
+      .filter((x) => typeof x === "string")
+      .map((x) => x.trim())
+      .filter(Boolean)
+      .join(", ");
+  }
+  return undefined;
+}
+
+export function normalizeIgnoreGlobsInput(raw: unknown): string | undefined {
+  if (typeof raw === "string") return raw;
+  if (Array.isArray(raw)) {
+    return raw
+      .filter((x) => typeof x === "string")
+      .map((x) => x.trim())
+      .filter(Boolean)
+      .join("\n");
+  }
+  return undefined;
 }
 
 function secretKey(profileId: string): string {
@@ -122,7 +266,7 @@ function secretKey(profileId: string): string {
 }
 
 export function uniqueName(preferred: string, existing: string[]): string {
-  const base = preferred.trim() || "新配置";
+  const base = preferred.trim() || DEFAULT_NEW_PROFILE_NAME;
   const taken = new Set(existing.map((n) => n.trim()).filter(Boolean));
   if (!taken.has(base)) return base;
   let n = 2;
@@ -137,15 +281,17 @@ export async function ensureProfiles(context: vscode.ExtensionContext): Promise<
   if (!profiles && initialized) return [];
 
   // Migrate from contributes.configuration flat keys once.
-  const c = vscode.workspace.getConfiguration("autoComplete");
+  const c = getVscode().workspace.getConfiguration("autoComplete");
   const migrated: StoredProfile = {
     id: randomUUID(),
     name: "Default",
     provider: "openai-compatible",
     baseUrl: c.get("baseUrl", "http://127.0.0.1:11434/v1"),
     model: c.get("model", "qwen2.5-coder:7b"),
-    authHeaderTemplate: c.get("authHeaderTemplate", "Authorization: Bearer ${apiKey}"),
+    authHeaderTemplate: c.get("authHeaderTemplate", DEFAULT_AUTH_HEADER_TEMPLATE),
     extraHeadersJson: "{}",
+    extraBodyJson: "",
+    stopSequences: "",
     fimPath: c.get("fimPath", ""),
     chatPath: c.get("chatPath", "/chat/completions"),
     completionsPath: c.get("completionsPath", ""),
@@ -172,78 +318,76 @@ export async function ensureProfiles(context: vscode.ExtensionContext): Promise<
   return profiles.map((p) => ({ ...p }));
 }
 
+const MIRRORED_GLOBAL_KEYS: ReadonlyArray<keyof GlobalPrefs> = [
+  "enabled",
+  "autoTrigger",
+  "enableInComments",
+  "enableInStrings",
+  "firstLineOnlyWhenMidLine",
+  "sendFilePath",
+  "logLevel",
+  "logPromptBodies",
+  "maxPrefixChars",
+  "maxSuffixChars",
+  "debounceMinMs",
+  "debounceInitialMs",
+  "debounceMaxMs",
+  "maxFileSizeKb",
+  "showStatusBar",
+  "uiTheme",
+  "uiLocale",
+  "respectGitignore",
+  "enableRecentFileContext",
+  "notifyOnFatalError",
+  "showCostApprox",
+];
+
+/**
+ * Returns global preferences with `globalState` as the single source of truth.
+ * Falls back to `contributes.configuration` only for keys not yet present in `globalState`.
+ */
 export function getGlobalPrefs(context: vscode.ExtensionContext): GlobalPrefs {
-  const stored = context.globalState.get<Partial<GlobalPrefs>>(GLOBAL_KEY) ?? {};
-  const c = vscode.workspace.getConfiguration("autoComplete");
+  const stored = context.globalState.get<Partial<GlobalPrefs>>(GLOBAL_KEY);
+  if (stored) {
+    return {
+      ...DEFAULT_GLOBAL,
+      ...stored,
+      uiTheme: normalizeUiTheme(stored.uiTheme ?? DEFAULT_GLOBAL.uiTheme),
+      uiLocale: normalizeUiLocale(stored.uiLocale ?? DEFAULT_GLOBAL.uiLocale),
+    };
+  }
+  // Initial bootstrap before GLOBAL_KEY has ever been written.
+  const c = getVscode().workspace.getConfiguration("autoComplete");
   return {
     ...DEFAULT_GLOBAL,
-    enabled: c.get("enabled", stored.enabled ?? DEFAULT_GLOBAL.enabled),
-    autoTrigger: c.get("autoTrigger", stored.autoTrigger ?? DEFAULT_GLOBAL.autoTrigger),
-    enableInComments: c.get(
-      "enableInComments",
-      stored.enableInComments ?? DEFAULT_GLOBAL.enableInComments,
-    ),
-    enableInStrings: c.get(
-      "enableInStrings",
-      stored.enableInStrings ?? DEFAULT_GLOBAL.enableInStrings,
-    ),
+    enabled: c.get("enabled", DEFAULT_GLOBAL.enabled),
+    autoTrigger: c.get("autoTrigger", DEFAULT_GLOBAL.autoTrigger),
+    enableInComments: c.get("enableInComments", DEFAULT_GLOBAL.enableInComments),
+    enableInStrings: c.get("enableInStrings", DEFAULT_GLOBAL.enableInStrings),
     firstLineOnlyWhenMidLine: c.get(
       "firstLineOnlyWhenMidLine",
-      stored.firstLineOnlyWhenMidLine ?? DEFAULT_GLOBAL.firstLineOnlyWhenMidLine,
+      DEFAULT_GLOBAL.firstLineOnlyWhenMidLine,
     ),
-    sendFilePath: c.get("sendFilePath", stored.sendFilePath ?? DEFAULT_GLOBAL.sendFilePath),
-    respectGitignore: c.get(
-      "respectGitignore",
-      stored.respectGitignore ?? DEFAULT_GLOBAL.respectGitignore,
-    ),
-    ignoreGlobs: stored.ignoreGlobs ?? DEFAULT_GLOBAL.ignoreGlobs,
-    disabledLanguages: stored.disabledLanguages ?? DEFAULT_GLOBAL.disabledLanguages,
-    logLevel: c.get("logLevel", stored.logLevel ?? DEFAULT_GLOBAL.logLevel),
-    logPromptBodies: c.get(
-      "logPromptBodies",
-      stored.logPromptBodies ?? DEFAULT_GLOBAL.logPromptBodies,
-    ),
-    logRetention: stored.logRetention ?? DEFAULT_GLOBAL.logRetention,
-    notifyOnFatalError: c.get(
-      "notifyOnFatalError",
-      stored.notifyOnFatalError ?? DEFAULT_GLOBAL.notifyOnFatalError,
-    ),
-    showCostApprox: c.get(
-      "showCostApprox",
-      stored.showCostApprox ?? DEFAULT_GLOBAL.showCostApprox,
-    ),
-    maxPrefixChars: c.get("maxPrefixChars", stored.maxPrefixChars ?? DEFAULT_GLOBAL.maxPrefixChars),
-    maxSuffixChars: c.get("maxSuffixChars", stored.maxSuffixChars ?? DEFAULT_GLOBAL.maxSuffixChars),
-    debounceMinMs: c.get("debounceMinMs", stored.debounceMinMs ?? DEFAULT_GLOBAL.debounceMinMs),
-    debounceInitialMs: c.get(
-      "debounceInitialMs",
-      stored.debounceInitialMs ?? DEFAULT_GLOBAL.debounceInitialMs,
-    ),
-    debounceMaxMs: c.get("debounceMaxMs", stored.debounceMaxMs ?? DEFAULT_GLOBAL.debounceMaxMs),
-    maxInFlight: stored.maxInFlight ?? DEFAULT_GLOBAL.maxInFlight,
-    cacheSize: stored.cacheSize ?? DEFAULT_GLOBAL.cacheSize,
-    lruSize: stored.lruSize ?? DEFAULT_GLOBAL.lruSize,
-    maxFileSizeKb: c.get("maxFileSizeKb", stored.maxFileSizeKb ?? DEFAULT_GLOBAL.maxFileSizeKb),
+    sendFilePath: c.get("sendFilePath", DEFAULT_GLOBAL.sendFilePath),
+    respectGitignore: c.get("respectGitignore", DEFAULT_GLOBAL.respectGitignore),
+    logLevel: c.get("logLevel", DEFAULT_GLOBAL.logLevel),
+    logPromptBodies: c.get("logPromptBodies", DEFAULT_GLOBAL.logPromptBodies),
+    notifyOnFatalError: c.get("notifyOnFatalError", DEFAULT_GLOBAL.notifyOnFatalError),
+    showCostApprox: c.get("showCostApprox", DEFAULT_GLOBAL.showCostApprox),
+    maxPrefixChars: c.get("maxPrefixChars", DEFAULT_GLOBAL.maxPrefixChars),
+    maxSuffixChars: c.get("maxSuffixChars", DEFAULT_GLOBAL.maxSuffixChars),
+    debounceMinMs: c.get("debounceMinMs", DEFAULT_GLOBAL.debounceMinMs),
+    debounceInitialMs: c.get("debounceInitialMs", DEFAULT_GLOBAL.debounceInitialMs),
+    debounceMaxMs: c.get("debounceMaxMs", DEFAULT_GLOBAL.debounceMaxMs),
+    maxFileSizeKb: c.get("maxFileSizeKb", DEFAULT_GLOBAL.maxFileSizeKb),
     enableRecentFileContext: c.get(
       "enableRecentFileContext",
-      stored.enableRecentFileContext ?? DEFAULT_GLOBAL.enableRecentFileContext,
+      DEFAULT_GLOBAL.enableRecentFileContext,
     ),
-    recentFileLimit: stored.recentFileLimit ?? DEFAULT_GLOBAL.recentFileLimit,
-    recentFileMaxChars: stored.recentFileMaxChars ?? DEFAULT_GLOBAL.recentFileMaxChars,
-    showStatusBar: c.get("showStatusBar", stored.showStatusBar ?? DEFAULT_GLOBAL.showStatusBar),
-    uiTheme: normalizeUiTheme(
-      c.get("uiTheme", stored.uiTheme ?? DEFAULT_GLOBAL.uiTheme),
-    ),
-    uiLocale: normalizeUiLocale(
-      c.get("uiLocale", stored.uiLocale ?? DEFAULT_GLOBAL.uiLocale),
-    ),
+    showStatusBar: c.get("showStatusBar", DEFAULT_GLOBAL.showStatusBar),
+    uiTheme: normalizeUiTheme(c.get("uiTheme", DEFAULT_GLOBAL.uiTheme)),
+    uiLocale: normalizeUiLocale(c.get("uiLocale", DEFAULT_GLOBAL.uiLocale)),
   };
-}
-
-function normalizeUiLocale(raw: unknown): string {
-  const v = typeof raw === "string" ? raw.trim().toLowerCase() : "";
-  if (v === "en" || v === "zh" || v === "ja" || v === "ko") return v;
-  return "auto";
 }
 
 export async function saveGlobalPrefs(
@@ -254,31 +398,22 @@ export async function saveGlobalPrefs(
   const patch = Object.fromEntries(
     Object.entries(prefs).filter(([, v]) => v !== undefined),
   ) as Partial<GlobalPrefs>;
-  const next = { ...getGlobalPrefs(context), ...patch };
+  const current = getGlobalPrefs(context);
+  const next: GlobalPrefs = {
+    ...current,
+    ...patch,
+    uiTheme: normalizeUiTheme(patch.uiTheme ?? current.uiTheme),
+    uiLocale: normalizeUiLocale(patch.uiLocale ?? current.uiLocale),
+  };
   await context.globalState.update(GLOBAL_KEY, next);
-  const cfg = vscode.workspace.getConfiguration("autoComplete");
-  const target = vscode.ConfigurationTarget.Global;
-  await cfg.update("enabled", next.enabled, target);
-  await cfg.update("autoTrigger", next.autoTrigger, target);
-  await cfg.update("enableInComments", next.enableInComments, target);
-  await cfg.update("enableInStrings", next.enableInStrings, target);
-  await cfg.update("firstLineOnlyWhenMidLine", next.firstLineOnlyWhenMidLine, target);
-  await cfg.update("sendFilePath", next.sendFilePath, target);
-  await cfg.update("logLevel", next.logLevel, target);
-  await cfg.update("logPromptBodies", next.logPromptBodies, target);
-  await cfg.update("maxPrefixChars", next.maxPrefixChars, target);
-  await cfg.update("maxSuffixChars", next.maxSuffixChars, target);
-  await cfg.update("debounceMinMs", next.debounceMinMs, target);
-  await cfg.update("debounceInitialMs", next.debounceInitialMs, target);
-  await cfg.update("debounceMaxMs", next.debounceMaxMs, target);
-  await cfg.update("maxFileSizeKb", next.maxFileSizeKb, target);
-  await cfg.update("showStatusBar", next.showStatusBar, target);
-  await cfg.update("uiTheme", next.uiTheme, target);
-  await cfg.update("uiLocale", next.uiLocale, target);
-  await cfg.update("respectGitignore", next.respectGitignore, target);
-  await cfg.update("enableRecentFileContext", next.enableRecentFileContext, target);
-  await cfg.update("notifyOnFatalError", next.notifyOnFatalError, target);
-  await cfg.update("showCostApprox", next.showCostApprox, target);
+
+  // Mirror ONLY changed non-secret global keys under re-entrancy suppression.
+  await withSuppressedConfigChange(async () => {
+    const cfg = getVscode().workspace.getConfiguration("autoComplete");
+    for (const key of MIRRORED_GLOBAL_KEYS) {
+      await updateConfigIfChanged(cfg, key, next[key]);
+    }
+  });
 }
 
 export async function getActiveProfileId(context: vscode.ExtensionContext): Promise<string> {
@@ -301,36 +436,126 @@ export async function saveProfiles(
   profiles: StoredProfile[],
   activeId?: string,
 ): Promise<void> {
-  await context.globalState.update(
-    PROFILES_KEY,
-    profiles.map((p) => ({ ...p })),
-  );
+  const cloned = profiles.map((p) => ({ ...p }));
+  await context.globalState.update(PROFILES_KEY, cloned);
   await context.globalState.update(PROFILES_INITIALIZED_KEY, true);
+
+  let resolvedActiveId: string;
   if (activeId !== undefined) {
-    await context.globalState.update(ACTIVE_KEY, activeId);
+    resolvedActiveId = cloned.some((p) => p.id === activeId) ? activeId : (cloned[0]?.id ?? "");
+    await context.globalState.update(ACTIVE_KEY, resolvedActiveId);
+  } else {
+    resolvedActiveId = await getActiveProfileId(context);
+    if (cloned.length === 0) {
+      await context.globalState.update(ACTIVE_KEY, "");
+    }
   }
-  // Mirror active profile into contributes.configuration for native settings UI
-  const resolvedActiveId = activeId ?? (await getActiveProfileId(context));
-  const active = profiles.find((p) => p.id === resolvedActiveId);
-  if (active) {
-    const cfg = vscode.workspace.getConfiguration("autoComplete");
-    const target = vscode.ConfigurationTarget.Global;
-    await cfg.update("baseUrl", active.baseUrl, target);
-    await cfg.update("model", active.model, target);
-    await cfg.update("promptTemplate", active.promptTemplate ?? "AUTO", target);
-    await cfg.update("timeoutMs", active.timeoutMs ?? 3000, target);
-    await cfg.update("settingsTimeoutMs", active.settingsTimeoutMs ?? 15000, target);
-    await cfg.update("maxTokens", active.maxTokens ?? 128, target);
-    await cfg.update("temperature", active.temperature ?? 0, target);
-    await cfg.update("stream", active.stream ?? false, target);
-    await cfg.update("fimPath", active.fimPath ?? "", target);
-    await cfg.update("chatPath", active.chatPath ?? "/chat/completions", target);
-    await cfg.update("completionsPath", active.completionsPath ?? "", target);
-    await cfg.update(
-      "authHeaderTemplate",
-      active.authHeaderTemplate ?? "Authorization: Bearer ${apiKey}",
-      target,
-    );
+
+  // Mirror non-secret active profile fields into contributes.configuration (diff-only, guarded).
+  // Security: NEVER mirror authHeaderTemplate or extraHeadersJson into settings.json (Settings Sync).
+  const active = cloned.find((p) => p.id === resolvedActiveId);
+  await withSuppressedConfigChange(async () => {
+    const cfg = getVscode().workspace.getConfiguration("autoComplete");
+    if (active) {
+      await updateConfigIfChanged(cfg, "baseUrl", active.baseUrl);
+      await updateConfigIfChanged(cfg, "model", active.model);
+      await updateConfigIfChanged(cfg, "promptTemplate", active.promptTemplate ?? "AUTO");
+      await updateConfigIfChanged(cfg, "timeoutMs", active.timeoutMs ?? 3000);
+      await updateConfigIfChanged(cfg, "settingsTimeoutMs", active.settingsTimeoutMs ?? 15000);
+      await updateConfigIfChanged(cfg, "maxTokens", active.maxTokens ?? 128);
+      await updateConfigIfChanged(cfg, "temperature", active.temperature ?? 0);
+      await updateConfigIfChanged(cfg, "stream", active.stream ?? false);
+      await updateConfigIfChanged(cfg, "fimPath", active.fimPath ?? "");
+      await updateConfigIfChanged(cfg, "chatPath", active.chatPath ?? "/chat/completions");
+      await updateConfigIfChanged(cfg, "completionsPath", active.completionsPath ?? "");
+    } else {
+      // Last profile deleted / empty profile list: clear mirrored profile keys cleanly.
+      await updateConfigIfChanged(cfg, "baseUrl", "");
+      await updateConfigIfChanged(cfg, "model", "");
+      await updateConfigIfChanged(cfg, "promptTemplate", undefined);
+      await updateConfigIfChanged(cfg, "timeoutMs", undefined);
+      await updateConfigIfChanged(cfg, "settingsTimeoutMs", undefined);
+      await updateConfigIfChanged(cfg, "maxTokens", undefined);
+      await updateConfigIfChanged(cfg, "temperature", undefined);
+      await updateConfigIfChanged(cfg, "stream", undefined);
+      await updateConfigIfChanged(cfg, "fimPath", "");
+      await updateConfigIfChanged(cfg, "chatPath", "");
+      await updateConfigIfChanged(cfg, "completionsPath", "");
+    }
+  });
+}
+
+/**
+ * Syncs edits made externally in VS Code's native Settings UI (`settings.json`)
+ * back into `globalState` without writing back to `settings.json`.
+ */
+export async function syncExternalConfigChanges(
+  context: vscode.ExtensionContext,
+  event: vscode.ConfigurationChangeEvent,
+): Promise<void> {
+  const cfg = getVscode().workspace.getConfiguration("autoComplete");
+
+  // 1. Sync affected global keys into globalState.
+  const currentGlobal = getGlobalPrefs(context);
+  const nextGlobal: GlobalPrefs = { ...currentGlobal };
+  let globalChanged = false;
+  for (const key of MIRRORED_GLOBAL_KEYS) {
+    if (!event.affectsConfiguration(`autoComplete.${key}`)) continue;
+    const raw = cfg.get(key);
+    if (raw === undefined) continue;
+    const val =
+      key === "uiTheme"
+        ? normalizeUiTheme(raw)
+        : key === "uiLocale"
+          ? normalizeUiLocale(raw)
+          : raw;
+    if (!Object.is(nextGlobal[key], val)) {
+      (nextGlobal as Record<string, unknown>)[key] = val;
+      globalChanged = true;
+    }
+  }
+  if (globalChanged) {
+    await context.globalState.update(GLOBAL_KEY, nextGlobal);
+  }
+
+  // 2. Sync affected non-secret profile keys into the active profile in globalState.
+  const profileKeys: ReadonlyArray<keyof StoredProfile> = [
+    "baseUrl",
+    "model",
+    "promptTemplate",
+    "timeoutMs",
+    "settingsTimeoutMs",
+    "maxTokens",
+    "temperature",
+    "stream",
+    "fimPath",
+    "chatPath",
+    "completionsPath",
+  ];
+  const affectedProfileKeys = profileKeys.filter((k) =>
+    event.affectsConfiguration(`autoComplete.${k}`),
+  );
+  if (affectedProfileKeys.length > 0) {
+    const profiles = await ensureProfiles(context);
+    const activeId = await getActiveProfileId(context);
+    const active = profiles.find((p) => p.id === activeId);
+    if (active) {
+      let profileChanged = false;
+      for (const k of affectedProfileKeys) {
+        const raw = cfg.get(k);
+        if (raw === undefined) continue;
+        if (!Object.is(active[k], raw)) {
+          (active as Record<string, unknown>)[k] = raw;
+          profileChanged = true;
+        }
+      }
+      if (profileChanged) {
+        await context.globalState.update(
+          PROFILES_KEY,
+          profiles.map((p) => ({ ...p })),
+        );
+      }
+    }
   }
 }
 
@@ -359,6 +584,57 @@ export async function hasApiKey(secrets: vscode.SecretStorage, profileId: string
   return !!(await secrets.get(secretKey(profileId)))?.trim();
 }
 
+export function profileToProviderConfig(profile: StoredProfile, apiKey: string): ProviderConfig {
+  return {
+    kind: "OPENAI_COMPATIBLE",
+    baseUrl: profile.baseUrl ?? "",
+    apiKey,
+    model: profile.model ?? "",
+    authHeaderTemplate: profile.authHeaderTemplate ?? DEFAULT_AUTH_HEADER_TEMPLATE,
+    extraHeadersJson: profile.extraHeadersJson ?? "{}",
+    extraBodyJson: profile.extraBodyJson ?? "",
+    stopSequences: profile.stopSequences ?? "",
+    fimPath: profile.fimPath ?? "",
+    chatPath: profile.chatPath ?? "/chat/completions",
+    completionsPath: profile.completionsPath ?? "",
+    requestStyle: "AUTO",
+    promptTemplate: (profile.promptTemplate as PromptTemplateId) ?? "AUTO",
+    temperature: profile.temperature ?? 0,
+    maxTokens: profile.maxTokens ?? 128,
+    timeoutMs: profile.timeoutMs ?? 3000,
+    settingsTimeoutMs: profile.settingsTimeoutMs ?? 15000,
+    stream: profile.stream ?? false,
+    allowRemote: true,
+  };
+}
+
+/**
+ * Resolves a profile's `ProviderConfig` + validation metadata WITHOUT mutating global `activeProfileId`.
+ */
+export async function resolveProfileForOperation(
+  context: vscode.ExtensionContext,
+  profileId?: string,
+): Promise<{
+  profile: StoredProfile | undefined;
+  providerConfig: ProviderConfig | undefined;
+  global: GlobalPrefs;
+}> {
+  const profiles = await ensureProfiles(context);
+  const global = getGlobalPrefs(context);
+  const profile = profileId
+    ? profiles.find((p) => p.id === profileId)
+    : await getActiveProfile(context);
+  if (!profile) {
+    return { profile: undefined, providerConfig: undefined, global };
+  }
+  const apiKey = await getApiKey(context.secrets, profile.id);
+  return {
+    profile,
+    providerConfig: profileToProviderConfig(profile, apiKey),
+    global,
+  };
+}
+
 export async function buildEngineSettings(
   context: vscode.ExtensionContext,
 ): Promise<EngineSettings> {
@@ -370,6 +646,7 @@ export async function buildEngineSettings(
   const timeoutMs = profile?.timeoutMs ?? 3000;
   const settingsTimeoutMs = profile?.settingsTimeoutMs ?? 15000;
   const maxTokens = profile?.maxTokens ?? 128;
+  const temperature = profile?.temperature ?? 0;
   const maxPrefixChars = profile?.overrideContextBudget
     ? (profile.maxPrefixChars ?? global.maxPrefixChars)
     : global.maxPrefixChars;
@@ -377,6 +654,9 @@ export async function buildEngineSettings(
     ? (profile.maxSuffixChars ?? global.maxSuffixChars)
     : global.maxSuffixChars;
   const extraHeadersJson = profile?.extraHeadersJson ?? "{}";
+  const extraBodyJson = profile?.extraBodyJson ?? "";
+  const authHeaderTemplate = profile?.authHeaderTemplate ?? DEFAULT_AUTH_HEADER_TEMPLATE;
+
   const validationErrors =
     !profile || (!baseUrl.trim() && !model.trim())
       ? ["no active profile"]
@@ -386,32 +666,42 @@ export async function buildEngineSettings(
           timeoutMs,
           settingsTimeoutMs,
           maxTokens,
+          temperature,
           maxPrefixChars,
           maxSuffixChars,
           allowRemote: true,
+          authHeaderTemplate,
           extraHeadersJson,
+          extraBodyJson,
+          debounceMinMs: global.debounceMinMs,
+          debounceInitialMs: global.debounceInitialMs,
+          debounceMaxMs: global.debounceMaxMs,
           requireConnection: true,
         });
 
-  const providerConfig: ProviderConfig = {
-    kind: "OPENAI_COMPATIBLE",
-    baseUrl,
-    apiKey,
-    model,
-    authHeaderTemplate: profile?.authHeaderTemplate ?? "Authorization: Bearer ${apiKey}",
-    extraHeadersJson,
-    fimPath: profile?.fimPath ?? "",
-    chatPath: profile?.chatPath ?? "/chat/completions",
-    completionsPath: profile?.completionsPath ?? "",
-    requestStyle: "AUTO",
-    promptTemplate: (profile?.promptTemplate as PromptTemplateId) ?? "AUTO",
-    temperature: profile?.temperature ?? 0,
-    maxTokens,
-    timeoutMs,
-    settingsTimeoutMs,
-    stream: profile?.stream ?? false,
-    allowRemote: true,
-  };
+  const providerConfig: ProviderConfig = profile
+    ? profileToProviderConfig(profile, apiKey)
+    : {
+        kind: "OPENAI_COMPATIBLE",
+        baseUrl: "",
+        apiKey: "",
+        model: "",
+        authHeaderTemplate: DEFAULT_AUTH_HEADER_TEMPLATE,
+        extraHeadersJson: "{}",
+        extraBodyJson: "",
+        stopSequences: "",
+        fimPath: "",
+        chatPath: "/chat/completions",
+        completionsPath: "",
+        requestStyle: "AUTO",
+        promptTemplate: "AUTO",
+        temperature: 0,
+        maxTokens: 128,
+        timeoutMs: 3000,
+        settingsTimeoutMs: 15000,
+        stream: false,
+        allowRemote: true,
+      };
 
   const disabledLangSet = new Set(
     global.disabledLanguages
@@ -432,7 +722,7 @@ export async function buildEngineSettings(
     disabledLanguages: disabledLangSet,
     maxFileSizeKb: global.maxFileSizeKb,
     respectGitignore: global.respectGitignore,
-    ignoreGlobs: ignoreList.length ? ignoreList : DEFAULT_GLOBAL.ignoreGlobs.split("\n"),
+    ignoreGlobs: ignoreList,
     validationErrors,
     firstLineOnlyWhenMidLine: global.firstLineOnlyWhenMidLine,
     enableInComments: global.enableInComments,
@@ -443,7 +733,7 @@ export async function buildEngineSettings(
     maxPrefixChars,
     maxSuffixChars,
     maxTokens,
-    temperature: profile?.temperature ?? 0,
+    temperature,
     stream: profile?.stream ?? false,
     sendFilePath: global.sendFilePath,
     enableRecentFileContext: global.enableRecentFileContext,
@@ -482,8 +772,10 @@ export async function toSnapshot(context: vscode.ExtensionContext) {
       fimPath: p.fimPath ?? "",
       chatPath: p.chatPath ?? "/chat/completions",
       completionsPath: p.completionsPath ?? "",
-      authHeaderTemplate: p.authHeaderTemplate ?? "Authorization: Bearer ${apiKey}",
+      authHeaderTemplate: p.authHeaderTemplate ?? DEFAULT_AUTH_HEADER_TEMPLATE,
       extraHeadersJson: p.extraHeadersJson ?? "{}",
+      extraBodyJson: p.extraBodyJson ?? "",
+      stopSequences: p.stopSequences ?? "",
       overrideContextBudget: p.overrideContextBudget ?? false,
       maxPrefixChars: p.maxPrefixChars ?? 8000,
       maxSuffixChars: p.maxSuffixChars ?? 2000,
@@ -525,21 +817,31 @@ export async function toSnapshot(context: vscode.ExtensionContext) {
   };
 }
 
-export async function createProfile(context: vscode.ExtensionContext): Promise<void> {
+export async function createProfile(
+  context: vscode.ExtensionContext,
+  opts?: { name?: string; preset?: string },
+): Promise<StoredProfile> {
   const profiles = await ensureProfiles(context);
-  const name = uniqueName("新配置", profiles.map((p) => p.name));
+  const preset = resolveProfilePreset(opts?.preset);
+  const preferredName = opts?.name?.trim() || preset?.defaultName || DEFAULT_NEW_PROFILE_NAME;
+  const name = uniqueName(
+    preferredName,
+    profiles.map((p) => p.name),
+  );
   const profile: StoredProfile = {
     id: randomUUID(),
     name,
     provider: "openai-compatible",
-    baseUrl: "",
+    baseUrl: preset?.baseUrl ?? "",
     model: "",
-    authHeaderTemplate: "Authorization: Bearer ${apiKey}",
+    authHeaderTemplate: DEFAULT_AUTH_HEADER_TEMPLATE,
     extraHeadersJson: "{}",
-    fimPath: "",
-    chatPath: "/chat/completions",
-    completionsPath: "",
-    promptTemplate: "AUTO",
+    extraBodyJson: "",
+    stopSequences: "",
+    fimPath: preset?.fimPath ?? "",
+    chatPath: preset?.chatPath ?? "/chat/completions",
+    completionsPath: preset?.completionsPath ?? "",
+    promptTemplate: preset?.promptTemplate ?? "AUTO",
     temperature: 0,
     maxTokens: 128,
     timeoutMs: 3000,
@@ -551,6 +853,7 @@ export async function createProfile(context: vscode.ExtensionContext): Promise<v
   };
   profiles.push(profile);
   await saveProfiles(context, profiles, profile.id);
+  return profile;
 }
 
 export async function deleteProfile(

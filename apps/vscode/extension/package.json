@@ -31,6 +31,10 @@
         "title": "Auto Complete: Trigger Inline Completion"
       },
       {
+        "command": "autoComplete.triggerRefresh",
+        "title": "Auto Complete: Trigger Refresh (Bypass Cache)"
+      },
+      {
         "command": "autoComplete.openSettings",
         "title": "Auto Complete: Open Settings Panel"
       },
@@ -86,6 +90,7 @@
             "QWEN",
             "DEEPSEEK",
             "STARCODER",
+            "CODELLAMA",
             "CHAT"
           ],
           "default": "AUTO",
@@ -234,21 +239,14 @@
         "autoComplete.completionsPath": {
           "type": "string",
           "default": ""
-        },
-        "autoComplete.authHeaderTemplate": {
-          "type": "string",
-          "default": "Authorization: Bearer ${apiKey}"
         }
       }
-    },
-    "viewsContainers": {
-      "activitybar": []
     }
   },
   "scripts": {
     "build": "node scripts/build.mjs",
     "package": "node scripts/package-vsix.mjs",
-    "test": "tsx --test src/config/settingsExport.test.ts && npm run typecheck",
+    "test": "tsx --test src/config/settingsExport.test.ts src/config/settings.test.ts src/bridge/VsCodeUiBridge.test.ts src/webview/SettingsPanel.test.ts src/project/context.test.ts src/inline/provider.test.ts src/net/proxyFetch.test.ts && npm run typecheck",
     "typecheck": "tsc -p tsconfig.json --noEmit"
   },
   "dependencies": {
