@@ -151,6 +151,7 @@ object SuggestionFilter {
         suggestion: String,
         overlap: String,
     ): Boolean {
+        if (overlap.isBlank()) return false
         if (overlap.length == 1) {
             val ch = overlap[0]
             if (ch !in SINGLE_CHAR_SUFFIX_CLOSERS) return false
@@ -162,28 +163,13 @@ object SuggestionFilter {
                 else -> true
             }
         }
-        // For multi-char overlaps, avoid breaking balanced brackets inside the suggestion.
         val remaining = suggestion.substring(0, suggestion.length - overlap.length)
-        if (breaksBracketBalance(suggestion, remaining, '(', ')')) return false
-        if (breaksBracketBalance(suggestion, remaining, '[', ']')) return false
-        if (breaksBracketBalance(suggestion, remaining, '{', '}')) return false
         // Avoid cutting 2-char letter tails inside words (e.g. "good" + "od_var").
         if (overlap.length < 3 && overlap.all { it.isLetterOrDigit() || it == '_' }) {
             val prev = remaining.lastOrNull()
             if (prev != null && (prev.isLetterOrDigit() || prev == '_')) return false
         }
         return true
-    }
-
-    private fun breaksBracketBalance(
-        original: String,
-        remaining: String,
-        open: Char,
-        close: Char,
-    ): Boolean {
-        val origDeficit = (countChar(original, open) - countChar(original, close)).coerceAtLeast(0)
-        val remDeficit = (countChar(remaining, open) - countChar(remaining, close)).coerceAtLeast(0)
-        return remDeficit > origDeficit
     }
 
     private fun countChar(

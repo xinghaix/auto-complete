@@ -2,6 +2,7 @@ package io.autocomplete.ui
 
 import com.intellij.openapi.Disposable
 import com.intellij.openapi.diagnostic.Logger
+import com.intellij.openapi.project.Project
 import com.intellij.openapi.util.Disposer
 import java.awt.BorderLayout
 import java.lang.reflect.InvocationTargetException
@@ -24,6 +25,7 @@ internal object SettingsJcefHost {
     fun tryMount(
         panel: JPanel,
         parentDisposable: Disposable,
+        project: Project?,
         initialTab: String,
     ): MountResult {
         if (!isJcefClassReachable()) {
@@ -39,9 +41,10 @@ internal object SettingsJcefHost {
                     "mount",
                     JPanel::class.java,
                     Disposable::class.java,
+                    Project::class.java,
                     String::class.java,
                 )
-            val session = method.invoke(null, panel, parentDisposable, initialTab)
+            val session = method.invoke(null, panel, parentDisposable, project, initialTab)
             val disposableSession = session as? Disposable
             if (disposableSession != null) {
                 Disposer.register(parentDisposable, disposableSession)

@@ -5,7 +5,7 @@ import org.jetbrains.annotations.PropertyKey
 
 private const val BUNDLE = "messages.AutoCompleteBundle"
 
-object AutoCompleteBundle : DynamicBundle(BUNDLE) {
+object AutoCompleteBundle : DynamicBundle(AutoCompleteBundle::class.java, BUNDLE) {
     fun message(
         @PropertyKey(resourceBundle = BUNDLE) key: String,
         vararg params: Any,

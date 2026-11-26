@@ -2,6 +2,7 @@ package io.autocomplete.bridge
 
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
+import org.junit.Assert.assertTrue
 import org.junit.Test
 
 class SettingsExportTest {
@@ -35,5 +36,18 @@ class SettingsExportTest {
         assertFalse(profile.containsKey("hasApiKey"))
         assertFalse(profile.containsKey("authHeaderTemplate"))
         assertFalse(profile.containsKey("extraHeadersJson"))
+    }
+
+    @Test
+    fun toPrettyJsonFormatsWithTwoSpaceIndent() {
+        val json =
+            SettingsExport.toPrettyJson(
+                mapOf(
+                    "schemaVersion" to 1,
+                    "profiles" to listOf(mapOf("name" to "Local", "stream" to false)),
+                ),
+            )
+        assertTrue(json.contains("\n  \"schemaVersion\": 1,"))
+        assertTrue(json.contains("\n    {\n      \"name\": \"Local\","))
     }
 }

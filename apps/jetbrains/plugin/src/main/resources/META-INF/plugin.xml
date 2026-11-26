@@ -29,9 +29,6 @@
     <depends optional="true" config-file="auto-complete-jcef.xml">com.intellij.modules.jcef</depends>
 
     <extensions defaultExtensionNs="com.intellij">
-        <applicationService serviceImplementation="io.autocomplete.config.AutoCompleteSettingsService"/>
-        <applicationService serviceImplementation="io.autocomplete.plugin.AutoCompleteAppService"/>
-        <projectService serviceImplementation="io.autocomplete.plugin.AutoCompleteProjectService"/>
         <postStartupActivity implementation="io.autocomplete.plugin.AutoCompleteProjectActivity"/>
 
         <!-- No applicationConfigurable: single entry = tool window Web UI (Settings | Logs). -->
@@ -49,7 +46,8 @@
 
         <notificationGroup id="Auto Complete"
                            displayType="BALLOON"
-                           isLogByDefault="true"/>
+                           isLogByDefault="true"
+                           key="notification.group.name"/>
     </extensions>
 
     <actions>

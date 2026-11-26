@@ -19,6 +19,8 @@ data class ProviderProfile(
     var model: String = "",
     var authHeaderTemplate: String = "Authorization: Bearer \${apiKey}",
     var extraHeadersJson: String = "{}",
+    var extraBodyJson: String = "",
+    var stopSequences: String = "",
     var fimPath: String = "",
     var chatPath: String = "/chat/completions",
     var completionsPath: String = "",
@@ -43,11 +45,69 @@ data class ProviderProfile(
     fun isBlankConnection(): Boolean = baseUrl.isBlank() && model.isBlank()
 
     companion object {
-        const val DEFAULT_NAME = "新配置"
+        const val DEFAULT_NAME = "New Profile"
 
         /** Brand-new empty connection (no copy of current form). */
         fun empty(name: String = DEFAULT_NAME): ProviderProfile =
             ProviderProfile(name = name)
+
+        /**
+         * Create a preset-seeded profile (never includes API keys or secrets).
+         * Accepts both short UI preset ids (`ollama`, `deepseek`, `mistral`, `vllm`)
+         * and descriptive aliases (`deepseek-beta`, `mistral-codestral`, `vllm-lmstudio`).
+         */
+        fun fromPreset(
+            preset: String?,
+            name: String,
+        ): ProviderProfile =
+            when (preset?.trim()?.lowercase().orEmpty()) {
+                "ollama", "ollama-local" ->
+                    ProviderProfile(
+                        name = name,
+                        baseUrl = "http://127.0.0.1:11434/v1",
+                        promptTemplate = PromptTemplate.AUTO.name,
+                        fimPath = "",
+                        chatPath = "/chat/completions",
+                        completionsPath = "",
+                    )
+                "deepseek", "deepseek-beta", "deepseek-fim" ->
+                    ProviderProfile(
+                        name = name,
+                        baseUrl = "https://api.deepseek.com/beta",
+                        promptTemplate = PromptTemplate.CODESTRAL_API.name,
+                        fimPath = "/completions",
+                        chatPath = "/chat/completions",
+                        completionsPath = "",
+                    )
+                "mistral", "mistral-codestral", "codestral" ->
+                    ProviderProfile(
+                        name = name,
+                        baseUrl = "https://codestral.mistral.ai/v1",
+                        promptTemplate = PromptTemplate.CODESTRAL_API.name,
+                        fimPath = "/fim/completions",
+                        chatPath = "/chat/completions",
+                        completionsPath = "",
+                    )
+                "vllm", "vllm-lmstudio", "lmstudio", "lm-studio" ->
+                    ProviderProfile(
+                        name = name,
+                        baseUrl = "http://127.0.0.1:8000/v1",
+                        promptTemplate = PromptTemplate.AUTO.name,
+                        fimPath = "",
+                        chatPath = "/chat/completions",
+                        completionsPath = "",
+                    )
+                else -> empty(name)
+            }
+
+        fun defaultNameForPreset(preset: String?): String =
+            when (preset?.trim()?.lowercase().orEmpty()) {
+                "ollama", "ollama-local" -> "Ollama"
+                "deepseek", "deepseek-beta", "deepseek-fim" -> "DeepSeek Beta FIM"
+                "mistral", "mistral-codestral", "codestral" -> "Mistral Codestral"
+                "vllm", "vllm-lmstudio", "lmstudio", "lm-studio" -> "vLLM / LM Studio"
+                else -> DEFAULT_NAME
+            }
 
         fun uniqueName(
             preferred: String,

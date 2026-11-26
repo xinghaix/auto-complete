@@ -7,6 +7,7 @@ import com.intellij.openapi.wm.ToolWindowFactory
 import com.intellij.openapi.wm.ToolWindowManager
 import com.intellij.ui.content.ContentFactory
 import io.autocomplete.i18n.message
+import java.util.concurrent.ConcurrentHashMap
 
 /**
  * Single tool window hosting settings-ui (Settings | Logs tabs).
@@ -20,21 +21,22 @@ class SettingsWebToolWindowFactory : ToolWindowFactory, DumbAware {
         toolWindow.setStripeTitle(message("name"))
         toolWindow.title = message("name")
         toolWindow.setIcon(AutoCompleteIcons.ToolWindow)
-        val panel = SettingsWebPanel(project, toolWindow.disposable)
+        val panel = SettingsWebPanel(project)
         val content = ContentFactory.getInstance().createContent(panel, "", false)
+        // Single disposer owner: content disposes panel cleanly when content/toolWindow closes.
         content.setDisposer(panel)
         toolWindow.contentManager.addContent(content)
         activePanels[project] = panel
     }
 
     companion object {
-        private val activePanels = java.util.concurrent.ConcurrentHashMap<Project, SettingsWebPanel>()
+        private val activePanels = ConcurrentHashMap<Project, SettingsWebPanel>()
 
         fun show(
             project: Project,
             tab: String,
         ) {
-            AcUiEntry.preferredTab = tab
+            AcUiEntry.setPreferredTab(project, tab)
             val tw =
                 ToolWindowManager.getInstance(project).getToolWindow("Auto Complete")
                     ?: return

@@ -4,6 +4,8 @@ import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
 import org.junit.Test
+import java.time.Instant
+import java.time.ZoneOffset
 
 class JcefEnvironmentTest {
     @Test
@@ -34,7 +36,7 @@ class JcefEnvironmentTest {
     }
 
     @Test
-    fun buildGuidanceHtml_includesStepsAndDoesNotThrow() {
+    fun buildGuidanceHtml_legacyBaseline242UsesJbrGuidanceNotSplitPlugin() {
         val diagnosis =
             JcefEnvironment.Diagnosis(
                 kind = JcefEnvironment.Kind.CLASSES_MISSING,
@@ -42,13 +44,34 @@ class JcefEnvironmentTest {
                 jcefModulePresent = false,
                 registryJcefEnabled = null,
                 ideSummary = "IntelliJ IDEA 2024.2 · build IC-242.1 · macOS",
+                baselineVersion = 242,
             )
-        val html = JcefEnvironment.buildGuidanceHtml(diagnosis)
+        val html = JcefEnvironment.buildGuidanceHtml(diagnosis, mutedColorHex = "888888")
         assertTrue(html.contains("<ol"))
-        assertTrue(html.contains("JCEF") || html.contains("jcef") || html.contains("浏览器") || html.contains("ブラウザ"))
+        assertTrue(html.contains("2024.2") || html.contains("IC-242.1"))
+        assertTrue(html.contains("JBR") || html.contains("JetBrains Runtime"))
+        assertTrue(html.contains("color:#888888"))
+        assertFalse("Should not contain hardcoded #666", html.contains("#666"))
         assertFalse(html.contains("<script"))
-        // User-facing detail should be escaped if present later; env line is present.
-        assertTrue(html.contains("IC-242.1") || html.contains("2024.2"))
+    }
+
+    @Test
+    fun buildGuidanceHtml_baseline262DisabledBundledPluginInstructsEnablingWebBrowser() {
+        val diagnosis =
+            JcefEnvironment.Diagnosis(
+                kind = JcefEnvironment.Kind.CLASSES_MISSING,
+                jcefClassesReachable = false,
+                jcefModulePresent = true,
+                registryJcefEnabled = true,
+                ideSummary = "IntelliJ IDEA 2026.2 · build IU-262.100 · macOS",
+                baselineVersion = 262,
+                jcefPluginDisabled = true,
+            )
+        val html = JcefEnvironment.buildGuidanceHtml(diagnosis, mutedColorHex = "9aa0a6")
+        assertTrue(html.contains("Web Browser (JCEF)"))
+        assertTrue(html.contains("2026.2"))
+        assertTrue(html.contains("color:#9aa0a6"))
+        assertFalse(html.contains("#666"))
     }
 
     @Test
@@ -61,9 +84,19 @@ class JcefEnvironmentTest {
                 registryJcefEnabled = false,
                 ideSummary = "test-ide",
                 detail = "JBCefApp.isSupported() == false",
+                baselineVersion = 253,
             )
         val html = JcefEnvironment.buildGuidanceHtml(diagnosis)
         assertTrue(html.contains("JBCefApp.isSupported"))
         assertTrue(html.contains("test-ide"))
+    }
+
+    @Test
+    fun statusBarFormattingFormatsReadableLocalTimeInsteadOfEpochMs() {
+        val now = Instant.parse("2026-08-01T10:00:00Z").toEpochMilli()
+        val until = Instant.parse("2026-08-01T10:30:00Z").toEpochMilli()
+        val formatted = StatusBarFormatting.formatSnoozeUntil(until, nowMs = now, zoneId = ZoneOffset.UTC)
+        assertEquals("10:30 (30m)", formatted)
+        assertFalse(formatted.contains(until.toString()))
     }
 }

@@ -10,8 +10,12 @@ import io.autocomplete.client.ProviderRequest
 import io.autocomplete.client.RequestStyle
 import io.autocomplete.engine.CacheMatchType
 import io.autocomplete.engine.CachedSuggestion
+import io.autocomplete.filter.SuggestionFilter
 import io.autocomplete.prompt.PromptBuilder
 import io.autocomplete.prompt.PromptTemplate
+import io.autocomplete.prompt.PromptTemplateDetector
+import io.autocomplete.skip.ContextualSkip
+import io.autocomplete.util.IgnoreRules
 import io.autocomplete.util.Json
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertNotNull
@@ -195,6 +199,116 @@ class ContractsFixtureTest {
             assertEquals(expectedBody["stop"], actualBody["stop"])
         } finally {
             server.stop(0)
+        }
+    }
+
+    @Test
+    @Suppress("UNCHECKED_CAST")
+    fun suggestionFilterMatchesSharedPostprocessRegressionFixture() {
+        val fixture = readJsonObject("testdata/filter/postprocess_regression.json")
+
+        val prefixOverlapCases = fixture["prefixOverlapCases"] as List<Map<String, Any?>>
+        assertTrue(prefixOverlapCases.isNotEmpty())
+        for (c in prefixOverlapCases) {
+            val actual =
+                SuggestionFilter.removePrefixOverlap(
+                    suggestion = c["suggestion"].toString(),
+                    prefix = c["prefix"].toString(),
+                )
+            assertEquals(c["expected"].toString(), actual, "prefixOverlap case=${c["id"]}")
+        }
+
+        val suffixOverlapCases = fixture["suffixOverlapCases"] as List<Map<String, Any?>>
+        assertTrue(suffixOverlapCases.isNotEmpty())
+        for (c in suffixOverlapCases) {
+            val actual =
+                SuggestionFilter.removeSuffixOverlap(
+                    suggestion = c["suggestion"].toString(),
+                    suffix = c["suffix"].toString(),
+                )
+            assertEquals(c["expected"].toString(), actual, "suffixOverlap case=${c["id"]}")
+        }
+
+        val postprocessCases = fixture["postprocessCases"] as List<Map<String, Any?>>
+        assertTrue(postprocessCases.isNotEmpty())
+        for (c in postprocessCases) {
+            val actual =
+                SuggestionFilter.postprocess(
+                    raw = c["raw"].toString(),
+                    prefix = c["prefix"].toString(),
+                    suffix = c["suffix"].toString(),
+                    firstLineOnly = c["firstLineOnly"] as Boolean,
+                )
+            assertEquals(c["expected"]?.toString(), actual, "postprocess case=${c["id"]}")
+        }
+    }
+
+    @Test
+    @Suppress("UNCHECKED_CAST")
+    fun contextualSkipMatchesSharedRegressionFixture() {
+        val fixture = readJsonObject("testdata/skip/contextual_skip.json")
+        val cases = fixture["cases"] as List<Map<String, Any?>>
+        assertTrue(cases.isNotEmpty())
+        for (c in cases) {
+            val actual =
+                ContextualSkip.shouldSkip(
+                    prefix = c["prefix"].toString(),
+                    suffix = c["suffix"].toString(),
+                    languageId = c["language"].toString(),
+                )
+            assertEquals(c["expectedSkip"] as Boolean, actual, "skip case=${c["id"]}")
+        }
+    }
+
+    @Test
+    @Suppress("UNCHECKED_CAST")
+    fun ignoreRulesMatchesSharedRegressionFixture() {
+        val fixture = readJsonObject("testdata/ignore/ignore_rules.json")
+        val cases = fixture["cases"] as List<Map<String, Any?>>
+        assertTrue(cases.isNotEmpty())
+        for (c in cases) {
+            val globs = (c["globs"] as List<*>).map { it.toString() }
+            val gitignore = (c["gitignore"] as List<*>).map { it.toString() }
+            val rules =
+                IgnoreRules(
+                    globs = globs,
+                    respectGitignore = c["respectGitignore"] as Boolean,
+                    gitignorePatterns = gitignore,
+                )
+            val actual =
+                rules.isIgnored(
+                    path = c["path"].toString(),
+                    relativePath = c["relativePath"]?.toString(),
+                )
+            assertEquals(c["expectedIgnored"] as Boolean, actual, "ignore case=${c["id"]}")
+        }
+    }
+
+    @Test
+    @Suppress("UNCHECKED_CAST")
+    fun urlAndTemplateResolutionMatchesSharedRegressionFixture() {
+        val fixture = readJsonObject("testdata/http/url_resolution.json")
+
+        val relativeCases = fixture["relativePathCases"] as List<Map<String, Any?>>
+        assertTrue(relativeCases.isNotEmpty())
+        for (c in relativeCases) {
+            val baseUrl = c["baseUrl"].toString()
+            val suffix = c["suffix"].toString()
+            val actualRel = HttpCompletionClient.defaultOpenAiRelativePath(baseUrl, suffix)
+            val actualJoined = HttpCompletionClient.joinUrl(baseUrl, actualRel)
+            assertEquals(c["expectedRelativePath"].toString(), actualRel, "relativePath case=${c["id"]}")
+            assertEquals(c["expectedJoinedUrl"].toString(), actualJoined, "joinedUrl case=${c["id"]}")
+        }
+
+        val templateCases = fixture["templateResolutionCases"] as List<Map<String, Any?>>
+        assertTrue(templateCases.isNotEmpty())
+        for (c in templateCases) {
+            val actual =
+                PromptTemplateDetector.detect(
+                    model = c["model"].toString(),
+                    baseUrl = c["baseUrl"].toString(),
+                )
+            assertEquals(PromptTemplate.valueOf(c["expectedTemplate"].toString()), actual, "template case=${c["id"]}")
         }
     }
 }

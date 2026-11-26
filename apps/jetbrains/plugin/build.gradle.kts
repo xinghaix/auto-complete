@@ -20,7 +20,12 @@ repositories {
 }
 
 dependencies {
-    implementation(project(":core"))
+    implementation(project(":core")) {
+        // IntelliJ Platform bundles Kotlin stdlib & JetBrains annotations; packaging them causes
+        // LinkageError across IDEA 2024.2–2026.2+ and violates Marketplace plugin rules.
+        exclude(group = "org.jetbrains.kotlin")
+        exclude(group = "org.jetbrains", module = "annotations")
+    }
     testImplementation("junit:junit:4.13.2")
     testImplementation("org.opentest4j:opentest4j:1.3.0")
 
@@ -30,9 +35,9 @@ dependencies {
             providers.gradleProperty("platformVersion"),
         )
         testFramework(TestFrameworkType.Platform)
-        instrumentationTools()
         // Required for :plugin:signPlugin (Marketplace ZIP Signer CLI).
         zipSigner()
+        pluginVerifier()
     }
 }
 
@@ -60,12 +65,13 @@ intellijPlatform {
               <li>Bring your own baseUrl / API key / model</li>
               <li>OpenAI-compatible endpoints (Ollama, vLLM, gateways, …)</li>
               <li>Profiles, prompt templates, adaptive debounce and cache</li>
-              <li>Shared Web settings (JCEF), status bar, and logs</li>
+              <li>One Web panel: Settings + Logs (JCEF)</li>
               <li>Single-process Kotlin — no VS Code host bridge</li>
             </ul>
             <p><b>Requires IntelliJ Platform 2024.2+ (build 242+)</b>.
-            Settings use Web/JCEF (optional <code>com.intellij.modules.jcef</code> on 2026+).
-            Apache-2.0. Prefer JetBrains Marketplace (or a signed ZIP).
+            Settings use an embedded Web panel (JCEF). On 2026+ enable the bundled
+            <b>Web Browser (JCEF)</b> plugin if the panel is blank. See docs/GUIDE.md.</p>
+            <p>Apache-2.0 open source. Prefer JetBrains Marketplace (or signed ZIP from GitHub Releases).
             Keys stay in the IDE PasswordSafe.</p>
             """.trimIndent(),
         )
@@ -119,25 +125,38 @@ intellijPlatform {
         }
     }
 
+    pluginVerification {
+        ides {
+            recommended()
+        }
+    }
+
     instrumentCode.set(false)
 }
 
 val settingsUiDist = rootProject.layout.projectDirectory.dir("packages/settings/ui/dist")
 val settingsUiResource = layout.projectDirectory.dir("src/main/resources/settings-ui")
 
-val copySettingsUi by tasks.registering(Copy::class) {
-    group = "build"
-    description = "Copy packages/settings/ui/dist into plugin resources for JCEF"
-    onlyIf { settingsUiDist.asFile.resolve("index.html").exists() }
-    from(settingsUiDist)
-    into(settingsUiResource)
-    doFirst {
-        // clean previous bundle so vite hashed assets don't accumulate
-        if (settingsUiResource.asFile.exists()) {
-            settingsUiResource.asFile.deleteRecursively()
+val copySettingsUi =
+    tasks.register<Copy>("copySettingsUi") {
+        group = "build"
+        description = "Copy packages/settings/ui/dist into plugin resources for JCEF"
+        from(settingsUiDist)
+        into(settingsUiResource)
+        doFirst {
+            val distIndex = settingsUiDist.asFile.resolve("index.html")
+            if (!distIndex.isFile) {
+                throw GradleException(
+                    "Missing settings-ui build artifact: ${distIndex.absolutePath}. " +
+                        "Run `npm run build:settings-ui` before building the JetBrains plugin.",
+                )
+            }
+            // clean previous bundle so vite hashed assets don't accumulate
+            if (settingsUiResource.asFile.exists()) {
+                settingsUiResource.asFile.deleteRecursively()
+            }
         }
     }
-}
 
 tasks {
     withType<org.jetbrains.kotlin.gradle.tasks.KotlinCompile> {
@@ -182,8 +201,9 @@ fun extractLatestNotes(changelog: File): String {
         return "<p>Open-source preview build.</p>"
     }
     val lines = changelog.readLines()
+    val versionHeading = Regex("""^## \[\d+\.""")
     val start =
-        lines.indexOfFirst { it.startsWith("## [") }
+        lines.indexOfFirst { versionHeading.containsMatchIn(it) }
             .takeIf { it >= 0 }
             ?: return "<p>Open-source preview build.</p>"
     val end =
