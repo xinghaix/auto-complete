@@ -12,6 +12,7 @@ function makeDoc(opts: {
   fireDomContentLoaded: () => void;
   mountCalls: { app: Component; el: HTMLElement }[];
   rootEl: HTMLElement | null;
+  createAppFn: CreateAppFn;
 } {
   const mountCalls: { app: Component; el: HTMLElement }[] = [];
   let rootEl: HTMLElement | null = opts.root

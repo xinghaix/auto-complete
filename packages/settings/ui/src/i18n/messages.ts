@@ -2,53 +2,69 @@
 
 export type MessageKey =
   | "title"
-  | "tabSettings"
   | "tabConfig"
   | "tabBehavior"
   | "tabPerformance"
+  | "tabGeneral"
   | "tabLogs"
   | "profiles"
   | "newProfile"
+  | "defaultNewProfileName"
   | "deleteProfile"
-  | "renameProfile"
+  | "quickPresets"
+  | "presetOllama"
+  | "presetDeepseek"
+  | "presetMistral"
+  | "presetVllm"
+  | "presetApplied"
   | "baseUrl"
   | "model"
   | "promptTemplate"
   | "apiKey"
+  | "saveKey"
+  | "savingKey"
   | "keyConfigured"
   | "keyMissing"
+  | "keySaved"
+  | "keyCleared"
+  | "keySaveFailed"
+  | "clearKey"
+  | "secretHint"
   | "maxTokens"
   | "timeoutMs"
   | "settingsTimeoutMs"
   | "temperature"
   | "stream"
-  | "apply"
   | "testConnection"
   | "fetchModels"
   | "fetchingModels"
   | "modelsLoaded"
   | "modelsEmpty"
   | "modelsFailed"
+  | "modelsHintEmpty"
+  | "modelsNoMatch"
   | "helpModel"
-  | "clearKey"
   | "tryTemplate"
   | "tryAllTemplates"
+  | "applyRecommendedTemplate"
+  | "recommendedTemplateApplied"
   | "clearLogs"
   | "copyLogs"
+  | "copyLogsOk"
+  | "copyLogsEmpty"
   | "export"
   | "import"
-  | "secretHint"
-  | "applied"
   | "testing"
   | "loadFailed"
   | "enabled"
   | "autoTrigger"
-  | "advanced"
   | "authHeader"
   | "fimPath"
   | "chatPath"
   | "completionsPath"
   | "extraHeaders"
+  | "extraBodyJson"
+  | "stopSequences"
   | "overrideBudget"
   | "maxPrefix"
   | "maxSuffix"
@@ -76,18 +92,37 @@ export type MessageKey =
   | "logPromptBodies"
   | "notifyFatal"
   | "showCost"
-  | "confirmDelete"
+  | "logsSearchPlaceholder"
+  | "logsAutoScroll"
+  | "logsCount"
+  | "statsTitle"
+  | "statsRequests"
+  | "statsCacheHits"
+  | "statsAccepted"
+  | "statsCancelled"
+  | "statsFailed"
+  | "statsLatency"
+  | "statsDebounce"
+  | "statsBackoffOk"
+  | "statsBackoffWarn"
+  | "statsBackoffFatal"
+  | "clearCaches"
+  | "cachesCleared"
+  | "refreshStats"
   | "noProfiles"
-  | "platform"
   | "probeResults"
   | "importOk"
   | "exportOk"
-  | "jcefFallback"
   | "importPrompt"
   | "importTitle"
   | "importPlaceholder"
   | "importConfirm"
   | "importEmpty"
+  | "importInvalidJson"
+  | "copyModalTitleExport"
+  | "copyModalTitleLogs"
+  | "copyModalHint"
+  | "copyModalClose"
   | "language"
   | "theme"
   | "themeAuto"
@@ -102,8 +137,10 @@ export type MessageKey =
   | "templateQwen"
   | "templateDeepseek"
   | "templateStarcoder"
+  | "templateCodellama"
   | "templateChat"
   | "failed"
+  | "dismiss"
   | "exportFailed"
   | "importFailed"
   | "emptyLogs"
@@ -114,20 +151,19 @@ export type MessageKey =
   | "sectionProvider"
   | "sectionBehavior"
   | "sectionAdvanced"
-  | "sectionAppearance"
   | "sectionDebounce"
   | "sectionContext"
   | "sectionEngine"
   | "sectionRecent"
   | "sectionLog"
   | "sectionIgnore"
+  | "sectionGeneral"
   | "helpProfile"
   | "helpBaseUrl"
   | "helpApiKey"
   | "helpTemplate"
   | "helpTimeout"
   | "helpStream"
-  | "helpBehavior"
   | "helpDebounce"
   | "helpContextBudget"
   | "helpIgnoreGlobs"
@@ -136,8 +172,6 @@ export type MessageKey =
   | "helpLogPromptBodies"
   | "logsHint"
   | "moreActions"
-  | "tabGeneral"
-  | "sectionGeneral"
   | "confirmDeleteInline"
   | "confirmDeleteYes"
   | "confirmDeleteCancel"
@@ -152,6 +186,8 @@ export type MessageKey =
   | "helpChatPath"
   | "helpCompletionsPath"
   | "helpExtraHeaders"
+  | "helpExtraBodyJson"
+  | "helpStopSequences"
   | "helpEnabled"
   | "helpAutoTrigger"
   | "manualTriggerShortcut"
@@ -185,59 +221,99 @@ export type MessageKey =
   | "aboutOpenGithub"
   | "aboutOpenIssues"
   | "aboutVersion"
-  | "aboutOpenFailed";
+  | "aboutOpenFailed"
+  | "valBaseUrlRequired"
+  | "valBaseUrlInvalid"
+  | "valBaseUrlScheme"
+  | "valBaseUrlUserInfo"
+  | "valModelRequired"
+  | "valTimeoutRange"
+  | "valSettingsTimeoutRange"
+  | "valMaxTokensRange"
+  | "valTemperatureRange"
+  | "valAuthHeaderPlaceholder"
+  | "valExtraHeadersJson"
+  | "valExtraHeadersSensitive"
+  | "valExtraBodyJson"
+  | "valMaxPrefixPositive"
+  | "valMaxSuffixPositive"
+  | "valDebounceNonNegative"
+  | "valDebounceOrder"
+  | "valMaxInFlightPositive"
+  | "valCacheSizePositive"
+  | "valLruSizePositive"
+  | "valMaxFileSizePositive"
+  | "valRecentLimitNonNegative"
+  | "valRecentMaxCharsPositive"
+  | "valLogRetentionRange";
 
 export type Messages = Record<MessageKey, string>;
 
 export const en: Messages = {
   title: "Auto Complete",
-  tabSettings: "Settings",
   tabConfig: "Configuration",
   tabBehavior: "Completion behavior",
   tabPerformance: "Performance",
+  tabGeneral: "General",
   tabLogs: "Logs",
   profiles: "Saved configuration",
   newProfile: "New",
+  defaultNewProfileName: "New profile",
   deleteProfile: "Delete",
-  renameProfile: "Rename",
+  quickPresets: "Quick presets",
+  presetOllama: "Ollama Local",
+  presetDeepseek: "DeepSeek Beta FIM",
+  presetMistral: "Mistral Codestral",
+  presetVllm: "vLLM / LM Studio",
+  presetApplied: "Preset applied: {0}",
   baseUrl: "Base URL",
   model: "Model",
   promptTemplate: "Prompt template",
   apiKey: "API Key",
+  saveKey: "Save key",
+  savingKey: "Saving…",
   keyConfigured: "(configured)",
   keyMissing: "(not set)",
+  keySaved: "API key saved",
+  keyCleared: "API key cleared",
+  keySaveFailed: "Failed to save API key",
+  clearKey: "Clear key",
+  secretHint: "Keys stay in the IDE secure store. Snapshots, exports, and logs never include API key plaintext.",
   maxTokens: "Max tokens",
   timeoutMs: "Completion timeout (ms)",
   settingsTimeoutMs: "Probe timeout (ms)",
   temperature: "Temperature",
   stream: "Stream (experimental)",
-  apply: "Apply",
   testConnection: "Test connection",
   fetchModels: "Fetch models",
   fetchingModels: "Fetching…",
   modelsLoaded: "Loaded {0} models",
   modelsEmpty: "No models returned; you can still type a model id.",
   modelsFailed: "Failed to load models: {0}",
+  modelsHintEmpty: "Click Fetch models to load available models.",
+  modelsNoMatch: "No matching models",
   helpModel: "Model id as your server expects it. Type freely, or Fetch models and pick from the list. Required when a profile exists.",
-  clearKey: "Clear key",
   tryTemplate: "Test template",
   tryAllTemplates: "Try all templates",
+  applyRecommendedTemplate: "Apply recommended: {0}",
+  recommendedTemplateApplied: "Switched template to {0}",
   clearLogs: "Clear",
   copyLogs: "Copy",
+  copyLogsOk: "Logs copied to clipboard",
+  copyLogsEmpty: "No logs to copy",
   export: "Export",
   import: "Import",
-  secretHint: "Keys stay in the IDE secure store. Snapshots, exports, and logs never include API key plaintext.",
-  applied: "Applied",
   testing: "Testing…",
   loadFailed: "Failed to load settings",
   enabled: "Enabled",
   autoTrigger: "Auto trigger",
-  advanced: "Advanced",
   authHeader: "Auth header template",
   fimPath: "FIM path override",
   chatPath: "Chat path",
   completionsPath: "Completions path",
   extraHeaders: "Extra headers JSON (plaintext; not exported)",
+  extraBodyJson: "Extra body JSON",
+  stopSequences: "Stop sequences",
   overrideBudget: "Override context budget",
   maxPrefix: "Max prefix chars",
   maxSuffix: "Max suffix chars",
@@ -265,18 +341,37 @@ export const en: Messages = {
   logPromptBodies: "Log full prompts (sensitive)",
   notifyFatal: "Notify on fatal auth errors",
   showCost: "Show token usage in logs",
-  confirmDelete: "Delete this saved configuration?",
+  logsSearchPlaceholder: "Filter logs…",
+  logsAutoScroll: "Auto-scroll",
+  logsCount: "{0} / {1}",
+  statsTitle: "Local session stats",
+  statsRequests: "Requests",
+  statsCacheHits: "Cache hits",
+  statsAccepted: "Accepted",
+  statsCancelled: "Cancelled",
+  statsFailed: "Failed",
+  statsLatency: "P50 / P95",
+  statsDebounce: "Debounce",
+  statsBackoffOk: "Healthy",
+  statsBackoffWarn: "Backing off",
+  statsBackoffFatal: "Auth paused",
+  clearCaches: "Clear cache & reset backoff",
+  cachesCleared: "Caches cleared and backoff reset",
+  refreshStats: "Refresh",
   noProfiles: "(none)",
-  platform: "Host",
   probeResults: "Probe results",
   importOk: "Imported",
   exportOk: "Exported to clipboard",
-  jcefFallback: "Web panel unavailable; use IDE Settings → Tools → Auto Complete.",
   importPrompt: "Paste settings JSON exported from this plugin. API keys are never included.",
   importTitle: "Import settings",
   importPlaceholder: '{ "schemaVersion": 1, "profiles": [ … ] }',
   importConfirm: "Import",
   importEmpty: "Paste a non-empty settings JSON first.",
+  importInvalidJson: "Invalid settings JSON. Please paste a JSON object.",
+  copyModalTitleExport: "Exported settings JSON",
+  copyModalTitleLogs: "Logs text",
+  copyModalHint: "Clipboard access is unavailable here. Select and press Ctrl/Cmd+C to copy.",
+  copyModalClose: "Close",
   language: "Language",
   theme: "Theme",
   themeAuto: "Auto (follow IDE)",
@@ -291,8 +386,10 @@ export const en: Messages = {
   templateQwen: "(fim) Qwen",
   templateDeepseek: "(fim) DeepSeek",
   templateStarcoder: "(fim) StarCoder",
+  templateCodellama: "(fim) CodeLlama",
   templateChat: "(chat) Pseudo-FIM",
   failed: "failed",
+  dismiss: "Dismiss",
   exportFailed: "Export failed",
   importFailed: "Import failed",
   emptyLogs: "—",
@@ -303,20 +400,19 @@ export const en: Messages = {
   sectionProvider: "Provider connection",
   sectionBehavior: "Completion behavior",
   sectionAdvanced: "Advanced (timeouts, paths, context)",
-  sectionAppearance: "Appearance",
   sectionDebounce: "Debounce",
   sectionContext: "Context budget",
   sectionEngine: "Engine",
   sectionRecent: "Recent files",
   sectionLog: "Logging",
   sectionIgnore: "Path ignore",
+  sectionGeneral: "General",
   helpProfile: "Rename the active profile in the box (Enter or blur to save). Open the arrow to switch. New creates a blank connection; you may delete all profiles.",
   helpBaseUrl: "OpenAI-compatible API root, including version path when required. Example: http://127.0.0.1:11434/v1. Required before completions run.",
-  helpApiKey: "Optional for some local servers. Stored only in the IDE secret store — never in export, snapshot, or logs.",
-  helpTemplate: "How the request body is built. Auto infers from the model name; use Test template if suggestions are empty.",
+  helpApiKey: "Optional for some local servers. Click Save key (or press Enter) to store in the IDE secret store.",
+  helpTemplate: "How the request body is built. Auto infers from the model name; use Test connection or Test template if suggestions are empty.",
   helpTimeout: "Hard timeout for ghost-text completions (ms). Range 500–30000. Prefer 2000–5000 so the UI stays responsive.",
   helpStream: "Experimental SSE first-token streaming. Leave off unless you know the endpoint handles stream=true correctly.",
-  helpBehavior: "Master controls for when completions may run.",
   helpDebounce: "Adaptive delay after typing before a request. The engine moves between min and max from observed latency.",
   helpContextBudget: "How much code before/after the cursor may be sent. Larger values add context but raise tokens and latency. A profile can override these under Advanced.",
   helpIgnoreGlobs: "One path glob per line (e.g. **/node_modules/**). Combined with .gitignore when that option is on.",
@@ -325,8 +421,6 @@ export const en: Messages = {
   helpLogPromptBodies: "Sensitive: writes truncated prompt text into the log buffer. Keep off unless debugging a provider.",
   logsHint: "Same buffer as the engine (connection tests, completions). Batch-refreshed from the host.",
   moreActions: "Import / export",
-  tabGeneral: "General",
-  sectionGeneral: "General",
   confirmDeleteInline: "Delete this configuration?",
   confirmDeleteYes: "Delete",
   confirmDeleteCancel: "Cancel",
@@ -336,11 +430,13 @@ export const en: Messages = {
   helpMaxTokens: "Max tokens generated per completion. Typical 64–256. Higher values allow longer suggestions but cost more time and tokens.",
   helpSettingsTimeout: "Timeout (ms) for Fetch models, connection test, and template probes. Range 1000–120000. Default 15000 — longer than completion timeout is normal.",
   helpTemperature: "Sampling temperature (0–2). Prefer 0 for stable, repeatable code completion.",
-  helpAuthHeader: "HTTP auth header template. Use ${apiKey} as the secret placeholder. If the key is empty, the header is omitted. Example: Authorization: Bearer ${apiKey}",
+  helpAuthHeader: "HTTP auth header template. Must include ${apiKey} as the secret placeholder. If the key is empty, the header is omitted. Example: Authorization: Bearer ${apiKey}",
   helpFimPath: "Optional FIM path relative to Base URL. Leave empty to use the template default (often /fim/completions).",
   helpChatPath: "Chat completions path relative to Base URL. Default /chat/completions for OpenAI-compatible servers.",
   helpCompletionsPath: "Optional /completions path for token-style FIM (Qwen, DeepSeek, StarCoder). Leave empty for the template default.",
-  helpExtraHeaders: "Extra request headers as a JSON object, e.g. {\"X-Custom\":\"value\"}. Must parse as a plain object, not an array.",
+  helpExtraHeaders: "Extra non-sensitive request headers as a JSON object, e.g. {\"X-Custom\":\"value\"}. Must parse as a plain object, not an array.",
+  helpExtraBodyJson: "Optional extra JSON object merged into completion request bodies (e.g. {\"top_p\": 0.9}). Protected keys like model/prompt/messages are never overwritten.",
+  helpStopSequences: "Optional custom stop sequences (comma or newline separated) appended to the request stop list.",
   helpEnabled: "Master switch. When off, automatic and manual completions are disabled until turned on again.",
   helpAutoTrigger: "Request while typing. Manual trigger (IDE shortcut / command) still works when this is off.",
   manualTriggerShortcut: "Manual trigger shortcut",
@@ -378,57 +474,97 @@ export const en: Messages = {
   aboutOpenIssues: "Report an issue",
   aboutVersion: "Version",
   aboutOpenFailed: "Could not open the link. Copy the URL from the help text and open it in a browser.",
+  valBaseUrlRequired: "Base URL is required.",
+  valBaseUrlInvalid: "Base URL must be a valid URL.",
+  valBaseUrlScheme: "Base URL must start with http:// or https://.",
+  valBaseUrlUserInfo: "Base URL must not include username/password credentials.",
+  valModelRequired: "Model ID is required.",
+  valTimeoutRange: "Completion timeout must be between 500 and 30000 ms.",
+  valSettingsTimeoutRange: "Probe timeout must be between 1000 and 120000 ms.",
+  valMaxTokensRange: "Max tokens must be between 16 and 1024.",
+  valTemperatureRange: "Temperature must be between 0 and 2.",
+  valAuthHeaderPlaceholder: "Auth header template must contain ${apiKey} (or leave blank).",
+  valExtraHeadersJson: "Extra headers must be a valid JSON object without line breaks.",
+  valExtraHeadersSensitive: "Extra headers must not contain auth, token, secret, key, or cookie headers.",
+  valExtraBodyJson: "Extra body must be a valid JSON object.",
+  valMaxPrefixPositive: "Max prefix chars must be greater than 0.",
+  valMaxSuffixPositive: "Max suffix chars must be greater than 0.",
+  valDebounceNonNegative: "Debounce values must be 0 or greater.",
+  valDebounceOrder: "Debounce must satisfy min <= initial <= max.",
+  valMaxInFlightPositive: "Max concurrent requests must be at least 1.",
+  valCacheSizePositive: "Suggestion cache size must be at least 1.",
+  valLruSizePositive: "Prompt LRU size must be at least 1.",
+  valMaxFileSizePositive: "Max file size (KB) must be at least 1.",
+  valRecentLimitNonNegative: "Recent file count must be 0 or greater.",
+  valRecentMaxCharsPositive: "Chars per recent file must be at least 1.",
+  valLogRetentionRange: "Log buffer size must be between 50 and 10000.",
 };
 
 export const zh: Messages = {
   title: "Auto Complete",
-  tabSettings: "设置",
   tabConfig: "配置",
   tabBehavior: "补全行为",
   tabPerformance: "性能",
+  tabGeneral: "基础设置",
   tabLogs: "日志",
   profiles: "已保存配置",
   newProfile: "新建",
+  defaultNewProfileName: "新配置",
   deleteProfile: "删除",
-  renameProfile: "改名",
+  quickPresets: "快速预设",
+  presetOllama: "Ollama 本地",
+  presetDeepseek: "DeepSeek Beta FIM",
+  presetMistral: "Mistral Codestral",
+  presetVllm: "vLLM / LM Studio",
+  presetApplied: "已应用预设：{0}",
   baseUrl: "服务地址",
   model: "模型",
   promptTemplate: "提示模板",
   apiKey: "API 密钥",
+  saveKey: "保存密钥",
+  savingKey: "保存中…",
   keyConfigured: "（已配置）",
   keyMissing: "（未设置）",
+  keySaved: "API 密钥已保存",
+  keyCleared: "API 密钥已清除",
+  keySaveFailed: "保存 API 密钥失败",
+  clearKey: "清除密钥",
+  secretHint: "密钥只在 IDE 安全存储中；快照、导出与日志从不包含 API 密钥明文。",
   maxTokens: "最大 tokens",
   timeoutMs: "补全超时（ms）",
   settingsTimeoutMs: "探测超时（ms）",
   temperature: "温度",
   stream: "流式（实验）",
-  apply: "应用",
   testConnection: "测试连接",
   fetchModels: "拉取模型",
   fetchingModels: "拉取中…",
   modelsLoaded: "已加载 {0} 个模型",
   modelsEmpty: "未返回模型，仍可手动输入模型 ID。",
   modelsFailed: "拉取模型失败：{0}",
+  modelsHintEmpty: "点击「拉取模型」以加载可用模型列表。",
+  modelsNoMatch: "无匹配模型",
   helpModel: "与服务端一致的模型 ID。可手输，或「拉取模型」后从列表选择。存在配置时必填。",
-  clearKey: "清除密钥",
   tryTemplate: "测试模板",
   tryAllTemplates: "尝试全部模板",
+  applyRecommendedTemplate: "应用推荐模板：{0}",
+  recommendedTemplateApplied: "已切换模板为 {0}",
   clearLogs: "清空",
   copyLogs: "复制",
+  copyLogsOk: "日志已复制到剪贴板",
+  copyLogsEmpty: "暂无日志可复制",
   export: "导出",
   import: "导入",
-  secretHint: "密钥只在 IDE 安全存储中；快照、导出与日志从不包含 API 密钥明文。",
-  applied: "已应用",
   testing: "测试中…",
   loadFailed: "加载设置失败",
   enabled: "启用",
   autoTrigger: "自动触发",
-  advanced: "高级",
   authHeader: "鉴权头模板",
   fimPath: "FIM 路径覆盖",
   chatPath: "Chat 路径",
   completionsPath: "Completions 路径",
   extraHeaders: "额外 Headers JSON（明文；不导出）",
+  extraBodyJson: "额外请求体 JSON",
+  stopSequences: "自定义停止词",
   overrideBudget: "覆盖上下文预算",
   maxPrefix: "前缀最大字符",
   maxSuffix: "后缀最大字符",
@@ -456,22 +592,41 @@ export const zh: Messages = {
   logPromptBodies: "记录完整提示词（敏感）",
   notifyFatal: "严重鉴权错误时通知",
   showCost: "日志中显示 token 用量",
-  confirmDelete: "删除此已保存配置？",
+  logsSearchPlaceholder: "搜索日志关键字…",
+  logsAutoScroll: "自动滚底",
+  logsCount: "{0} / {1}",
+  statsTitle: "本地会话统计",
+  statsRequests: "请求数",
+  statsCacheHits: "缓存命中",
+  statsAccepted: "已采纳",
+  statsCancelled: "已取消",
+  statsFailed: "失败",
+  statsLatency: "P50 / P95",
+  statsDebounce: "当前防抖",
+  statsBackoffOk: "正常",
+  statsBackoffWarn: "退避中",
+  statsBackoffFatal: "鉴权暂停",
+  clearCaches: "清空缓存并重置退避",
+  cachesCleared: "已清空缓存并重置退避",
+  refreshStats: "刷新",
   noProfiles: "（无）",
-  platform: "宿主",
   probeResults: "探测结果",
   importOk: "已导入",
   exportOk: "已复制到剪贴板",
-  jcefFallback: "Web 面板不可用；请使用 IDE 设置 → 工具 → AI 自动补全。",
   importPrompt: "粘贴从此插件导出的设置 JSON。不会包含 API 密钥。",
   importTitle: "导入设置",
   importPlaceholder: '{ "schemaVersion": 1, "profiles": [ … ] }',
   importConfirm: "导入",
   importEmpty: "请先粘贴非空的设置 JSON。",
+  importInvalidJson: "设置 JSON 格式无效，请粘贴合法的 JSON 对象。",
+  copyModalTitleExport: "导出的设置 JSON",
+  copyModalTitleLogs: "日志文本",
+  copyModalHint: "当前环境无法直接写入剪贴板，请全选后按 Ctrl/Cmd+C 手动复制。",
+  copyModalClose: "关闭",
   language: "语言",
   theme: "主题",
   themeAuto: "自动（跟随 IDE）",
-  themeLight: "白色",
+  themeLight: "浅色",
   themeDark: "暗黑",
   helpTheme: "仅影响本设置面板外观，不改 IDE 主题。自动时跟随 IDE 明暗色。",
   helpLanguage: "仅影响本设置面板语言，不改 IDE 界面语言。自动时跟随 IDE 显示语言；选择会保存。",
@@ -482,8 +637,10 @@ export const zh: Messages = {
   templateQwen: "(fim) Qwen",
   templateDeepseek: "(fim) DeepSeek",
   templateStarcoder: "(fim) StarCoder",
+  templateCodellama: "(fim) CodeLlama",
   templateChat: "(chat) 伪 FIM",
   failed: "失败",
+  dismiss: "关闭",
   exportFailed: "导出失败",
   importFailed: "导入失败",
   emptyLogs: "—",
@@ -494,20 +651,19 @@ export const zh: Messages = {
   sectionProvider: "服务连接",
   sectionBehavior: "补全行为",
   sectionAdvanced: "高级（超时、路径、上下文）",
-  sectionAppearance: "外观",
   sectionDebounce: "防抖",
   sectionContext: "上下文窗口",
   sectionEngine: "引擎",
   sectionRecent: "最近文件",
   sectionLog: "日志",
   sectionIgnore: "路径忽略",
+  sectionGeneral: "通用",
   helpProfile: "在输入框中改名（回车或失焦保存）；箭头切换其它配置。「新建」为空连接，可删除全部配置。",
   helpBaseUrl: "OpenAI 兼容 API 根地址（含需要的版本路径）。例：http://127.0.0.1:11434/v1。补全前必须填写。",
-  helpApiKey: "部分本地服务可不填。仅保存在 IDE 密钥库，不会出现在导出、快照或日志中。",
-  helpTemplate: "决定请求体如何组装。自动会按模型名推断；若建议为空，可用「测试模板」排查。",
+  helpApiKey: "部分本地服务可不填。输入后点击「保存密钥」或按回车写入 IDE 安全存储。",
+  helpTemplate: "决定请求体如何组装。自动会按模型名推断；若建议为空，可用「测试连接」或「测试模板」排查。",
   helpTimeout: "幽灵文本补全硬超时（毫秒），范围 500–30000。建议 2000–5000，以保持跟手。",
   helpStream: "实验性 SSE 首 token 流式。除非确认端点正确支持 stream=true，否则保持关闭。",
-  helpBehavior: "控制何时允许补全。",
   helpDebounce: "输入后等待再请求的自适应延迟。引擎会根据延迟在最短与最长之间调节。",
   helpContextBudget: "光标前后可发送的代码量。更大更吃上下文，也更耗 token 与延迟。高级中可按配置覆盖。",
   helpIgnoreGlobs: "每行一条路径 glob（如 **/node_modules/**）。开启「遵循 .gitignore」时与其合并生效。",
@@ -516,8 +672,6 @@ export const zh: Messages = {
   helpLogPromptBodies: "高敏：将截断后的 prompt 写入日志缓冲。仅在排查服务端问题时打开。",
   logsHint: "与引擎共用缓冲区（测连接、补全等），由宿主批量推送。",
   moreActions: "导入 / 导出",
-  tabGeneral: "基础设置",
-  sectionGeneral: "通用",
   confirmDeleteInline: "确认删除此配置？",
   confirmDeleteYes: "确认删除",
   confirmDeleteCancel: "取消",
@@ -527,11 +681,13 @@ export const zh: Messages = {
   helpMaxTokens: "单次补全最多生成的 token。常见 64–256。更大可生成更长建议，但更慢、更耗量。",
   helpSettingsTimeout: "拉取模型、测连接、模板探测的超时（毫秒）。范围 1000–120000，默认 15000。通常长于补全超时。",
   helpTemperature: "采样温度 0–2。代码补全建议保持 0，结果更稳定可复现。",
-  helpAuthHeader: "鉴权头模板，用 ${apiKey} 表示密钥。密钥为空时不发送该头。例：Authorization: Bearer ${apiKey}",
+  helpAuthHeader: "鉴权头模板，必须包含 ${apiKey} 占位符。密钥为空时不发送该头。例：Authorization: Bearer ${apiKey}",
   helpFimPath: "相对 Base URL 的 FIM 路径覆盖。留空使用模板默认（常见 /fim/completions）。",
   helpChatPath: "Chat 补全路径（相对 Base URL）。OpenAI 兼容服务默认 /chat/completions。",
   helpCompletionsPath: "Token 式 FIM（Qwen / DeepSeek / StarCoder）的 /completions 路径。留空用模板默认。",
-  helpExtraHeaders: "额外 HTTP 头，JSON 对象，如 {\"X-Custom\":\"value\"}。必须是对象，不能是数组。",
+  helpExtraHeaders: "额外非敏感 HTTP 头，JSON 对象，如 {\"X-Custom\":\"value\"}。必须是对象，不能是数组。",
+  helpExtraBodyJson: "可选的额外 JSON 对象，会合并进补全请求体（如 {\"top_p\": 0.9}）；不会覆盖 model/prompt/messages 等受保护字段。",
+  helpStopSequences: "可选自定义停止词（逗号或换行分隔），会追加到请求的 stop 列表中。",
   helpEnabled: "总开关。关闭后自动与手动补全均不请求，直到重新开启。",
   helpAutoTrigger: "输入时自动请求。关闭后仍可通过 IDE 快捷键/命令手动触发。",
   manualTriggerShortcut: "手动触发快捷键",
@@ -569,57 +725,97 @@ export const zh: Messages = {
   aboutOpenIssues: "反馈问题",
   aboutVersion: "版本",
   aboutOpenFailed: "无法打开链接。请从下方地址复制到浏览器打开。",
+  valBaseUrlRequired: "请填写服务地址（Base URL）。",
+  valBaseUrlInvalid: "服务地址必须是有效的 URL。",
+  valBaseUrlScheme: "服务地址必须以 http:// 或 https:// 开头。",
+  valBaseUrlUserInfo: "服务地址不能包含用户名或密码凭据。",
+  valModelRequired: "请填写模型 ID。",
+  valTimeoutRange: "补全超时必须在 500 到 30000 毫秒之间。",
+  valSettingsTimeoutRange: "探测超时必须在 1000 到 120000 毫秒之间。",
+  valMaxTokensRange: "最大 tokens 必须在 16 到 1024 之间。",
+  valTemperatureRange: "温度必须在 0 到 2 之间。",
+  valAuthHeaderPlaceholder: "鉴权头模板必须包含 ${apiKey} 占位符（或留空）。",
+  valExtraHeadersJson: "额外 Headers 必须是合法的 JSON 对象且不能包含换行符。",
+  valExtraHeadersSensitive: "额外 Headers 禁止包含鉴权、token、secret、key 或 cookie 等敏感头。",
+  valExtraBodyJson: "额外请求体必须是合法的 JSON 对象。",
+  valMaxPrefixPositive: "前缀最大字符数必须大于 0。",
+  valMaxSuffixPositive: "后缀最大字符数必须大于 0。",
+  valDebounceNonNegative: "防抖毫秒数不能小于 0。",
+  valDebounceOrder: "防抖参数必须满足：最短 <= 起始 <= 最长。",
+  valMaxInFlightPositive: "最大并发请求数必须至少为 1。",
+  valCacheSizePositive: "补全缓存大小必须至少为 1。",
+  valLruSizePositive: "提示 LRU 容量必须至少为 1。",
+  valMaxFileSizePositive: "文件大小上限（KB）必须至少为 1。",
+  valRecentLimitNonNegative: "最近文件数不能小于 0。",
+  valRecentMaxCharsPositive: "单文件字符上限必须至少为 1。",
+  valLogRetentionRange: "日志缓冲条数必须在 50 到 10000 之间。",
 };
 
 export const ja: Messages = {
   title: "Auto Complete",
-  tabSettings: "設定",
   tabConfig: "構成",
   tabBehavior: "補完の動作",
   tabPerformance: "パフォーマンス",
+  tabGeneral: "一般",
   tabLogs: "ログ",
   profiles: "保存済み設定",
   newProfile: "新規",
+  defaultNewProfileName: "新規プロファイル",
   deleteProfile: "削除",
-  renameProfile: "名前変更",
+  quickPresets: "クイックプリセット",
+  presetOllama: "Ollama ローカル",
+  presetDeepseek: "DeepSeek Beta FIM",
+  presetMistral: "Mistral Codestral",
+  presetVllm: "vLLM / LM Studio",
+  presetApplied: "プリセットを適用しました: {0}",
   baseUrl: "ベース URL",
   model: "モデル",
   promptTemplate: "プロンプトテンプレート",
   apiKey: "API キー",
+  saveKey: "キーを保存",
+  savingKey: "保存中…",
   keyConfigured: "（設定済み）",
   keyMissing: "（未設定）",
+  keySaved: "API キーを保存しました",
+  keyCleared: "API キーをクリアしました",
+  keySaveFailed: "API キーの保存に失敗しました",
+  clearKey: "キーをクリア",
+  secretHint: "キーは IDE の安全な保存領域のみ。スナップショット・エクスポート・ログに平文は含みません。",
   maxTokens: "最大トークン",
   timeoutMs: "補完タイムアウト（ms）",
   settingsTimeoutMs: "プローブタイムアウト（ms）",
   temperature: "温度",
   stream: "ストリーム（試験的）",
-  apply: "適用",
   testConnection: "接続テスト",
   fetchModels: "モデル取得",
   fetchingModels: "取得中…",
   modelsLoaded: "{0} 件のモデルを読み込みました",
   modelsEmpty: "モデルが返りませんでした。手動で ID を入力できます。",
   modelsFailed: "モデルの取得に失敗しました: {0}",
+  modelsHintEmpty: "「モデル取得」をクリックして利用可能なモデルを読み込みます。",
+  modelsNoMatch: "一致するモデルがありません",
   helpModel: "サーバーが期待するモデル ID。手入力、または取得一覧から選択。プロファイルがある場合は必須。",
-  clearKey: "キーをクリア",
   tryTemplate: "テンプレートをテスト",
   tryAllTemplates: "すべてのテンプレートを試す",
+  applyRecommendedTemplate: "推奨テンプレートを適用: {0}",
+  recommendedTemplateApplied: "テンプレートを {0} に切り替えました",
   clearLogs: "クリア",
   copyLogs: "コピー",
+  copyLogsOk: "ログをクリップボードにコピーしました",
+  copyLogsEmpty: "コピーするログがありません",
   export: "エクスポート",
   import: "インポート",
-  secretHint: "キーは IDE の安全な保存領域のみ。スナップショット・エクスポート・ログに平文は含みません。",
-  applied: "適用しました",
   testing: "テスト中…",
   loadFailed: "設定の読み込みに失敗しました",
   enabled: "有効",
   autoTrigger: "自動トリガー",
-  advanced: "詳細",
   authHeader: "認証ヘッダーテンプレート",
   fimPath: "FIM パス上書き",
   chatPath: "Chat パス",
   completionsPath: "Completions パス",
   extraHeaders: "追加ヘッダー JSON（平文・エクスポート対象外）",
+  extraBodyJson: "追加リクエスト本文 JSON",
+  stopSequences: "カスタム停止シーケンス",
   overrideBudget: "コンテキスト予算を上書き",
   maxPrefix: "プレフィックス最大文字数",
   maxSuffix: "サフィックス最大文字数",
@@ -647,19 +843,37 @@ export const ja: Messages = {
   logPromptBodies: "プロンプト全文を記録（機密）",
   notifyFatal: "致命的な認証エラーを通知",
   showCost: "ログにトークン使用量を表示",
-  confirmDelete: "この保存済み設定を削除しますか？",
+  logsSearchPlaceholder: "ログを検索…",
+  logsAutoScroll: "自動スクロール",
+  logsCount: "{0} / {1}",
+  statsTitle: "ローカルセッション統計",
+  statsRequests: "リクエスト",
+  statsCacheHits: "キャッシュヒット",
+  statsAccepted: "採用",
+  statsCancelled: "キャンセル",
+  statsFailed: "失敗",
+  statsLatency: "P50 / P95",
+  statsDebounce: "デバウンス",
+  statsBackoffOk: "正常",
+  statsBackoffWarn: "バックオフ中",
+  statsBackoffFatal: "認証停止",
+  clearCaches: "キャッシュ消去・バックオフ解除",
+  cachesCleared: "キャッシュを消去しバックオフをリセットしました",
+  refreshStats: "更新",
   noProfiles: "（なし）",
-  platform: "ホスト",
   probeResults: "プローブ結果",
   importOk: "インポートしました",
   exportOk: "クリップボードにコピーしました",
-  jcefFallback:
-    "Web パネルを利用できません。IDE 設定 → ツール → Auto Complete を使用してください。",
   importPrompt: "このプラグインからエクスポートした設定 JSON を貼り付け。API キーは含まれません。",
   importTitle: "設定をインポート",
   importPlaceholder: '{ "schemaVersion": 1, "profiles": [ … ] }',
   importConfirm: "インポート",
   importEmpty: "空でない設定 JSON を貼り付けてください。",
+  importInvalidJson: "無効な JSON です。設定 JSON オブジェクトを貼り付けてください。",
+  copyModalTitleExport: "エクスポートした設定 JSON",
+  copyModalTitleLogs: "ログテキスト",
+  copyModalHint: "クリップボードに直接コピーできません。選択して Ctrl/Cmd+C でコピーしてください。",
+  copyModalClose: "閉じる",
   language: "言語",
   theme: "テーマ",
   themeAuto: "自動（IDE に合わせる）",
@@ -674,8 +888,10 @@ export const ja: Messages = {
   templateQwen: "(fim) Qwen",
   templateDeepseek: "(fim) DeepSeek",
   templateStarcoder: "(fim) StarCoder",
+  templateCodellama: "(fim) CodeLlama",
   templateChat: "(chat) 疑似 FIM",
   failed: "失敗",
+  dismiss: "閉じる",
   exportFailed: "エクスポートに失敗しました",
   importFailed: "インポートに失敗しました",
   emptyLogs: "—",
@@ -686,20 +902,19 @@ export const ja: Messages = {
   sectionProvider: "プロバイダー接続",
   sectionBehavior: "補完の動作",
   sectionAdvanced: "詳細（タイムアウト・パス・文脈）",
-  sectionAppearance: "外観",
   sectionDebounce: "デバウンス",
   sectionContext: "コンテキスト予算",
   sectionEngine: "エンジン",
   sectionRecent: "最近のファイル",
   sectionLog: "ログ",
   sectionIgnore: "パス無視",
+  sectionGeneral: "一般",
   helpProfile: "入力欄で改名（Enter / フォーカスアウトで保存）。矢印で切替。新規は空の接続。すべて削除可。",
   helpBaseUrl: "OpenAI 互換 API のルート（必要なバージョンパスを含む）。例: http://127.0.0.1:11434/v1。補完前に必須。",
-  helpApiKey: "ローカルサーバーでは省略可。IDE の秘密領域のみに保存。エクスポート・スナップショット・ログには出ません。",
-  helpTemplate: "リクエスト本文の組み立て方。自動はモデル名から推定。結果が空ならテンプレートテストで確認。",
+  helpApiKey: "ローカルサーバーでは省略可。入力後「キーを保存」または Enter で IDE の秘密領域に保存します。",
+  helpTemplate: "リクエスト本文の組み立て方。自動はモデル名から推定。結果が空なら接続テストやテンプレートテストで確認。",
   helpTimeout: "ゴーストテキスト補完のハードタイムアウト（ms）。500–30000。応答性のため 2000–5000 推奨。",
   helpStream: "試験的な SSE 先頭トークン。stream=true 対応が確実でない限りオフ推奨。",
-  helpBehavior: "補完を許可する条件のマスタ制御。",
   helpDebounce: "入力後にリクエストするまでの適応遅延。観測レイテンシに応じ min〜max で調整。",
   helpContextBudget: "カーソル前後に送れるコード量。大きいほど文脈が増え、トークンと遅延も増えます。詳細でプロファイル上書き可。",
   helpIgnoreGlobs: "1 行 1 グロブ（例: **/node_modules/**）。.gitignore 尊重がオンなら併用。",
@@ -708,8 +923,6 @@ export const ja: Messages = {
   helpLogPromptBodies: "機密: 切り詰めプロンプトをログに記録。障害調査時以外はオフ。",
   logsHint: "エンジンと共有のログ（接続テスト・補完）。ホストからバッチ配信。",
   moreActions: "インポート / エクスポート",
-  tabGeneral: "一般",
-  sectionGeneral: "一般",
   confirmDeleteInline: "この構成を削除しますか？",
   confirmDeleteYes: "削除",
   confirmDeleteCancel: "キャンセル",
@@ -719,11 +932,13 @@ export const ja: Messages = {
   helpMaxTokens: "1 回の補完で生成する最大トークン。目安 64–256。大きいほど長い提案と遅延・消費が増えます。",
   helpSettingsTimeout: "モデル取得・接続テスト・テンプレート探索のタイムアウト（ms）。1000–120000、既定 15000。",
   helpTemperature: "サンプリング温度 0–2。コード補完は 0 推奨（安定・再現性）。",
-  helpAuthHeader: "認証ヘッダー。${apiKey} がシークレット。キー空ならヘッダー省略。例: Authorization: Bearer ${apiKey}",
+  helpAuthHeader: "認証ヘッダー。${apiKey} プレースホルダーが必須。キー空ならヘッダー省略。例: Authorization: Bearer ${apiKey}",
   helpFimPath: "Base URL 相対の FIM パス上書き。空ならテンプレ既定（多くは /fim/completions）。",
   helpChatPath: "Chat 補完パス。OpenAI 互換の既定は /chat/completions。",
   helpCompletionsPath: "トークン FIM（Qwen / DeepSeek / StarCoder）用 /completions パス。空で既定。",
-  helpExtraHeaders: "追加 HTTP ヘッダーの JSON オブジェクト。例: {\"X-Custom\":\"value\"}。配列は不可。",
+  helpExtraHeaders: "追加の非機密 HTTP ヘッダーの JSON オブジェクト。例: {\"X-Custom\":\"value\"}。配列は不可。",
+  helpExtraBodyJson: "補完リクエスト本文にマージする追加 JSON オブジェクト（例: {\"top_p\": 0.9}）。model/prompt/messages などの保護キーは上書きされません。",
+  helpStopSequences: "リクエストの stop に追加するカスタム停止シーケンス（カンマまたは改行区切り）。",
   helpEnabled: "マスタスイッチ。オフだと自動・手動とも補完しません。",
   helpAutoTrigger: "入力中に自動リクエスト。オフでも IDE ショートカット/コマンドで手動可能。",
   manualTriggerShortcut: "手動トリガーのショートカット",
@@ -753,7 +968,7 @@ export const ja: Messages = {
   helpShowCost: "usage があるとき成功ログにトークン数を付与。料金見積もりではありません。",
   helpMaxPrefix: "カーソル前に送れる最大文字数。大きいほど文脈・トークン・遅延が増えます。",
   helpMaxSuffix: "カーソル後に送れる最大文字数（FIM）。通常はプレフィックスより小さく。",
-  sectionAbout: "について",
+  sectionAbout: "このプラグインについて",
   aboutBlurb:
     "JetBrains と VS Code 向けのオープンソース BYO エンドポイント行内補完。Issue・ドキュメント・リリースは GitHub にあります。",
   aboutLicense: "ライセンス: Apache-2.0",
@@ -761,57 +976,97 @@ export const ja: Messages = {
   aboutOpenIssues: "Issue を報告",
   aboutVersion: "バージョン",
   aboutOpenFailed: "リンクを開けませんでした。URL をコピーしてブラウザで開いてください。",
+  valBaseUrlRequired: "ベース URL を入力してください。",
+  valBaseUrlInvalid: "ベース URL は有効な URL である必要があります。",
+  valBaseUrlScheme: "ベース URL は http:// または https:// で始まる必要があります。",
+  valBaseUrlUserInfo: "ベース URL にユーザー名・パスワードを含めることはできません。",
+  valModelRequired: "モデル ID を入力してください。",
+  valTimeoutRange: "補完タイムアウトは 500〜30000 ms の範囲で指定してください。",
+  valSettingsTimeoutRange: "プローブタイムアウトは 1000〜120000 ms の範囲で指定してください。",
+  valMaxTokensRange: "最大トークン数は 16〜1024 の範囲で指定してください。",
+  valTemperatureRange: "温度は 0〜2 の範囲で指定してください。",
+  valAuthHeaderPlaceholder: "認証ヘッダーテンプレートには ${apiKey} を含めてください（または空欄）。",
+  valExtraHeadersJson: "追加ヘッダーは改行を含まない有効な JSON オブジェクトである必要があります。",
+  valExtraHeadersSensitive: "追加ヘッダーに認証・トークン・シークレット・キー・Cookie ヘッダーは指定できません。",
+  valExtraBodyJson: "追加リクエスト本文は有効な JSON オブジェクトである必要があります。",
+  valMaxPrefixPositive: "プレフィックス最大文字数は 0 より大きい値を指定してください。",
+  valMaxSuffixPositive: "サフィックス最大文字数は 0 より大きい値を指定してください。",
+  valDebounceNonNegative: "デバウンス値は 0 以上である必要があります。",
+  valDebounceOrder: "デバウンスは 最短 <= 初期 <= 最長 を満たす必要があります。",
+  valMaxInFlightPositive: "最大同時リクエスト数は 1 以上である必要があります。",
+  valCacheSizePositive: "補完キャッシュサイズは 1 以上である必要があります。",
+  valLruSizePositive: "プロンプト LRU サイズは 1 以上である必要があります。",
+  valMaxFileSizePositive: "ファイルサイズ上限（KB）は 1 以上である必要があります。",
+  valRecentLimitNonNegative: "最近ファイル数は 0 以上である必要があります。",
+  valRecentMaxCharsPositive: "ファイルあたり最大文字数は 1 以上である必要があります。",
+  valLogRetentionRange: "ログバッファ件数は 50〜10000 の範囲で指定してください。",
 };
 
 export const ko: Messages = {
   title: "Auto Complete",
-  tabSettings: "설정",
   tabConfig: "구성",
   tabBehavior: "완성 동작",
   tabPerformance: "성능",
+  tabGeneral: "일반",
   tabLogs: "로그",
   profiles: "저장된 구성",
   newProfile: "새로 만들기",
+  defaultNewProfileName: "새 프로필",
   deleteProfile: "삭제",
-  renameProfile: "이름 바꾸기",
+  quickPresets: "빠른 프리셋",
+  presetOllama: "Ollama 로컬",
+  presetDeepseek: "DeepSeek Beta FIM",
+  presetMistral: "Mistral Codestral",
+  presetVllm: "vLLM / LM Studio",
+  presetApplied: "프리셋 적용됨: {0}",
   baseUrl: "기본 URL",
   model: "모델",
   promptTemplate: "프롬프트 템플릿",
   apiKey: "API 키",
+  saveKey: "키 저장",
+  savingKey: "저장 중…",
   keyConfigured: "(구성됨)",
   keyMissing: "(없음)",
+  keySaved: "API 키가 저장되었습니다",
+  keyCleared: "API 키가 삭제되었습니다",
+  keySaveFailed: "API 키 저장 실패",
+  clearKey: "키 지우기",
+  secretHint: "키는 IDE 보안 저장소에만 있습니다. 스냅샷·내보내기·로그에 평문 키가 없습니다.",
   maxTokens: "최대 토큰",
   timeoutMs: "완성 제한 시간(ms)",
   settingsTimeoutMs: "프로브 제한 시간(ms)",
   temperature: "온도",
   stream: "스트림(실험)",
-  apply: "적용",
   testConnection: "연결 테스트",
   fetchModels: "모델 가져오기",
   fetchingModels: "가져오는 중…",
   modelsLoaded: "모델 {0}개 로드됨",
   modelsEmpty: "모델이 없습니다. 모델 ID를 직접 입력할 수 있습니다.",
   modelsFailed: "모델 로드 실패: {0}",
+  modelsHintEmpty: "「모델 가져오기」를 눌러 사용 가능한 모델을 불러오세요.",
+  modelsNoMatch: "일치하는 모델이 없습니다",
   helpModel: "서버가 기대하는 모델 ID. 직접 입력하거나 목록을 가져온 뒤 선택. 구성이 있으면 필수.",
-  clearKey: "키 지우기",
   tryTemplate: "템플릿 테스트",
   tryAllTemplates: "모든 템플릿 시도",
+  applyRecommendedTemplate: "추천 템플릿 적용: {0}",
+  recommendedTemplateApplied: "템플릿을 {0}(으)로 변경했습니다",
   clearLogs: "지우기",
   copyLogs: "복사",
+  copyLogsOk: "로그를 클립보드에 복사했습니다",
+  copyLogsEmpty: "복사할 로그가 없습니다",
   export: "내보내기",
   import: "가져오기",
-  secretHint: "키는 IDE 보안 저장소에만 있습니다. 스냅샷·내보내기·로그에 평문 키가 없습니다.",
-  applied: "적용됨",
   testing: "테스트 중…",
   loadFailed: "설정을 불러오지 못했습니다",
   enabled: "사용",
   autoTrigger: "자동 실행",
-  advanced: "고급",
   authHeader: "인증 헤더 템플릿",
   fimPath: "FIM 경로 재정의",
   chatPath: "Chat 경로",
   completionsPath: "Completions 경로",
   extraHeaders: "추가 헤더 JSON(평문, 내보내지 않음)",
+  extraBodyJson: "추가 요청 본문 JSON",
+  stopSequences: "사용자 지정 중지 시퀀스",
   overrideBudget: "컨텍스트 예산 재정의",
   maxPrefix: "접두사 최대 문자",
   maxSuffix: "접미사 최대 문자",
@@ -839,18 +1094,37 @@ export const ko: Messages = {
   logPromptBodies: "전체 프롬프트 기록(민감)",
   notifyFatal: "치명적 인증 오류 알림",
   showCost: "로그에 토큰 사용량 표시",
-  confirmDelete: "이 저장된 구성을 삭제할까요?",
+  logsSearchPlaceholder: "로그 검색…",
+  logsAutoScroll: "자동 스크롤",
+  logsCount: "{0} / {1}",
+  statsTitle: "로컬 세션 통계",
+  statsRequests: "요청",
+  statsCacheHits: "캐시 적중",
+  statsAccepted: "수락됨",
+  statsCancelled: "취소됨",
+  statsFailed: "실패",
+  statsLatency: "P50 / P95",
+  statsDebounce: "디바운스",
+  statsBackoffOk: "정상",
+  statsBackoffWarn: "백오프 중",
+  statsBackoffFatal: "인증 일시정지",
+  clearCaches: "캐시 비우기 및 백오프 재설정",
+  cachesCleared: "캐시를 비우고 백오프를 재설정했습니다",
+  refreshStats: "새로고침",
   noProfiles: "(없음)",
-  platform: "호스트",
   probeResults: "프로브 결과",
   importOk: "가져옴",
   exportOk: "클립보드에 복사됨",
-  jcefFallback: "웹 패널을 사용할 수 없습니다. IDE 설정 → 도구 → Auto Complete를 사용하세요.",
   importPrompt: "이 플러그인에서 내보낸 설정 JSON을 붙여넣으세요. API 키는 포함되지 않습니다.",
   importTitle: "설정 가져오기",
   importPlaceholder: '{ "schemaVersion": 1, "profiles": [ … ] }',
   importConfirm: "가져오기",
   importEmpty: "비어 있지 않은 설정 JSON을 먼저 붙여넣으세요.",
+  importInvalidJson: "잘못된 JSON입니다. 설정 JSON 객체를 붙여넣으세요.",
+  copyModalTitleExport: "내보낸 설정 JSON",
+  copyModalTitleLogs: "로그 텍스트",
+  copyModalHint: "클립보드 접근을 사용할 수 없습니다. 선택 후 Ctrl/Cmd+C로 복사하세요.",
+  copyModalClose: "닫기",
   language: "언어",
   theme: "테마",
   themeAuto: "자동(IDE 따름)",
@@ -865,8 +1139,10 @@ export const ko: Messages = {
   templateQwen: "(fim) Qwen",
   templateDeepseek: "(fim) DeepSeek",
   templateStarcoder: "(fim) StarCoder",
+  templateCodellama: "(fim) CodeLlama",
   templateChat: "(chat) 의사 FIM",
   failed: "실패",
+  dismiss: "닫기",
   exportFailed: "내보내기 실패",
   importFailed: "가져오기 실패",
   emptyLogs: "—",
@@ -877,20 +1153,19 @@ export const ko: Messages = {
   sectionProvider: "제공자 연결",
   sectionBehavior: "완성 동작",
   sectionAdvanced: "고급(시간 제한, 경로, 문맥)",
-  sectionAppearance: "모양",
   sectionDebounce: "디바운스",
   sectionContext: "컨텍스트 예산",
   sectionEngine: "엔진",
   sectionRecent: "최근 파일",
   sectionLog: "로그",
   sectionIgnore: "경로 무시",
+  sectionGeneral: "일반",
   helpProfile: "상자에서 이름 변경(Enter/포커스 아웃 저장). 화살표로 전환. 새로 만들기는 빈 연결. 모두 삭제 가능.",
   helpBaseUrl: "OpenAI 호환 API 루트(필요한 버전 경로 포함). 예: http://127.0.0.1:11434/v1. 완성 전에 필수.",
-  helpApiKey: "일부 로컬 서버는 생략 가능. IDE 보안 저장소에만 보관. 내보내기·스냅샷·로그에 평문 없음.",
-  helpTemplate: "요청 본문 구성 방식. 자동은 모델 이름으로 추론. 결과가 비면 템플릿 테스트로 확인.",
+  helpApiKey: "일부 로컬 서버는 생략 가능. 입력 후 「키 저장」 또는 Enter를 눌러 IDE 보안 저장소에 보관하세요.",
+  helpTemplate: "요청 본문 구성 방식. 자동은 모델 이름으로 추론. 결과가 비면 연결 테스트나 템플릿 테스트로 확인.",
   helpTimeout: "고스트 텍스트 완성 제한 시간(ms). 500–30000. 반응성을 위해 2000–5000 권장.",
   helpStream: "실험적 SSE 첫 토큰. 서버가 stream=true를 확실히 지원할 때만 켜세요.",
-  helpBehavior: "완성 허용 조건의 마스터 제어.",
   helpDebounce: "입력 후 요청까지의 적응형 지연. 관측 지연에 따라 최소~최대 사이에서 조절.",
   helpContextBudget: "커서 앞뒤로 보낼 수 있는 코드량. 클수록 문맥·토큰·지연 증가. 고급에서 구성별 재정의 가능.",
   helpIgnoreGlobs: "줄마다 경로 글롭(예: **/node_modules/**). .gitignore 준수와 함께 적용.",
@@ -899,8 +1174,6 @@ export const ko: Messages = {
   helpLogPromptBodies: "민감: 잘린 프롬프트를 로그에 기록. 장애 분석 시에만 켜세요.",
   logsHint: "엔진과 동일한 로그 버퍼. 호스트가 일괄 푸시합니다.",
   moreActions: "가져오기 / 내보내기",
-  tabGeneral: "일반",
-  sectionGeneral: "일반",
   confirmDeleteInline: "이 구성을 삭제하시겠습니까?",
   confirmDeleteYes: "삭제",
   confirmDeleteCancel: "취소",
@@ -910,11 +1183,13 @@ export const ko: Messages = {
   helpMaxTokens: "완성당 생성 토큰 상한. 보통 64–256. 클수록 긴 제안과 지연·소비 증가.",
   helpSettingsTimeout: "모델 가져오기·연결 테스트·템플릿 프로브 제한 시간(ms). 1000–120000, 기본 15000.",
   helpTemperature: "샘플링 온도 0–2. 코드 완성은 0 권장(안정·재현).",
-  helpAuthHeader: "인증 헤더 템플릿. ${apiKey}가 비밀. 키가 비면 헤더 생략. 예: Authorization: Bearer ${apiKey}",
+  helpAuthHeader: "인증 헤더 템플릿. ${apiKey} 자리 표시자가 필수입니다. 키가 비면 헤더 생략. 예: Authorization: Bearer ${apiKey}",
   helpFimPath: "Base URL 상대 FIM 경로 재정의. 비우면 템플릿 기본(대개 /fim/completions).",
   helpChatPath: "Chat 완성 경로. OpenAI 호환 기본 /chat/completions.",
   helpCompletionsPath: "토큰 FIM(Qwen/DeepSeek/StarCoder)용 /completions 경로. 비우면 기본.",
-  helpExtraHeaders: "추가 HTTP 헤더 JSON 객체. 예: {\"X-Custom\":\"value\"}. 배열 불가.",
+  helpExtraHeaders: "추가 비민감 HTTP 헤더 JSON 객체. 예: {\"X-Custom\":\"value\"}. 배열 불가.",
+  helpExtraBodyJson: "완성 요청 본문에 병합할 선택적 JSON 객체(예: {\"top_p\": 0.9}). model/prompt/messages 등 보호 키는 덮어쓰지 않습니다.",
+  helpStopSequences: "요청 stop 목록에 추가할 사용자 지정 중지 시퀀스(쉼표 또는 줄바꿈 구분).",
   helpEnabled: "마스터 스위치. 끄면 자동·수동 완성 모두 중지.",
   helpAutoTrigger: "입력 중 자동 요청. 꺼도 IDE 단축키/명령으로 수동 가능.",
   manualTriggerShortcut: "수동 트리거 단축키",
@@ -952,4 +1227,28 @@ export const ko: Messages = {
   aboutOpenIssues: "이슈 제보",
   aboutVersion: "버전",
   aboutOpenFailed: "링크를 열 수 없습니다. URL을 복사해 브라우저에서 여세요.",
+  valBaseUrlRequired: "기본 URL을 입력하세요.",
+  valBaseUrlInvalid: "기본 URL은 유효한 URL이어야 합니다.",
+  valBaseUrlScheme: "기본 URL은 http:// 또는 https://로 시작해야 합니다.",
+  valBaseUrlUserInfo: "기본 URL에 사용자 이름이나 비밀번호를 포함할 수 없습니다.",
+  valModelRequired: "모델 ID를 입력하세요.",
+  valTimeoutRange: "완성 제한 시간은 500~30000ms 사이여야 합니다.",
+  valSettingsTimeoutRange: "프로브 제한 시간은 1000~120000ms 사이여야 합니다.",
+  valMaxTokensRange: "최대 토큰 수는 16~1024 사이여야 합니다.",
+  valTemperatureRange: "온도는 0~2 사이여야 합니다.",
+  valAuthHeaderPlaceholder: "인증 헤더 템플릿에는 ${apiKey}가 포함되어야 합니다(또는 비워 두세요).",
+  valExtraHeadersJson: "추가 헤더는 줄바꿈이 없는 유효한 JSON 객체여야 합니다.",
+  valExtraHeadersSensitive: "추가 헤더에 인증·토큰·비밀·키·쿠키 헤더를 포함할 수 없습니다.",
+  valExtraBodyJson: "추가 요청 본문은 유효한 JSON 객체여야 합니다.",
+  valMaxPrefixPositive: "접두사 최대 문자 수는 0보다 커야 합니다.",
+  valMaxSuffixPositive: "접미사 최대 문자 수는 0보다 커야 합니다.",
+  valDebounceNonNegative: "디바운스 값은 0 이상이어야 합니다.",
+  valDebounceOrder: "디바운스는 최소 <= 초기 <= 최대 순서를 만족해야 합니다.",
+  valMaxInFlightPositive: "최대 동시 요청 수는 1 이상이어야 합니다.",
+  valCacheSizePositive: "완성 캐시 크기는 1 이상이어야 합니다.",
+  valLruSizePositive: "프롬프트 LRU 크기는 1 이상이어야 합니다.",
+  valMaxFileSizePositive: "파일 크기 상한(KB)은 1 이상이어야 합니다.",
+  valRecentLimitNonNegative: "최근 파일 수는 0 이상이어야 합니다.",
+  valRecentMaxCharsPositive: "파일당 문자 수 상한은 1 이상이어야 합니다.",
+  valLogRetentionRange: "로그 버퍼 크기는 50~10000 사이여야 합니다.",
 };

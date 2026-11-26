@@ -16,6 +16,8 @@ export type Profile = {
   completionsPath?: string;
   authHeaderTemplate?: string;
   extraHeadersJson?: string;
+  extraBodyJson?: string;
+  stopSequences?: string;
   overrideContextBudget?: boolean;
   maxPrefixChars?: number;
   maxSuffixChars?: number;
@@ -23,6 +25,19 @@ export type Profile = {
 
 /** Settings UI appearance: follow IDE, or force light/dark. */
 export type UiTheme = "auto" | "light" | "dark";
+
+/** Normalized IDE host theme value applied to data-theme. */
+export type HostTheme =
+  | "light"
+  | "dark"
+  | "high-contrast-light"
+  | "high-contrast-dark"
+  | "high-contrast";
+
+export type ModelOption = {
+  id: string;
+  contextLength?: number | null;
+};
 
 export type Snapshot = {
   schemaVersion?: number;
@@ -70,22 +85,55 @@ export type Snapshot = {
 };
 
 export type ProbeResult = {
-  status?: string;
+  status?: "SUCCESS" | "EMPTY" | "FAILED" | string;
   httpStatus?: number | null;
   latencyMs?: number;
   preview?: string;
   error?: string;
   resolvedPath?: string;
+  resolvedUrl?: string;
   template?: string;
 };
 
 export type LogEntry = {
   time?: string;
   level?: string;
-  message?: string;
+  requestId?: string;
+  file?: string;
+  trigger?: string;
+  cacheHit?: boolean;
+  latencyMs?: number | null;
+  status?: number | null;
   error?: string;
   operation?: string;
-  status?: number | null;
-  latencyMs?: number | null;
-  file?: string;
+  method?: string;
+  url?: string;
+  model?: string;
+  requestStyle?: string;
+  responseChars?: number | null;
+  message?: string;
+};
+
+export type SessionStats = {
+  totalRequests: number;
+  cacheHits: number;
+  cancelled: number;
+  failed: number;
+  accepted: number;
+  p50LatencyMs?: number | null;
+  p95LatencyMs?: number | null;
+  currentDebounceMs?: number | null;
+  backoffBlocked?: boolean;
+  backoffFatal?: boolean;
+};
+
+export type ServicePresetId = "ollama" | "deepseek" | "mistral" | "vllm";
+
+export type ServicePreset = {
+  id: ServicePresetId;
+  baseUrl: string;
+  promptTemplate: string;
+  fimPath: string;
+  chatPath: string;
+  completionsPath: string;
 };
