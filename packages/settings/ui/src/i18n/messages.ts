@@ -137,6 +137,7 @@ export type MessageKey =
   | "templateQwen"
   | "templateDeepseek"
   | "templateStarcoder"
+  | "templateCodellama"
   | "templateChat"
   | "failed"
   | "dismiss"
@@ -385,6 +386,7 @@ export const en: Messages = {
   templateQwen: "(fim) Qwen",
   templateDeepseek: "(fim) DeepSeek",
   templateStarcoder: "(fim) StarCoder",
+  templateCodellama: "(fim) CodeLlama",
   templateChat: "(chat) Pseudo-FIM",
   failed: "failed",
   dismiss: "Dismiss",
@@ -635,6 +637,7 @@ export const zh: Messages = {
   templateQwen: "(fim) Qwen",
   templateDeepseek: "(fim) DeepSeek",
   templateStarcoder: "(fim) StarCoder",
+  templateCodellama: "(fim) CodeLlama",
   templateChat: "(chat) 伪 FIM",
   failed: "失败",
   dismiss: "关闭",
@@ -885,6 +888,7 @@ export const ja: Messages = {
   templateQwen: "(fim) Qwen",
   templateDeepseek: "(fim) DeepSeek",
   templateStarcoder: "(fim) StarCoder",
+  templateCodellama: "(fim) CodeLlama",
   templateChat: "(chat) 疑似 FIM",
   failed: "失敗",
   dismiss: "閉じる",
@@ -1135,6 +1139,7 @@ export const ko: Messages = {
   templateQwen: "(fim) Qwen",
   templateDeepseek: "(fim) DeepSeek",
   templateStarcoder: "(fim) StarCoder",
+  templateCodellama: "(fim) CodeLlama",
   templateChat: "(chat) 의사 FIM",
   failed: "실패",
   dismiss: "닫기",

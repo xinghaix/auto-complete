@@ -315,6 +315,7 @@ const templateOptions = computed(() => [
   { value: "QWEN", label: tr("templateQwen") },
   { value: "DEEPSEEK", label: tr("templateDeepseek") },
   { value: "STARCODER", label: tr("templateStarcoder") },
+  { value: "CODELLAMA", label: tr("templateCodellama") },
   { value: "CHAT", label: tr("templateChat") },
 ]);
 

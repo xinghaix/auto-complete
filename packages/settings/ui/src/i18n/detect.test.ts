@@ -53,5 +53,8 @@ describe("detectLocale & i18n catalogs", () => {
     assert.equal(zh.themeLight, "浅色");
     assert.equal(ja.sectionAbout, "このプラグインについて");
     assert.equal("jcefFallback" in en, false);
+    for (const loc of ["en", "zh", "ja", "ko"] as const) {
+      assert.ok(t(loc, "templateCodellama").includes("CodeLlama"));
+    }
   });
 });
