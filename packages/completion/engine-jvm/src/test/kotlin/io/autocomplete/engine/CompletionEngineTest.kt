@@ -452,6 +452,68 @@ class CompletionEngineTest {
     }
 
     @Test
+    fun mixedPerScopeAndGlobalGenerationsShareMonotonicCounter() {
+        val engine =
+            CompletionEngine(
+                settings = SettingsSource { baseSettings() },
+                logs = LogBuffer(),
+                clientFactory = { CompletionClient { _, _ -> ProviderResponse("ok") } },
+                sleeper = { _, token -> token.throwIfCancelled() },
+            )
+        // 1. Per-scope async request with generation = 0 allocates scoped generation on "a.kt"
+        val asyncDone = CountDownLatch(1)
+        var asyncOut: CompletionOutcome? = null
+        engine.completeAsync(
+            CompletionRequest("async-1", "a.kt", "kotlin", "val a1 = ", "", 9, Trigger.MANUAL, 0L),
+            debounce = false,
+        ) {
+            asyncOut = it
+            asyncDone.countDown()
+        }
+        assertTrue(asyncDone.await(2, TimeUnit.SECONDS))
+        assertTrue(asyncOut is CompletionOutcome.Success, "asyncOut=$asyncOut")
+        val scopedGen = engine.currentGeneration("a.kt")
+        assertTrue(scopedGen >= 1L)
+
+        // 2. Legacy caller subsequently uses global nextGeneration() on the SAME scope "a.kt"
+        val globalGen = engine.nextGeneration()
+        assertTrue(globalGen > scopedGen)
+        assertEquals(globalGen, engine.currentGeneration("a.kt"))
+        val legacyOut =
+            engine.completeSync(
+                CompletionRequest("legacy-2", "a.kt", "kotlin", "val a2 = ", "", 9, Trigger.MANUAL, globalGen),
+                debounce = false,
+            )
+        assertTrue(legacyOut is CompletionOutcome.Success, "legacyOut=$legacyOut")
+
+        // 3. Old scopedGen is now stale
+        val staleScoped =
+            engine.completeSync(
+                CompletionRequest("stale-3", "a.kt", "kotlin", "val a3 = ", "", 9, Trigger.MANUAL, scopedGen),
+                debounce = false,
+            )
+        assertEquals(CompletionOutcome.Cancelled, staleScoped)
+
+        // 4. Subsequent per-scope nextGeneration("a.kt") supersedes globalGen without breaking "b.kt"
+        val nextScopedA = engine.nextGeneration("a.kt")
+        assertTrue(nextScopedA > globalGen)
+        assertEquals(nextScopedA, engine.currentGeneration("a.kt"))
+        assertEquals(globalGen, engine.currentGeneration("b.kt"))
+        val outA =
+            engine.completeSync(
+                CompletionRequest("scoped-4", "a.kt", "kotlin", "val a4 = ", "", 9, Trigger.MANUAL, nextScopedA),
+                debounce = false,
+            )
+        val outB =
+            engine.completeSync(
+                CompletionRequest("global-b", "b.kt", "kotlin", "val b1 = ", "", 9, Trigger.MANUAL, globalGen),
+                debounce = false,
+            )
+        assertTrue(outA is CompletionOutcome.Success, "outA=$outA")
+        assertTrue(outB is CompletionOutcome.Success, "outB=$outB")
+    }
+
+    @Test
     fun debounceBoundsHandleInvertedHighAndZeroRangesWithoutCrashing() {
         val observedDelays = mutableListOf<Long>()
         val engine =

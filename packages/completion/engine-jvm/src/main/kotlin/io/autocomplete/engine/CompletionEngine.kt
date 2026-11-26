@@ -53,8 +53,9 @@ class CompletionEngine(
     private val onFatal: ((Int?, String) -> Unit)? = null,
     val backoff: ErrorBackoff = ErrorBackoff(),
 ) {
-    private val generation = AtomicLong(0)
-    private val scopeGenerations = ConcurrentHashMap<String, AtomicLong>()
+    private val generationCounter = AtomicLong(0)
+    private val globalGeneration = AtomicLong(0)
+    private val scopeGenerations = ConcurrentHashMap<String, Long>()
     private val executor =
         Executors.newCachedThreadPool { r ->
             Thread(r, "auto-complete-engine").apply { isDaemon = true }
@@ -94,18 +95,24 @@ class CompletionEngine(
             get() = futureRef.get() ?: CompletableNoopFuture
     }
 
-    fun currentGeneration(): Long = generation.get()
+    fun currentGeneration(): Long = globalGeneration.get()
 
-    fun nextGeneration(): Long = generation.incrementAndGet()
+    fun nextGeneration(): Long {
+        val next = generationCounter.incrementAndGet()
+        globalGeneration.accumulateAndGet(next, ::maxOf)
+        return next
+    }
 
     fun currentGeneration(scope: String): Long =
-        scopeGenerations[scope]?.get() ?: generation.get()
+        maxOf(scopeGenerations[scope] ?: 0L, globalGeneration.get())
 
     fun nextGeneration(scope: String): Long {
         if (scopeGenerations.size > MAX_TRACKED_SCOPE_GENERATIONS) {
             scopeGenerations.keys.removeIf { key -> key != scope && !inflight.containsKey(key) }
         }
-        return scopeGenerations.computeIfAbsent(scope) { AtomicLong(0) }.incrementAndGet()
+        val next = generationCounter.incrementAndGet()
+        scopeGenerations.merge(scope, next, ::maxOf)
+        return next
     }
 
     fun reloadCaches() {
@@ -545,8 +552,8 @@ class CompletionEngine(
     }
 
     fun cancelAll() {
-        generation.incrementAndGet()
-        scopeGenerations.values.forEach { it.incrementAndGet() }
+        val next = generationCounter.incrementAndGet()
+        globalGeneration.accumulateAndGet(next, ::maxOf)
         inflight.keys.toList().forEach { cancelScope(it) }
     }
 
@@ -583,14 +590,7 @@ class CompletionEngine(
     private fun isGenerationCurrent(
         scope: String,
         requestGeneration: Long,
-    ): Boolean {
-        val scoped = scopeGenerations[scope]?.get()
-        return if (scoped != null) {
-            requestGeneration == scoped
-        } else {
-            requestGeneration == generation.get()
-        }
-    }
+    ): Boolean = requestGeneration == currentGeneration(scope)
 
     private fun sharedDefaultHttpClient(): HttpClient =
         defaultHttpClientRef.updateAndGet { existing ->
