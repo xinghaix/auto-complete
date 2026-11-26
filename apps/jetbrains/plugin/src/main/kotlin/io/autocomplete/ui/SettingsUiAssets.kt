@@ -62,9 +62,9 @@ internal object SettingsUiAssets {
               <meta http-equiv="Content-Security-Policy" content="$CSP_CONTENT" />
               <title>Auto Complete</title>
               <style>
-                html, body { margin: 0; }
-                html[data-theme="light"] body { background: #ffffff; color: #1f2328; }
-                html[data-theme="dark"] body { background: #1e1e1e; color: #dddddd; }
+                :where(html, body) { margin: 0; }
+                :where(html[data-theme="light"] body) { background: #f7f8fa; color: #1f2328; }
+                :where(html[data-theme="dark"] body) { background: #2b2d30; color: #dfe1e5; }
               </style>
               <script>
             $safeBootstrap

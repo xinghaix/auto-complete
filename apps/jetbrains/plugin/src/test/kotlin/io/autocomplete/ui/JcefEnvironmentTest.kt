@@ -56,7 +56,7 @@ class JcefEnvironmentTest {
     }
 
     @Test
-    fun buildGuidanceHtml_baseline262DisabledBundledPluginInstructsEnablingWebBrowser() {
+    fun buildGuidanceHtml_baseline262InstalledButUnloadedPluginInstructsEnablingWebBrowser() {
         val diagnosis =
             JcefEnvironment.Diagnosis(
                 kind = JcefEnvironment.Kind.CLASSES_MISSING,
@@ -65,7 +65,6 @@ class JcefEnvironmentTest {
                 registryJcefEnabled = true,
                 ideSummary = "IntelliJ IDEA 2026.2 · build IU-262.100 · macOS",
                 baselineVersion = 262,
-                jcefPluginDisabled = true,
             )
         val html = JcefEnvironment.buildGuidanceHtml(diagnosis, mutedColorHex = "9aa0a6")
         assertTrue(html.contains("Web Browser (JCEF)"))

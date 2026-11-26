@@ -60,7 +60,9 @@ object SettingsJcefHostImpl {
 
         private val routerConfig =
             CefMessageRouter.CefMessageRouterConfig("acCefQuery", "acCefQueryCancel")
-        private val messageRouter: CefMessageRouter = CefMessageRouter.create(routerConfig)
+        // Use JBCefApp.getInstance().createMessageRouter so OOP JCEF / CefDelegate on 2025.1+/2026+ works cleanly.
+        private val messageRouter: CefMessageRouter =
+            JBCefApp.getInstance().createMessageRouter(routerConfig)
         private val routerHandler =
             object : CefMessageRouterHandlerAdapter() {
                 override fun onQuery(

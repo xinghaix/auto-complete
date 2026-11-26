@@ -1,7 +1,6 @@
 package io.autocomplete.ui
 
 import com.intellij.ide.plugins.PluginManager
-import com.intellij.ide.plugins.PluginManagerCore
 import com.intellij.openapi.application.ApplicationInfo
 import com.intellij.openapi.extensions.PluginId
 import com.intellij.openapi.util.SystemInfo
@@ -39,7 +38,6 @@ internal object JcefEnvironment {
         val ideSummary: String,
         val detail: String? = null,
         val baselineVersion: Int? = null,
-        val jcefPluginDisabled: Boolean? = null,
     )
 
     fun isJcefClassReachable(): Boolean = canLoad(JBCEF_BROWSER)
@@ -48,11 +46,6 @@ internal object JcefEnvironment {
         runCatching {
             PluginManager.isPluginInstalled(PluginId.getId(JCEF_PLUGIN_ID))
         }.getOrDefault(false)
-
-    fun isJcefPluginDisabled(): Boolean? =
-        runCatching {
-            PluginManagerCore.isDisabled(PluginId.getId(JCEF_PLUGIN_ID))
-        }.getOrNull()
 
     fun ideBaselineVersion(): Int? =
         runCatching {
@@ -85,7 +78,6 @@ internal object JcefEnvironment {
             registryJcefEnabled = isRegistryJcefEnabled(),
             ideSummary = ideSummary(),
             baselineVersion = ideBaselineVersion(),
-            jcefPluginDisabled = isJcefPluginDisabled(),
         )
 
     fun diagnoseMountFailure(error: Throwable): Diagnosis {
@@ -108,7 +100,6 @@ internal object JcefEnvironment {
             ideSummary = ideSummary(),
             detail = msg.ifBlank { error.javaClass.simpleName },
             baselineVersion = ideBaselineVersion(),
-            jcefPluginDisabled = isJcefPluginDisabled(),
         )
     }
 
@@ -140,7 +131,7 @@ internal object JcefEnvironment {
                     when {
                         isLegacyPlatform ->
                             "<p>${escape(message("settings.web.jcef.missing.legacyJbr"))}</p>"
-                        isSplitJcefIde || diagnosis.jcefPluginDisabled == true ->
+                        isSplitJcefIde ->
                             "<p>${escape(message("settings.web.jcef.missing.splitPlugin"))}</p>"
                         diagnosis.jcefModulePresent ->
                             "<p>${escape(message("settings.web.jcef.missing.modulePresentButClasses"))}</p>"
@@ -195,7 +186,8 @@ internal object JcefEnvironment {
         val moduleStatus =
             when {
                 isLegacyPlatform -> message("settings.web.jcef.moduleBundledInPlatform")
-                diagnosis.jcefPluginDisabled == true -> message("settings.web.jcef.disabled")
+                isSplitJcefIde && diagnosis.jcefModulePresent && !diagnosis.jcefClassesReachable ->
+                    message("settings.web.jcef.disabled")
                 else -> yesNo(diagnosis.jcefModulePresent)
             }
         lines +=

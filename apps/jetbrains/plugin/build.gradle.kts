@@ -214,16 +214,21 @@ fun extractLatestNotes(changelog: File): String {
             .joinToString("\n")
             .trim()
             .ifBlank { "Open-source preview build." }
-    // Keep HTML simple for plugin.xml changeNotes.
+    // Keep HTML simple and escaped for plugin.xml changeNotes.
+    fun escapeHtml(text: String): String =
+        text
+            .replace("&", "&amp;")
+            .replace("<", "&lt;")
+            .replace(">", "&gt;")
     val html =
         body
             .lines()
             .joinToString("\n") { line ->
                 when {
-                    line.startsWith("### ") -> "<p><b>${line.removePrefix("### ").trim()}</b></p>"
-                    line.startsWith("- ") -> "<li>${line.removePrefix("- ").trim()}</li>"
+                    line.startsWith("### ") -> "<p><b>${escapeHtml(line.removePrefix("### ").trim())}</b></p>"
+                    line.startsWith("- ") -> "<li>${escapeHtml(line.removePrefix("- ").trim())}</li>"
                     line.isBlank() -> ""
-                    else -> "<p>${line.trim()}</p>"
+                    else -> "<p>${escapeHtml(line.trim())}</p>"
                 }
             }
     val withLists =

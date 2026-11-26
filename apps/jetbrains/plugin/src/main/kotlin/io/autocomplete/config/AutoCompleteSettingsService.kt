@@ -4,6 +4,7 @@ import com.intellij.credentialStore.CredentialAttributes
 import com.intellij.credentialStore.Credentials
 import com.intellij.credentialStore.generateServiceName
 import com.intellij.ide.passwordSafe.PasswordSafe
+import com.intellij.openapi.Disposable
 import com.intellij.openapi.application.ApplicationManager
 import com.intellij.openapi.components.PersistentStateComponent
 import com.intellij.openapi.components.RoamingType
@@ -27,7 +28,9 @@ import java.util.concurrent.atomic.AtomicBoolean
     storages = [Storage("autoCompleteSettings.xml", roamingType = RoamingType.DISABLED)],
     category = SettingsCategory.PLUGINS,
 )
-class AutoCompleteSettingsService : PersistentStateComponent<AutoCompleteSettingsService.State> {
+class AutoCompleteSettingsService :
+    PersistentStateComponent<AutoCompleteSettingsService.State>,
+    Disposable {
     data class State(
         var enabled: Boolean = true,
         var autoTrigger: Boolean = true,
@@ -480,6 +483,16 @@ class AutoCompleteSettingsService : PersistentStateComponent<AutoCompleteSetting
         notifyChanged()
     }
 
+    override fun dispose() {
+        listeners.clear()
+        secretIoExecutor.shutdown()
+    }
+
+    private fun runSecretIo(task: () -> Unit) {
+        if (secretIoExecutor.isShutdown) return
+        runCatching { secretIoExecutor.execute(task) }
+    }
+
     /**
      * Warm cached `hasApiKey` flags off-EDT so UI snapshots and EDT checks never block on PasswordSafe IPC.
      */
@@ -489,8 +502,9 @@ class AutoCompleteSettingsService : PersistentStateComponent<AutoCompleteSetting
             warmSecretsNow()
             return
         }
+        if (secretIoExecutor.isShutdown) return
         if (!warmingInFlight.compareAndSet(false, true)) return
-        secretIoExecutor.execute {
+        runSecretIo {
             try {
                 warmSecretsNow()
             } finally {
@@ -789,7 +803,7 @@ class AutoCompleteSettingsService : PersistentStateComponent<AutoCompleteSetting
                         migratedProfile = profile.copy()
                     }
                     val targetId = migratedProfile?.id
-                    secretIoExecutor.execute {
+                    runSecretIo {
                         migrateLegacySecretOffEdt(targetId)
                     }
                 } else {
@@ -961,7 +975,7 @@ class AutoCompleteSettingsService : PersistentStateComponent<AutoCompleteSetting
         value: String?,
     ) {
         if (shouldAvoidBlockingEdt()) {
-            secretIoExecutor.execute {
+            runSecretIo {
                 writePasswordSafe(credKey, value)
             }
         } else {
