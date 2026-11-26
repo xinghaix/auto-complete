@@ -1,3 +1,5 @@
+import type { LogEntry, ProbeResult, Profile, SessionStats, Snapshot } from "../types";
+
 export type BridgeRequest = {
   v: 1;
   id: string;
@@ -17,6 +19,7 @@ export type BridgeResponse = {
 type Pending = {
   resolve: (r: BridgeResponse) => void;
   reject: (e: Error) => void;
+  timer: ReturnType<typeof setTimeout>;
 };
 
 declare global {
@@ -35,6 +38,53 @@ declare global {
   }
 }
 
+const DEFAULT_AUTH_HEADER = "Authorization: Bearer ${apiKey}";
+
+const MOCK_PRESETS: Record<
+  string,
+  Partial<Pick<Profile, "baseUrl" | "promptTemplate" | "fimPath" | "chatPath" | "completionsPath">>
+> = {
+  ollama: {
+    baseUrl: "http://127.0.0.1:11434/v1",
+    promptTemplate: "AUTO",
+    fimPath: "",
+    chatPath: "/chat/completions",
+    completionsPath: "",
+  },
+  deepseek: {
+    baseUrl: "https://api.deepseek.com/beta",
+    promptTemplate: "CODESTRAL_API",
+    fimPath: "/completions",
+    chatPath: "/chat/completions",
+    completionsPath: "",
+  },
+  mistral: {
+    baseUrl: "https://codestral.mistral.ai/v1",
+    promptTemplate: "CODESTRAL_API",
+    fimPath: "/fim/completions",
+    chatPath: "/chat/completions",
+    completionsPath: "",
+  },
+  vllm: {
+    baseUrl: "http://127.0.0.1:8000/v1",
+    promptTemplate: "AUTO",
+    fimPath: "",
+    chatPath: "/chat/completions",
+    completionsPath: "",
+  },
+};
+
+function stripPortableProfileFields(raw: Profile & Record<string, unknown>): Profile {
+  const {
+    apiKey: _apiKey,
+    hasApiKey: _hasApiKey,
+    authHeaderTemplate: _auth,
+    extraHeadersJson: _headers,
+    ...rest
+  } = raw;
+  return rest as Profile;
+}
+
 /**
  * Transport is resolved per call so JCEF can inject `window.cefQuery` after the
  * document starts loading (inject-on-loadEnd races with app bootstrap).
@@ -45,14 +95,16 @@ export class BridgeClient {
   private pushHandlers = new Set<(msg: BridgeResponse) => void>();
   private vscodeApi: { postMessage: (msg: unknown) => void } | null = null;
   private mode: "vscode" | "dynamic" = "dynamic";
+  private messageListener: ((ev: MessageEvent) => void) | null = null;
 
-  constructor() {
+  constructor(private readonly timeoutMs = 120_000) {
     if (typeof window !== "undefined" && window.acquireVsCodeApi) {
       this.vscodeApi = window.acquireVsCodeApi();
       this.mode = "vscode";
-      window.addEventListener("message", (ev) => {
+      this.messageListener = (ev: MessageEvent) => {
         this.onIncoming(ev.data as BridgeResponse);
-      });
+      };
+      window.addEventListener("message", this.messageListener);
     } else if (typeof window !== "undefined") {
       window.__autoCompleteReceive = (msg) => this.onIncoming(msg);
     }
@@ -67,15 +119,28 @@ export class BridgeClient {
     const id = String(++this.seq);
     const msg: BridgeRequest = { v: 1, id, type, payload };
     return new Promise((resolve, reject) => {
-      this.pending.set(id, { resolve, reject });
-      this.dispatch(msg);
-      setTimeout(() => {
+      const timer = setTimeout(() => {
         if (this.pending.has(id)) {
           this.pending.delete(id);
           reject(new Error(`bridge timeout: ${type}`));
         }
-      }, 120_000);
+      }, this.timeoutMs);
+      this.pending.set(id, { resolve, reject, timer });
+      this.dispatch(msg);
     });
+  }
+
+  /** Test/cleanup helper: cancel pending timers and detach listeners. */
+  dispose(): void {
+    for (const p of this.pending.values()) {
+      clearTimeout(p.timer);
+    }
+    this.pending.clear();
+    this.pushHandlers.clear();
+    if (typeof window !== "undefined" && this.messageListener) {
+      window.removeEventListener("message", this.messageListener);
+      this.messageListener = null;
+    }
   }
 
   private dispatch(msg: BridgeRequest): void {
@@ -90,7 +155,13 @@ export class BridgeClient {
           try {
             this.onIncoming(JSON.parse(raw) as BridgeResponse);
           } catch {
-            /* ignore */
+            this.onIncoming({
+              v: 1,
+              id: msg.id,
+              type: msg.type,
+              ok: false,
+              error: "invalid bridge JSON response",
+            });
           }
         },
         onFailure: (_c, m) => {
@@ -118,6 +189,7 @@ export class BridgeClient {
     if (msg.id && this.pending.has(msg.id)) {
       const p = this.pending.get(msg.id)!;
       this.pending.delete(msg.id);
+      clearTimeout(p.timer);
       p.resolve(msg);
       return;
     }
@@ -125,74 +197,111 @@ export class BridgeClient {
   }
 }
 
-let mockState = {
-  schemaVersion: 1,
-  enabled: true,
-  autoTrigger: true,
-  activeProfileId: "default",
-  profiles: [
-    {
-      id: "default",
-      name: "Default",
-      baseUrl: "http://127.0.0.1:11434/v1",
-      model: "qwen2.5-coder:7b",
-      promptTemplate: "AUTO",
-      maxTokens: 128,
-      timeoutMs: 3000,
-      settingsTimeoutMs: 15000,
-      temperature: 0,
-      stream: false,
-      hasApiKey: false,
-      authHeaderTemplate: "Authorization: Bearer ${apiKey}",
-      fimPath: "",
-      chatPath: "/chat/completions",
-      completionsPath: "",
-      extraHeadersJson: "{}",
-      overrideContextBudget: false,
-      maxPrefixChars: 8000,
-      maxSuffixChars: 2000,
-    },
-  ],
-  logLevel: "info",
-  uiTheme: "auto" as "auto" | "light" | "dark",
-  uiLocale: "auto",
-  enableInComments: true,
-  enableInStrings: true,
-  firstLineOnlyWhenMidLine: true,
-  sendFilePath: true,
-  showStatusBar: true,
-  respectGitignore: true,
-  ignoreGlobs: [
-    "**/.git/**",
-    "**/node_modules/**",
-    "**/dist/**",
-    "**/build/**",
-    "**/target/**",
-    "**/.idea/**",
-    "**/.gradle/**",
-    "**/vendor/**",
-  ].join("\n"),
-  disabledLanguages: "",
-  debounceMinMs: 150,
-  debounceInitialMs: 300,
-  debounceMaxMs: 1000,
-  maxPrefixChars: 8000,
-  maxSuffixChars: 2000,
-  maxInFlight: 1,
-  cacheSize: 20,
-  lruSize: 64,
-  maxFileSizeKb: 512,
-  enableRecentFileContext: false,
-  recentFileLimit: 3,
-  recentFileMaxChars: 1200,
-  logPromptBodies: false,
-  logRetention: 1000,
-  notifyOnFatalError: true,
-  showCostApprox: false,
+function createInitialMockState(): Snapshot & { profiles: Profile[] } {
+  return {
+    schemaVersion: 1,
+    enabled: true,
+    autoTrigger: true,
+    activeProfileId: "default",
+    profiles: [
+      {
+        id: "default",
+        name: "Default",
+        baseUrl: "http://127.0.0.1:11434/v1",
+        model: "qwen2.5-coder:7b",
+        promptTemplate: "AUTO",
+        maxTokens: 128,
+        timeoutMs: 3000,
+        settingsTimeoutMs: 15000,
+        temperature: 0,
+        stream: false,
+        hasApiKey: false,
+        authHeaderTemplate: DEFAULT_AUTH_HEADER,
+        fimPath: "",
+        chatPath: "/chat/completions",
+        completionsPath: "",
+        extraHeadersJson: "{}",
+        extraBodyJson: "",
+        stopSequences: "",
+        overrideContextBudget: false,
+        maxPrefixChars: 8000,
+        maxSuffixChars: 2000,
+      },
+    ],
+    logLevel: "info",
+    uiTheme: "auto",
+    uiLocale: "auto",
+    enableInComments: true,
+    enableInStrings: true,
+    firstLineOnlyWhenMidLine: true,
+    sendFilePath: true,
+    showStatusBar: true,
+    respectGitignore: true,
+    ignoreGlobs: [
+      "**/.git/**",
+      "**/node_modules/**",
+      "**/dist/**",
+      "**/build/**",
+      "**/target/**",
+      "**/.idea/**",
+      "**/.gradle/**",
+      "**/vendor/**",
+    ].join("\n"),
+    disabledLanguages: "",
+    debounceMinMs: 150,
+    debounceInitialMs: 300,
+    debounceMaxMs: 1000,
+    maxPrefixChars: 8000,
+    maxSuffixChars: 2000,
+    maxInFlight: 1,
+    cacheSize: 20,
+    lruSize: 64,
+    maxFileSizeKb: 512,
+    enableRecentFileContext: false,
+    recentFileLimit: 3,
+    recentFileMaxChars: 1200,
+    logPromptBodies: false,
+    logRetention: 1000,
+    notifyOnFatalError: true,
+    showCostApprox: false,
+  };
+}
+
+let mockState = createInitialMockState();
+let mockLogs: LogEntry[] = [];
+let mockStats: SessionStats = {
+  totalRequests: 0,
+  cacheHits: 0,
+  cancelled: 0,
+  failed: 0,
+  accepted: 0,
+  p50LatencyMs: null,
+  p95LatencyMs: null,
+  currentDebounceMs: 300,
+  backoffBlocked: false,
+  backoffFatal: false,
 };
 
+/** Reset in-memory mock state (for unit tests). */
+export function resetMockBridgeState(): void {
+  mockState = createInitialMockState();
+  mockLogs = [];
+  mockStats = {
+    totalRequests: 0,
+    cacheHits: 0,
+    cancelled: 0,
+    failed: 0,
+    accepted: 0,
+    p50LatencyMs: null,
+    p95LatencyMs: null,
+    currentDebounceMs: 300,
+    backoffBlocked: false,
+    backoffFatal: false,
+  };
+}
+
 async function mockHandle(msg: BridgeRequest): Promise<BridgeResponse> {
-  await new Promise((r) => setTimeout(r, 20));
+  await new Promise((r) => setTimeout(r, 10));
   switch (msg.type) {
     case "getSnapshot":
       return { v: 1, id: msg.id, type: "snapshot", ok: true, payload: structuredClone(mockState) };
@@ -209,19 +318,32 @@ async function mockHandle(msg: BridgeRequest): Promise<BridgeResponse> {
         },
       };
     case "applySettings": {
-      const data = msg.payload as typeof mockState;
-      mockState = { ...mockState, ...data, profiles: data.profiles ?? mockState.profiles };
+      const data = (msg.payload ?? {}) as Snapshot;
+      const incomingProfiles = Array.isArray(data.profiles)
+        ? data.profiles.map((p) => {
+            const existing = mockState.profiles.find((x) => x.id === p.id);
+            return { ...existing, ...p, hasApiKey: existing?.hasApiKey ?? false };
+          })
+        : mockState.profiles;
+      mockState = { ...mockState, ...data, profiles: incomingProfiles };
+      if (typeof data.debounceInitialMs === "number") {
+        mockStats.currentDebounceMs = data.debounceInitialMs;
+      }
       return { v: 1, id: msg.id, type: "applyResult", ok: true, payload: { ok: true, errors: [] } };
     }
     case "createProfile": {
+      const payload = (msg.payload ?? {}) as { name?: string; preset?: string };
       const id = crypto.randomUUID();
-      const names = mockState.profiles.map((p) => p.name);
-      let name = "新配置";
+      const existingNames = mockState.profiles.map((p) => p.name);
+      const baseName = payload.name?.trim() || "New profile";
+      let name = baseName;
       let n = 2;
-      while (names.includes(name)) {
-        name = `新配置 ${n++}`;
+      while (existingNames.includes(name)) {
+        name = `${baseName} ${n++}`;
       }
-      mockState.profiles.push({
+      const presetKey = payload.preset?.trim().toLowerCase() ?? "";
+      const presetFields = presetKey ? MOCK_PRESETS[presetKey] ?? {} : {};
+      const profile: Profile = {
         id,
         name,
         baseUrl: "",
@@ -229,13 +351,28 @@ async function mockHandle(msg: BridgeRequest): Promise<BridgeResponse> {
         promptTemplate: "AUTO",
         maxTokens: 128,
         timeoutMs: 3000,
+        settingsTimeoutMs: 15000,
+        temperature: 0,
+        stream: false,
         hasApiKey: false,
-      } as (typeof mockState.profiles)[0]);
+        authHeaderTemplate: DEFAULT_AUTH_HEADER,
+        fimPath: "",
+        chatPath: "/chat/completions",
+        completionsPath: "",
+        extraHeadersJson: "{}",
+        extraBodyJson: "",
+        stopSequences: "",
+        overrideContextBudget: false,
+        maxPrefixChars: 8000,
+        maxSuffixChars: 2000,
+        ...presetFields,
+      };
+      mockState.profiles.push(profile);
       mockState.activeProfileId = id;
       return { v: 1, id: msg.id, type: "snapshot", ok: true, payload: structuredClone(mockState) };
     }
     case "deleteProfile": {
-      const { profileId } = msg.payload as { profileId: string };
+      const { profileId } = (msg.payload ?? {}) as { profileId: string };
       mockState.profiles = mockState.profiles.filter((p) => p.id !== profileId);
       if (mockState.activeProfileId === profileId) {
         mockState.activeProfileId = mockState.profiles[0]?.id ?? "";
@@ -243,36 +380,57 @@ async function mockHandle(msg: BridgeRequest): Promise<BridgeResponse> {
       return { v: 1, id: msg.id, type: "snapshot", ok: true, payload: structuredClone(mockState) };
     }
     case "selectProfile": {
-      const { profileId } = msg.payload as { profileId: string };
+      const { profileId } = (msg.payload ?? {}) as { profileId: string };
       if (mockState.profiles.some((p) => p.id === profileId)) mockState.activeProfileId = profileId;
       return { v: 1, id: msg.id, type: "snapshot", ok: true, payload: structuredClone(mockState) };
     }
     case "renameProfile": {
-      const { profileId, name } = msg.payload as { profileId: string; name: string };
+      const { profileId, name } = (msg.payload ?? {}) as { profileId: string; name: string };
       const p = mockState.profiles.find((x) => x.id === profileId);
-      if (p) p.name = name.trim() || p.name;
+      if (p && name?.trim()) p.name = name.trim();
       return { v: 1, id: msg.id, type: "snapshot", ok: true, payload: structuredClone(mockState) };
     }
     case "setSecret": {
-      const { profileId } = msg.payload as { profileId: string };
+      const { profileId, secret } = (msg.payload ?? {}) as { profileId: string; secret?: string };
       const p = mockState.profiles.find((x) => x.id === profileId);
-      if (p) p.hasApiKey = true;
-      return { v: 1, id: msg.id, type: "secretResult", ok: true, payload: { ok: true, hasApiKey: true } };
+      const hasApiKey = Boolean(secret?.trim());
+      if (p) p.hasApiKey = hasApiKey;
+      return {
+        v: 1,
+        id: msg.id,
+        type: "secretResult",
+        ok: true,
+        payload: { profileId, hasApiKey },
+      };
     }
     case "clearSecret": {
-      const { profileId } = msg.payload as { profileId: string };
+      const { profileId } = (msg.payload ?? {}) as { profileId: string };
       const p = mockState.profiles.find((x) => x.id === profileId);
       if (p) p.hasApiKey = false;
-      return { v: 1, id: msg.id, type: "secretResult", ok: true, payload: { ok: true } };
+      return {
+        v: 1,
+        id: msg.id,
+        type: "secretResult",
+        ok: true,
+        payload: { profileId, hasApiKey: false },
+      };
     }
-    case "testConnection":
+    case "testConnection": {
+      const result: ProbeResult = {
+        status: "FAILED",
+        httpStatus: null,
+        latencyMs: 12,
+        resolvedPath: "/chat/completions",
+        error: "mock: no backend",
+      };
       return {
         v: 1,
         id: msg.id,
         type: "probeResult",
         ok: true,
-        payload: { status: "FAILED", latencyMs: 12, error: "mock: no backend" },
+        payload: result,
       };
+    }
     case "listModels":
       return {
         v: 1,
@@ -282,12 +440,29 @@ async function mockHandle(msg: BridgeRequest): Promise<BridgeResponse> {
         payload: {
           models: [
             { id: "qwen2.5-coder:7b", contextLength: 32768 },
-            { id: "codestral-latest" },
-            { id: "deepseek-coder" },
+            { id: "codestral-latest", contextLength: 262144 },
+            { id: "deepseek-coder", contextLength: 131072 },
           ],
         },
       };
-    case "probeTemplate":
+    case "probeTemplate": {
+      const template = (msg.payload as { template?: string } | undefined)?.template || "AUTO";
+      const result: ProbeResult = {
+        template,
+        status: "FAILED",
+        httpStatus: null,
+        latencyMs: 5,
+        resolvedPath: "/chat/completions",
+        error: "mock: no backend",
+      };
+      return {
+        v: 1,
+        id: msg.id,
+        type: "probeResult",
+        ok: true,
+        payload: result,
+      };
+    }
     case "probeAllTemplates":
       return {
         v: 1,
@@ -295,34 +470,155 @@ async function mockHandle(msg: BridgeRequest): Promise<BridgeResponse> {
         type: "probeAllResult",
         ok: true,
         payload: {
-          results: [{ template: "CHAT", status: "FAILED", latencyMs: 5, error: "mock" }],
+          results: [
+            {
+              template: "CODESTRAL_API",
+              status: "FAILED",
+              httpStatus: null,
+              latencyMs: 5,
+              resolvedPath: "/fim/completions",
+              error: "mock: no backend",
+            },
+            {
+              template: "CHAT",
+              status: "FAILED",
+              httpStatus: null,
+              latencyMs: 7,
+              resolvedPath: "/chat/completions",
+              error: "mock: no backend",
+            },
+          ] satisfies ProbeResult[],
         },
       };
-    case "exportSettings":
-      {
-        const { profiles, ...rest } = mockState;
-        const clean = {
-          ...rest,
-          profiles: profiles.map(({ apiKey: _apiKey, hasApiKey: _hasApiKey, authHeaderTemplate: _auth, extraHeadersJson: _headers, ...profile }) => profile),
-        };
+    case "subscribeLogs": {
+      const limit = Math.min(
+        Math.max(1, (msg.payload as { limit?: number } | undefined)?.limit ?? 1000),
+        2000,
+      );
+      return {
+        v: 1,
+        id: msg.id,
+        type: "logSubscribed",
+        ok: true,
+        payload: { entries: structuredClone(mockLogs.slice(-limit)) },
+      };
+    }
+    case "unsubscribeLogs":
+      return {
+        v: 1,
+        id: msg.id,
+        type: "logUnsubscribed",
+        ok: true,
+        payload: { ok: true },
+      };
+    case "clearLogs":
+      mockLogs = [];
+      return {
+        v: 1,
+        id: msg.id,
+        type: "logsCleared",
+        ok: true,
+        payload: { ok: true },
+      };
+    case "getSessionStats":
+      return {
+        v: 1,
+        id: msg.id,
+        type: "sessionStats",
+        ok: true,
+        payload: { ...mockStats },
+      };
+    case "clearCaches":
+      mockStats = {
+        ...mockStats,
+        backoffBlocked: false,
+        backoffFatal: false,
+      };
+      return {
+        v: 1,
+        id: msg.id,
+        type: "cachesCleared",
+        ok: true,
+        payload: { ok: true },
+      };
+    case "copyToClipboard": {
+      const text = (msg.payload as { text?: string } | undefined)?.text ?? "";
+      if (typeof navigator !== "undefined" && navigator.clipboard?.writeText) {
+        try {
+          await navigator.clipboard.writeText(text);
+          return {
+            v: 1,
+            id: msg.id,
+            type: "copyResult",
+            ok: true,
+            payload: { copied: true },
+          };
+        } catch (e) {
+          return {
+            v: 1,
+            id: msg.id,
+            type: "copyResult",
+            ok: false,
+            error: e instanceof Error ? e.message : "clipboard write failed",
+          };
+        }
+      }
+      return {
+        v: 1,
+        id: msg.id,
+        type: "copyResult",
+        ok: true,
+        payload: { copied: true },
+      };
+    }
+    case "exportSettings": {
+      const { profiles, ...rest } = mockState;
+      const clean = {
+        ...rest,
+        profiles: profiles.map((p) => stripPortableProfileFields(p as Profile & Record<string, unknown>)),
+      };
       return {
         v: 1,
         id: msg.id,
         type: "exportResult",
         ok: true,
-          payload: { json: JSON.stringify(clean, null, 2) },
+        payload: { json: JSON.stringify(clean, null, 2) },
       };
-      }
+    }
     case "importSettings": {
       try {
-        const { json } = msg.payload as { json: string };
-        const parsed = JSON.parse(json) as typeof mockState;
-        if (parsed.profiles) {
-          const profiles = parsed.profiles.map(
-            ({ apiKey: _apiKey, hasApiKey: _hasApiKey, authHeaderTemplate: _auth, extraHeadersJson: _headers, ...profile }) => profile,
-          );
-          mockState = { ...mockState, ...parsed, profiles: profiles as typeof mockState.profiles };
-          for (const p of mockState.profiles) p.hasApiKey = false;
+        const { json } = (msg.payload ?? {}) as { json: string };
+        const parsed = JSON.parse(json) as Snapshot & { profiles?: Array<Profile & Record<string, unknown>> };
+        if (!parsed || typeof parsed !== "object" || Array.isArray(parsed)) {
+          throw new Error("settings JSON must be an object");
+        }
+        if (Array.isArray(parsed.profiles)) {
+          const idMap = new Map<string, string>();
+          const profiles: Profile[] = parsed.profiles.map((raw) => {
+            const cleaned = stripPortableProfileFields(raw);
+            const newId = crypto.randomUUID();
+            if (cleaned.id) idMap.set(cleaned.id, newId);
+            return {
+              ...cleaned,
+              id: newId,
+              name: cleaned.name?.trim() || "Profile",
+              hasApiKey: false,
+              authHeaderTemplate: DEFAULT_AUTH_HEADER,
+              extraHeadersJson: "{}",
+            };
+          });
+          const mappedActive =
+            (parsed.activeProfileId ? idMap.get(parsed.activeProfileId) : undefined) ??
+            profiles[0]?.id ??
+            "";
+          mockState = {
+            ...mockState,
+            ...parsed,
+            profiles,
+            activeProfileId: mappedActive,
+          };
+        } else {
+          mockState = { ...mockState, ...parsed };
         }
         return { v: 1, id: msg.id, type: "applyResult", ok: true, payload: { ok: true } };
       } catch (e) {
@@ -362,7 +658,6 @@ async function mockHandle(msg: BridgeRequest): Promise<BridgeResponse> {
       };
     }
     case "openKeymap":
-      // Browser mock: no IDE keymap; succeed so UI can show a soft message.
       return {
         v: 1,
         id: msg.id,

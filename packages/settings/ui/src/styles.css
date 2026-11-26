@@ -12,18 +12,18 @@
   --fg: var(--vscode-foreground, #000000d9);
   --muted: var(--vscode-descriptionForeground, #0000008c);
   --border: var(--vscode-panel-border, #0000001a);
-  --border-strong: #00000026;
+  --border-strong: var(--vscode-contrastBorder, #00000026);
   --input-bg: var(--vscode-input-background, #ffffff);
   --input-fg: var(--vscode-input-foreground, #000000d9);
   --input-border: var(--vscode-input-border, #00000033);
   --hover: #0000000a;
   --active-tab: var(--vscode-focusBorder, #3574f0);
   --btn: var(--vscode-button-background, #3574f0);
-  --btn-hover: #3369d6;
+  --btn-hover: var(--vscode-button-hoverBackground, #3369d6);
   --btn-fg: var(--vscode-button-foreground, #ffffff);
   --btn2: var(--vscode-button-secondaryBackground, #0000000d);
   --btn2-fg: var(--vscode-button-secondaryForeground, #000000d9);
-  --btn2-border: #00000026;
+  --btn2-border: var(--vscode-contrastBorder, #00000026);
   --ok-bg: #e6f4ea;
   --ok-fg: #137333;
   --ok-border: #ceead6;
@@ -34,9 +34,9 @@
   --err-fg: #c5221f;
   --err-border: #f5c6c2;
   /* Opaque menu surfaces (Windows JCEF paints semi-transparent layers poorly in dark). */
-  --menu-bg: #ffffff;
-  --menu-item-hover: #f0f1f3;
-  --menu-item-active: #e8f0fe;
+  --menu-bg: var(--vscode-menu-background, #ffffff);
+  --menu-item-hover: var(--vscode-list-hoverBackground, #f0f1f3);
+  --menu-item-active: var(--vscode-list-activeSelectionBackground, #e8f0fe);
   /* Shared name column width is set per .group-card via JS measure (--label-w) */
   --label-max: min(42vw, 16rem);
   --radius: 4px;
@@ -54,9 +54,114 @@
 }
 
 /*
- * Auto + light IDE: keep :root (host / VS Code tokens).
- * Forced light (data-theme-pref=light): override host tokens so dark IDE still looks white.
- * Dark / high-contrast: always use dark palette (auto or forced).
+ * Auto + dark IDE: preserve --vscode-* tokens when inside VS Code, falling back
+ * to JetBrains dark palette under JetBrains JCEF / browser mock.
+ */
+html[data-theme="dark"] {
+  color-scheme: dark;
+  --bg: var(--vscode-sideBar-background, #2b2d30);
+  --panel: var(--vscode-editor-background, #1e1f22);
+  --fg: var(--vscode-foreground, #dfe1e5);
+  --muted: var(--vscode-descriptionForeground, #9da0a8);
+  --border: var(--vscode-panel-border, #43454a);
+  --border-strong: var(--vscode-contrastBorder, #5a5d63);
+  --input-bg: var(--vscode-input-background, #2b2d30);
+  --input-fg: var(--vscode-input-foreground, #dfe1e5);
+  --input-border: var(--vscode-input-border, #4e5157);
+  --hover: #ffffff14;
+  --active-tab: var(--vscode-focusBorder, #548af7);
+  --btn: var(--vscode-button-background, #3574f0);
+  --btn-hover: var(--vscode-button-hoverBackground, #4681f4);
+  --btn-fg: var(--vscode-button-foreground, #ffffff);
+  --btn2: var(--vscode-button-secondaryBackground, #3c3f41);
+  --btn2-fg: var(--vscode-button-secondaryForeground, #dfe1e5);
+  --btn2-border: var(--vscode-contrastBorder, #5a5d63);
+  --ok-bg: #1b3d2a;
+  --ok-fg: #6bcf8e;
+  --ok-border: #2d5a3d;
+  --warn-bg: #3d3420;
+  --warn-fg: #e0b44a;
+  --warn-border: #5a4a28;
+  --err-bg: #3d2424;
+  --err-fg: #f28b82;
+  --err-border: #5c3030;
+  --menu-bg: var(--vscode-menu-background, #1e1f22);
+  --menu-item-hover: var(--vscode-list-hoverBackground, #2b2d30);
+  --menu-item-active: var(--vscode-list-activeSelectionBackground, #2a3a5c);
+}
+
+/* High contrast dark (including legacy "high-contrast" alias) */
+html[data-theme="high-contrast"],
+html[data-theme="high-contrast-dark"] {
+  color-scheme: dark;
+  --bg: var(--vscode-sideBar-background, #000000);
+  --panel: var(--vscode-editor-background, #000000);
+  --fg: var(--vscode-foreground, #ffffff);
+  --muted: var(--vscode-descriptionForeground, #d4d4d4);
+  --border: var(--vscode-contrastBorder, #6fc3df);
+  --border-strong: var(--vscode-contrastBorder, #ffffff);
+  --input-bg: var(--vscode-input-background, #000000);
+  --input-fg: var(--vscode-input-foreground, #ffffff);
+  --input-border: var(--vscode-contrastBorder, #6fc3df);
+  --hover: #ffffff1f;
+  --active-tab: var(--vscode-focusBorder, #f38518);
+  --btn: var(--vscode-button-background, #0e639c);
+  --btn-hover: var(--vscode-button-hoverBackground, #1177bb);
+  --btn-fg: var(--vscode-button-foreground, #ffffff);
+  --btn2: var(--vscode-button-secondaryBackground, #000000);
+  --btn2-fg: var(--vscode-button-secondaryForeground, #ffffff);
+  --btn2-border: var(--vscode-contrastBorder, #6fc3df);
+  --ok-bg: #002b14;
+  --ok-fg: #89f0b0;
+  --ok-border: #89f0b0;
+  --warn-bg: #2b2000;
+  --warn-fg: #ffd466;
+  --warn-border: #ffd466;
+  --err-bg: #2e0000;
+  --err-fg: #ff9c94;
+  --err-border: #ff9c94;
+  --menu-bg: var(--vscode-menu-background, #000000);
+  --menu-item-hover: var(--vscode-list-hoverBackground, #1f2430);
+  --menu-item-active: var(--vscode-list-activeSelectionBackground, #003a6b);
+}
+
+/* High contrast light (VS Code HighContrastLight) */
+html[data-theme="high-contrast-light"] {
+  color-scheme: light;
+  --bg: var(--vscode-sideBar-background, #ffffff);
+  --panel: var(--vscode-editor-background, #ffffff);
+  --fg: var(--vscode-foreground, #000000);
+  --muted: var(--vscode-descriptionForeground, #292929);
+  --border: var(--vscode-contrastBorder, #0f4a85);
+  --border-strong: var(--vscode-contrastBorder, #0f4a85);
+  --input-bg: var(--vscode-input-background, #ffffff);
+  --input-fg: var(--vscode-input-foreground, #000000);
+  --input-border: var(--vscode-contrastBorder, #0f4a85);
+  --hover: #00000012;
+  --active-tab: var(--vscode-focusBorder, #0f4a85);
+  --btn: var(--vscode-button-background, #0f4a85);
+  --btn-hover: var(--vscode-button-hoverBackground, #0a3460);
+  --btn-fg: var(--vscode-button-foreground, #ffffff);
+  --btn2: var(--vscode-button-secondaryBackground, #ffffff);
+  --btn2-fg: var(--vscode-button-secondaryForeground, #000000);
+  --btn2-border: var(--vscode-contrastBorder, #0f4a85);
+  --ok-bg: #e6f4ea;
+  --ok-fg: #0d5426;
+  --ok-border: #0d5426;
+  --warn-bg: #fff4cc;
+  --warn-fg: #7a4200;
+  --warn-border: #7a4200;
+  --err-bg: #fde8e8;
+  --err-fg: #990f0c;
+  --err-border: #990f0c;
+  --menu-bg: var(--vscode-menu-background, #ffffff);
+  --menu-item-hover: var(--vscode-list-hoverBackground, #e6eef7);
+  --menu-item-active: var(--vscode-list-activeSelectionBackground, #cce0f5);
+}
+
+/*
+ * Explicit user overrides (data-theme-pref=light|dark): ignore host --vscode-*
+ * tokens so forcing light in a dark IDE or dark in a light IDE works reliably.
  */
 html[data-theme-pref="light"] {
   color-scheme: light;
@@ -91,8 +196,6 @@ html[data-theme-pref="light"] {
   --menu-item-active: #e8f0fe;
 }
 
-html[data-theme="dark"],
-html[data-theme="high-contrast"],
 html[data-theme-pref="dark"] {
   color-scheme: dark;
   --bg: #2b2d30;
@@ -156,6 +259,13 @@ body {
   overflow: hidden;
 }
 
+/* Unified accessible keyboard focus ring */
+button:focus-visible,
+input[type="checkbox"]:focus-visible {
+  outline: 2px solid var(--active-tab);
+  outline-offset: 1px;
+}
+
 .app {
   display: flex;
   flex-direction: column;
@@ -168,7 +278,7 @@ body {
   box-shadow: none;
 }
 
-/* ── top bar (tabs only; tool window already has title) ── */
+/* ── top bar (tabs only; horizontal scroll for narrow JetBrains tool windows) ── */
 .header {
   flex-shrink: 0;
   background: var(--bg);
@@ -179,10 +289,20 @@ body {
   display: flex;
   gap: 2px;
   padding: 0 10px;
+  overflow-x: auto;
+  overflow-y: hidden;
+  scrollbar-width: none;
+  -webkit-overflow-scrolling: touch;
+}
+
+.tabs::-webkit-scrollbar {
+  display: none;
 }
 
 .tabs button {
   appearance: none;
+  flex-shrink: 0;
+  white-space: nowrap;
   border: 0;
   background: transparent;
   color: var(--muted);
@@ -205,6 +325,10 @@ body {
   border-bottom-color: var(--active-tab);
 }
 
+.tabs button:focus-visible {
+  outline-offset: -2px;
+  border-radius: 3px;
+}
 
 /* ── scrollbar: blend with theme, no white gutter ── */
 .scroll::-webkit-scrollbar {
@@ -285,23 +409,24 @@ body {
 /* ── property row (table-like, no grid lines) ── */
 .row {
   display: grid;
-  /*
-   * --label-w is measured per card (longest label). Fallback max-content is
-   * per-row only; after measure, all value columns share one left edge.
-   */
   grid-template-columns: minmax(0, var(--label-w, max-content)) minmax(0, 1fr);
   gap: 6px 14px;
   align-items: start;
   padding: 10px 12px;
   min-height: 36px;
-  /* no border-bottom: keep spacing/alignment without table lines */
 }
 
 .row:hover {
   background: var(--hover);
 }
 
+.row.has-error input,
+.row.has-error textarea {
+  border-color: var(--err-fg);
+}
+
 .row-label {
+  display: block;
   text-align: left;
   font-size: 12.5px;
   color: var(--fg);
@@ -337,7 +462,6 @@ body {
   text-align: left;
 }
 
-/* number inputs: keep value left-aligned (some UAs center/right) */
 .row-control input[type="number"] {
   text-align: left;
 }
@@ -347,6 +471,14 @@ body {
   font-size: 11px;
   line-height: 1.45;
   color: var(--muted);
+}
+
+.row-error {
+  margin: 0;
+  font-size: 11.5px;
+  line-height: 1.4;
+  color: var(--err-fg);
+  font-weight: 500;
 }
 
 .row.full {
@@ -410,7 +542,6 @@ textarea:disabled {
 }
 
 textarea {
-  /* No OS resize grip — matches other fixed controls; height via rows + min-height */
   resize: none;
   min-height: 52px;
   max-height: 240px;
@@ -418,11 +549,9 @@ textarea {
   font-family: var(--mono);
   font-size: 12px;
   line-height: 1.45;
-  /* Same field chrome as inputs; avoid light system resize corner on dark themes */
   field-sizing: content;
 }
 
-/* Theme-aligned scrollbar inside textareas (WebKit / JCEF / Chromium) */
 textarea::-webkit-scrollbar {
   width: 8px;
   height: 8px;
@@ -512,6 +641,18 @@ textarea::-webkit-scrollbar-thumb:hover {
   border-color: var(--ok-border);
 }
 
+.pill.warn {
+  color: var(--warn-fg);
+  background: var(--warn-bg);
+  border-color: var(--warn-border);
+}
+
+.pill.err {
+  color: var(--err-fg);
+  background: var(--err-bg);
+  border-color: var(--err-border);
+}
+
 /* buttons */
 .btn {
   appearance: none;
@@ -528,6 +669,12 @@ textarea::-webkit-scrollbar-thumb:hover {
   font-weight: 500;
   cursor: pointer;
   transition: background 0.12s ease, border-color 0.12s ease, filter 0.12s ease;
+}
+
+.btn-sm {
+  height: 24px;
+  padding: 0 8px;
+  font-size: 11.5px;
 }
 
 .btn:disabled {
@@ -556,6 +703,7 @@ textarea::-webkit-scrollbar-thumb:hover {
 
 html[data-theme="dark"] .btn-secondary:hover:not(:disabled),
 html[data-theme="high-contrast"] .btn-secondary:hover:not(:disabled),
+html[data-theme="high-contrast-dark"] .btn-secondary:hover:not(:disabled),
 html[data-theme-pref="dark"] .btn-secondary:hover:not(:disabled) {
   filter: brightness(1.12);
 }
@@ -566,10 +714,23 @@ html[data-theme-pref="dark"] .btn-secondary:hover:not(:disabled) {
   border-color: var(--border);
 }
 
+.btn-ghost:hover:not(:disabled) {
+  background: var(--hover);
+}
+
+.btn-toggle-on {
+  border-color: var(--active-tab);
+  color: var(--active-tab);
+}
+
 .btn-danger {
   background: transparent;
   color: var(--err-fg);
   border-color: var(--err-border);
+}
+
+.btn-danger:hover:not(:disabled) {
+  background: var(--err-bg);
 }
 
 .btn-link {
@@ -583,6 +744,37 @@ html[data-theme-pref="dark"] .btn-secondary:hover:not(:disabled) {
 
 .btn-link:hover {
   text-decoration: underline;
+}
+
+/* Quick service presets row */
+.preset-bar {
+  flex: 1 0 100%;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px 8px;
+  padding-top: 6px;
+  border-top: 1px dashed var(--border);
+}
+
+.preset-label {
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--muted);
+  white-space: nowrap;
+}
+
+.preset-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 5px;
+}
+
+.preset-btn {
+  height: 24px;
+  padding: 0 9px;
+  font-size: 11.5px;
+  border-radius: 999px;
 }
 
 /* result card */
@@ -623,7 +815,11 @@ html[data-theme-pref="dark"] .btn-secondary:hover:not(:disabled) {
   line-height: 1.45;
 }
 
-/* Inline banners: auto-hide + optional dismiss */
+.probe-apply-row {
+  margin-top: 8px;
+}
+
+/* Inline banners */
 .result-banner {
   display: flex;
   align-items: flex-start;
@@ -655,7 +851,7 @@ html[data-theme-pref="dark"] .btn-secondary:hover:not(:disabled) {
   color: inherit;
   font-size: 16px;
   line-height: 1;
-  opacity: 0.65;
+  opacity: 0.7;
   cursor: pointer;
 }
 
@@ -694,14 +890,7 @@ html[data-theme-pref="dark"] .btn-secondary:hover:not(:disabled) {
   color: var(--muted);
 }
 
-/* ── floating menus (Teleport → body, position:fixed) ──
- * JCEF clips native <select> and in-tree absolute menus under overflow
- * ancestors. Body-teleported fixed menus avoid both failure modes.
- *
- * Windows JCEF dark theme: semi-transparent backgrounds / color-mix(…, transparent)
- * and isolation+alpha compositing can paint the page through the popup (“穿模”).
- * Menus must use fully opaque solid colors and a simple stacking context.
- */
+/* ── floating menus (Teleport → body, position:fixed) ── */
 .floating-menu {
   position: fixed;
   z-index: 2147483000;
@@ -712,7 +901,6 @@ html[data-theme-pref="dark"] .btn-secondary:hover:not(:disabled) {
   overflow-y: auto;
   border: 1px solid var(--border-strong);
   border-radius: var(--radius);
-  /* Explicit opaque fill — do not rely on inherited alpha or color-mix */
   background-color: var(--menu-bg, var(--panel));
   background-image: none;
   color: var(--fg);
@@ -720,7 +908,6 @@ html[data-theme-pref="dark"] .btn-secondary:hover:not(:disabled) {
   box-shadow: 0 8px 24px rgba(0, 0, 0, 0.35);
   box-sizing: border-box;
   pointer-events: auto;
-  /* Promote a clean layer without isolation+alpha bleed on Windows CEF */
   transform: translateZ(0);
   -webkit-backface-visibility: hidden;
   backface-visibility: hidden;
@@ -734,7 +921,10 @@ html[data-theme-pref="dark"] .btn-secondary:hover:not(:disabled) {
 
 .floating-menu-item {
   appearance: none;
-  display: block;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
   width: 100%;
   margin: 0;
   padding: 6px 8px;
@@ -751,36 +941,55 @@ html[data-theme-pref="dark"] .btn-secondary:hover:not(:disabled) {
   opacity: 1;
 }
 
-.floating-menu-item:hover {
-  /* Solid hover tile (not #rrggbbaa on the whole menu surface) */
+.floating-menu-item:hover,
+.floating-menu-item.highlighted {
   background-color: var(--menu-item-hover, var(--hover));
   background-image: none;
 }
 
 .floating-menu-item.active {
-  /* Avoid color-mix(..., transparent) — broken/alpha-bleed on some Windows JCEF builds */
   background-color: var(--menu-item-active, var(--menu-item-hover));
   background-image: none;
   font-weight: 500;
 }
 
-/* Hard fallbacks if theme vars ever fail to resolve */
-html[data-theme="dark"] .floating-menu,
-html[data-theme="high-contrast"] .floating-menu,
+.floating-menu-empty {
+  padding: 8px 10px;
+  font-size: 12px;
+  color: var(--muted);
+  font-style: italic;
+}
+
+.model-combo-option-id {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.model-ctx-badge {
+  flex: 0 0 auto;
+  padding: 1px 6px;
+  border-radius: 999px;
+  font-size: 10.5px;
+  font-family: var(--mono);
+  color: var(--muted);
+  border: 1px solid var(--border);
+  background: var(--bg);
+}
+
+/* Solid fallbacks for forced themes (never override VS Code auto tokens) */
 html[data-theme-pref="dark"] .floating-menu {
   background-color: #1e1f22;
   border-color: #5a5d63;
   color: #dfe1e5;
 }
 
-html[data-theme="dark"] .floating-menu-item:hover,
-html[data-theme="high-contrast"] .floating-menu-item:hover,
-html[data-theme-pref="dark"] .floating-menu-item:hover {
+html[data-theme-pref="dark"] .floating-menu-item:hover,
+html[data-theme-pref="dark"] .floating-menu-item.highlighted {
   background-color: #2b2d30;
 }
 
-html[data-theme="dark"] .floating-menu-item.active,
-html[data-theme="high-contrast"] .floating-menu-item.active,
 html[data-theme-pref="dark"] .floating-menu-item.active {
   background-color: #2a3a5c;
 }
@@ -1066,10 +1275,6 @@ html[data-theme-pref="light"] .floating-menu {
   transform: rotate(90deg);
 }
 
-.advanced-body {
-  /* inherits row borders from nested rows */
-}
-
 /* ── inline delete confirmation ── */
 .delete-confirm {
   display: inline-flex;
@@ -1085,7 +1290,7 @@ html[data-theme-pref="light"] .floating-menu {
   white-space: nowrap;
 }
 
-/* ── in-panel modal (import settings; replaces window.prompt) ── */
+/* ── in-panel modal (import & clipboard fallback) ── */
 .modal-root {
   position: fixed;
   inset: 0;
@@ -1107,7 +1312,7 @@ html[data-theme-pref="light"] .floating-menu {
   position: relative;
   z-index: 1;
   width: min(480px, 100%);
-  max-height: min(80vh, 640px);
+  max-height: min(85vh, 660px);
   display: flex;
   flex-direction: column;
   gap: 10px;
@@ -1131,6 +1336,10 @@ html[data-theme-pref="light"] .floating-menu {
   font-size: 12px;
   line-height: 1.45;
   color: var(--muted);
+}
+
+.modal-error {
+  margin: 0;
 }
 
 .modal-textarea {
@@ -1211,6 +1420,63 @@ html[data-theme-pref="light"] .floating-menu {
   font-size: 11px;
 }
 
+/* ── local session stats (Logs tab) ── */
+.stats-bar {
+  margin: 0 0 14px;
+  padding: 10px 12px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: var(--panel);
+}
+
+.stats-bar-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 8px;
+}
+
+.stats-bar-title {
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+
+.stats-bar-actions {
+  margin-left: auto;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.stats-grid {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 16px;
+}
+
+.stat-cell {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  min-width: 68px;
+}
+
+.stat-k {
+  font-size: 10.5px;
+  color: var(--muted);
+}
+
+.stat-v {
+  font-size: 12.5px;
+  font-weight: 600;
+  font-family: var(--mono);
+  color: var(--fg);
+}
+
 /* ── logs ── */
 .hint-block {
   margin: 0 0 12px;
@@ -1235,11 +1501,22 @@ html[data-theme-pref="light"] .floating-menu {
   color: var(--fg);
 }
 
+.logs-search-input {
+  flex: 1 1 140px;
+  min-width: 120px;
+  max-width: 260px;
+  height: 28px;
+}
+
+.logs-count-pill {
+  font-family: var(--mono);
+}
+
 .logs-pane {
   min-height: 220px;
   max-height: calc(100vh - 260px);
   overflow: auto;
-  padding: 10px 12px;
+  padding: 8px 10px;
   border: 1px solid var(--border);
   border-radius: 6px;
   background: var(--panel);
@@ -1247,8 +1524,116 @@ html[data-theme-pref="light"] .floating-menu {
   font-family: var(--mono);
   font-size: 11.5px;
   line-height: 1.5;
-  white-space: pre-wrap;
+}
+
+.log-entry {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 4px 6px;
+  padding: 3px 4px;
+  border-bottom: 1px solid var(--border);
   word-break: break-word;
+}
+
+.log-entry:last-child {
+  border-bottom: 0;
+}
+
+.log-time {
+  color: var(--muted);
+  font-size: 11px;
+}
+
+.log-level {
+  display: inline-block;
+  padding: 0 5px;
+  border-radius: 3px;
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+}
+
+.log-level.debug {
+  color: var(--muted);
+  background: var(--hover);
+}
+
+.log-level.info {
+  color: var(--active-tab);
+  background: var(--hover);
+}
+
+.log-level.warn {
+  color: var(--warn-fg);
+  background: var(--warn-bg);
+}
+
+.log-level.error {
+  color: var(--err-fg);
+  background: var(--err-bg);
+}
+
+.log-chip {
+  padding: 0 5px;
+  border-radius: 3px;
+  font-size: 10.5px;
+  background: var(--hover);
+  color: var(--fg);
+}
+
+.log-chip.ok {
+  background: var(--ok-bg);
+  color: var(--ok-fg);
+}
+
+.log-method {
+  font-weight: 600;
+  color: var(--fg);
+}
+
+.log-url {
+  color: var(--muted);
+}
+
+.log-status {
+  padding: 0 5px;
+  border-radius: 3px;
+  font-weight: 600;
+  font-size: 10.5px;
+}
+
+.log-status.ok {
+  background: var(--ok-bg);
+  color: var(--ok-fg);
+}
+
+.log-status.warn {
+  background: var(--warn-bg);
+  color: var(--warn-fg);
+}
+
+.log-status.err {
+  background: var(--err-bg);
+  color: var(--err-fg);
+}
+
+.log-meta {
+  color: var(--muted);
+}
+
+.log-msg {
+  color: var(--fg);
+}
+
+.log-err {
+  color: var(--err-fg);
+  font-weight: 500;
+}
+
+.log-empty {
+  color: var(--muted);
+  padding: 8px 4px;
 }
 
 /* ── floating save status ── */
@@ -1256,7 +1641,7 @@ html[data-theme-pref="light"] .floating-menu {
   position: fixed;
   bottom: 12px;
   right: 16px;
-  z-index: 100;
+  z-index: 25000;
   padding: 6px 14px;
   border-radius: var(--radius);
   font-size: 12px;
@@ -1285,6 +1670,12 @@ html[data-theme-pref="light"] .floating-menu {
 }
 
 @keyframes fadeIn {
-  from { opacity: 0; transform: translateY(4px); }
-  to { opacity: 1; transform: translateY(0); }
+  from {
+    opacity: 0;
+    transform: translateY(4px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
 }
