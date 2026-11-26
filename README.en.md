@@ -4,7 +4,7 @@
 
 <p align="center"><img src="docs/assets/logo.svg" width="96" height="96" alt="Auto Complete logo"/></p>
 
-**Bring-your-own model endpoint** AI inline completion (ghost text) for **JetBrains** and **VS Code**. Hosts run independently.
+**Bring-your-own model endpoint** AI inline completion (ghost text) for **JetBrains (2024.2–2026.2+)** and **VS Code (1.85+)**. Hosts run independently.
 
 | Host | Preferred install |
 |---|---|
@@ -23,7 +23,7 @@
 
 1. Install the plugin / extension (table above)  
 2. Open settings (JetBrains: **Auto Complete** tool window; VS Code: **Open Settings Panel**)  
-3. Create a profile → Base URL, model, optional API key → **Test connection**  
+3. Create a profile or pick a **Quick preset** (Ollama Local, DeepSeek Beta FIM, Mistral Codestral, vLLM / LM Studio) → set model & optional API key (**Save key**) → **Test connection** / **Try all templates**  
 4. Type for ghost text; manual trigger defaults to `Ctrl/Cmd+Shift+Space`  
 
 ```text
@@ -34,31 +34,31 @@ API key:   leave empty if no auth
 Template:  AUTO
 ```
 
-Recommended FIM providers, full settings, troubleshooting → **[User guide](docs/GUIDE.en.md)**.
+Recommended FIM providers (DeepSeek Beta, Mistral Codestral, Ollama, vLLM), full settings, troubleshooting → **[User guide](docs/GUIDE.en.md)**.
 
 ## How to use it
 
 - With auto trigger enabled, type normally to show ghost text after the cursor; use the IDE's normal **Tab** acceptance behaviour.
 - Continuing to type or moving the cursor cancels stale suggestions. Manual trigger defaults to `Ctrl/Cmd+Shift+Space` and can be rebound in the IDE Keymap.
-- The Settings panel tests connections, models, and templates; VS Code also mirrors logs to the **Auto Complete** OutputChannel.
+- Click the status bar for quick actions (switch profiles, toggle enabled, disable current language, clear cache & reset backoff). The Settings panel provides **Test connection**, template probing (with 1-click apply recommended template), local session stats, and live logs (VS Code also mirrors logs to the **Auto Complete** OutputChannel).
 
 ## Features
 
-- OpenAI-compatible HTTP (Ollama, vLLM, cloud FIM, gateways, …)
-- FIM / chat templates; multiple saved profiles
-- Debounce, cancel stale requests, local cache
-- Nearby code only by default; secrets in IDE secure storage
+- OpenAI-compatible HTTP & quick presets (Ollama, DeepSeek Beta FIM, Mistral Codestral, vLLM / LM Studio, gateways, …)
+- FIM / chat templates (`CODESTRAL_API`, `QWEN`, `DEEPSEEK`, `STARCODER`, `CODELLAMA`, `CHAT`) & multiple saved profiles
+- Adaptive debounce, stale request cancellation, mid-line streaming early-stop, local cache & session stats
+- Nearby code only by default; secrets stay in IDE secure storage
 
 ## Privacy
 
-Keys never go into ordinary settings, exports, or logs. No whole-repo upload by default. Security: [SECURITY.md](SECURITY.md).
+Keys never go into ordinary settings, Settings Sync, exports, or logs. No whole-repo upload by default. Security: [SECURITY.md](SECURITY.md).
 
 ## Docs
 
 | Audience | Link |
 |---|---|
 | Users | [User guide](docs/GUIDE.en.md) |
-| Maintainers (build / sign / release) | [DEV.en.md](docs/DEV.en.md) |
+| Maintainers (build / sign / release, JDK 21 & Node 20+) | [DEV.en.md](docs/DEV.en.md) |
 | Contributors | [CONTRIBUTING.md](CONTRIBUTING.md) · [CHANGELOG](CHANGELOG.md) |
 
 Behaviour informed by classic Kilo Code completion; this tree is an independent implementation — see [NOTICE](NOTICE).

@@ -66,6 +66,58 @@ if [[ "$SKIP_JB" != "1" ]]; then
     echo "No JetBrains zip under $DIST_JB" >&2
     exit 1
   fi
+
+  echo "==> Verify JetBrains plugin ZIP integrity"
+  if command -v python3 >/dev/null 2>&1; then
+    python3 - "$JB_ZIP" <<'PY'
+import re
+import sys
+import xml.etree.ElementTree as ET
+from io import BytesIO
+from pathlib import Path
+from zipfile import ZipFile
+
+zip_path = Path(sys.argv[1])
+forbidden = []
+found_settings_ui = False
+found_plugin_xml = False
+change_notes_text = ""
+
+with ZipFile(zip_path) as outer:
+    for name in outer.namelist():
+        base = Path(name).name.lower()
+        if (base.startswith("kotlin-stdlib") or base.startswith("annotations-")) and base.endswith(".jar"):
+            forbidden.append(name)
+        if not name.endswith(".jar"):
+            continue
+        with ZipFile(BytesIO(outer.read(name))) as jar:
+            entries = set(jar.namelist())
+            if "settings-ui/index.html" in entries and any(e.startswith("settings-ui/assets/") for e in entries):
+                found_settings_ui = True
+            if "META-INF/plugin.xml" in entries:
+                found_plugin_xml = True
+                root = ET.fromstring(jar.read("META-INF/plugin.xml"))
+                raw_notes = root.findtext("change-notes") or ""
+                change_notes_text = " ".join(re.sub(r"<[^>]+>", " ", raw_notes).split())
+
+if forbidden:
+    raise SystemExit(f"Forbidden bundled JAR(s) found in JetBrains ZIP: {', '.join(forbidden)}")
+if not found_settings_ui:
+    raise SystemExit("JetBrains ZIP is missing embedded settings-ui/index.html or settings-ui/assets/*")
+if not found_plugin_xml:
+    raise SystemExit("JetBrains ZIP is missing META-INF/plugin.xml")
+if not change_notes_text or change_notes_text.lower() == "open-source preview build.":
+    raise SystemExit("JetBrains ZIP META-INF/plugin.xml <change-notes> is missing or placeholder")
+print(f"Verified ZIP integrity: settings-ui embedded, no kotlin-stdlib/annotations JARs ({zip_path.name})")
+PY
+  else
+    echo "python3 not found; running unzip check for forbidden JARs" >&2
+    if unzip -l "$JB_ZIP" | grep -E '(^|/)(kotlin-stdlib|annotations-)[^/]*\.jar$' >/dev/null 2>&1; then
+      echo "Forbidden kotlin-stdlib or annotations JAR found in $JB_ZIP" >&2
+      exit 1
+    fi
+    echo "Warning: install python3 to also verify nested settings-ui assets and change-notes" >&2
+  fi
 else
   echo "==> Skip JetBrains (SKIP_JB=1)"
 fi
