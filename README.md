@@ -4,7 +4,7 @@
 
 <p align="center"><img src="docs/assets/logo.svg" width="96" height="96" alt="Auto Complete logo"/></p>
 
-**自己接模型服务** 的 AI 行内补全（ghost text）。支持 **JetBrains** 与 **VS Code**，两端独立运行。
+**自己接模型服务** 的 AI 行内补全（ghost text）。支持 **JetBrains（2024.2–2026.2+）** 与 **VS Code（1.85+）**，两端独立运行。
 
 | 宿主 | 安装（推荐） |
 |---|---|
@@ -23,7 +23,7 @@
 
 1. 安装插件 / 扩展（上表）  
 2. 打开设置（JetBrains：右侧 **Auto Complete**；VS Code：命令 **Open Settings Panel**）  
-3. 新建配置 → Base URL、模型、可选 API Key → **测试连接**  
+3. 新建配置或选择 **快速预设**（Ollama 本地 / DeepSeek Beta FIM / Mistral Codestral / vLLM / LM Studio）→ 填写模型与可选 API Key（点 **保存密钥**）→ **测试连接** / **尝试全部模板**  
 4. 写代码看 ghost text；手动触发默认 `Ctrl/Cmd+Shift+Space`  
 
 ```text
@@ -34,31 +34,31 @@ API Key:   无鉴权则留空
 模板:       AUTO
 ```
 
-推荐 FIM 服务（DeepSeek / Mistral / Ollama 等）、全部设置说明与排错 → **[使用指南](docs/GUIDE.md)**。
+推荐 FIM 服务（DeepSeek Beta / Mistral Codestral / Ollama / vLLM 等）、全部设置说明与排错 → **[使用指南](docs/GUIDE.md)**。
 
 ## 使用说明
 
 - 开启自动触发后，正常输入会在光标后显示 ghost text；按 IDE 默认 **Tab** 接受。
 - 继续输入或移动光标会取消过期建议；手动触发默认 `Ctrl/Cmd+Shift+Space`，可在 IDE Keymap 改键。
-- Settings 面板可测试连接、模型和模板；VS Code 日志同时写入 **Auto Complete** OutputChannel。
+- 点击状态栏可打开快捷菜单（切配置、启停、按语言禁用、清空缓存与退避等）；Settings 面板支持测试连接、探测模板（一键应用推荐模板）、本地会话统计与实时日志（VS Code 日志同时写入 **Auto Complete** OutputChannel）。
 
 ## 能做什么
 
-- OpenAI 兼容接口（Ollama、vLLM、云 FIM、网关等）
-- FIM / Chat 模板；多套已保存配置
-- 防抖、取消过时请求、本地缓存
+- OpenAI 兼容接口与快速预设（Ollama、DeepSeek Beta FIM、Mistral Codestral、vLLM / LM Studio、自定义网关等）
+- FIM / Chat 模板（含 `CODESTRAL_API`、`QWEN`、`DEEPSEEK`、`STARCODER`、`CODELLAMA`、`CHAT`）与多套已保存配置
+- 防抖、取消过时请求、行中流式早停、本地缓存与会话统计
 - 默认只发光标附近代码；密钥只在 IDE 安全存储
 
 ## 隐私
 
-密钥不进普通配置 / 导出 / 日志。默认不上传全仓库。安全报告：[SECURITY.zh.md](SECURITY.zh.md)。
+密钥不进普通配置 / Settings Sync / 导出 / 日志。默认不上传全仓库。安全报告：[SECURITY.zh.md](SECURITY.zh.md)。
 
 ## 文档
 
 | 读者 | 链接 |
 |---|---|
 | 用户 | [使用指南](docs/GUIDE.md) |
-| 维护者（构建 / 签名 / 发版） | [DEV.md](docs/DEV.md) |
+| 维护者（构建 / 签名 / 发版，JDK 21 & Node 20+） | [DEV.md](docs/DEV.md) |
 | 贡献 | [CONTRIBUTING.zh.md](CONTRIBUTING.zh.md) · [CHANGELOG](CHANGELOG.md) |
 
 行为参考过经典 Kilo Code 补全思路；本仓库为独立实现，见 [NOTICE](NOTICE)。

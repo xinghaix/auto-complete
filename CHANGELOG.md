@@ -2,6 +2,45 @@
 
 ## [Unreleased]
 
+### Security
+
+- `[both]` Prevent plaintext credential leakage through `authHeaderTemplate`: fix the UI placeholder to `Authorization: Bearer ${apiKey}`, require `${apiKey}` in server/UI validation, stop mirroring `authHeaderTemplate` and `extraHeadersJson` to VS Code `settings.json` (Settings Sync), and disable cloud roaming (`RoamingType.DISABLED`) on JetBrains `autoCompleteSettings.xml`.
+- `[both]` Harden `importSettings`: validate top-level JSON structure, regenerate fresh profile UUIDs (remapping `activeProfileId`), never inherit local secrets or stripped header fields, and remove orphaned secrets for deleted profiles.
+- `[both]` Enforce server-side `applySettings` validation, block sensitive credential headers in `extraHeadersJson` (preventing `Authorization` override), and redact URL query tokens and echoed credentials from logs and error messages.
+- `[both]` Filter optional recent-file context snippets through `.gitignore`, `ignoreGlobs`, `maxFileSizeKb`, current-file exclusion, workspace bounds, and `sendFilePath=false`.
+- `[jetbrains]` Delete the legacy PasswordSafe `"apiKey"` entry immediately after profile migration and disallow legacy fallback whenever multi-profile state exists.
+- `[vscode]` Inject strict nonce-based `Content-Security-Policy` (`connect-src 'none'`) into Settings Webview HTML and fallback HTML.
+- `[jetbrains]` Inject `Content-Security-Policy` (`connect-src 'none'`) into JCEF Settings HTML.
+
+### Added
+
+- `[settings-ui]` Quick Service Presets (Ollama Local, DeepSeek Beta FIM, Mistral Codestral, vLLM / LM Studio), explicit **Save key** button, **Test connection** button, and 1-click **Apply recommended template** after **Try all templates**.
+- `[settings-ui]` Local Session Stats card (requests, cache hits, accepted, cancelled, failed, P50/P95 latency, debounce, backoff status — local-only, zero upload) and **Clear cache & reset backoff** button.
+- `[settings-ui]` Logs search filter, auto-scroll toggle, structured diagnostic fields, and host-bridged clipboard copy (`copyToClipboard`) with in-panel fallback modal.
+- `[both]` `CODELLAMA` FIM prompt template (`<PRE>/<SUF>/<MID>`), per-profile `extraBodyJson` and `stopSequences`, and mid-line streaming early-stop.
+- `[both]` Status bar quick menus: JetBrains `JBPopupFactory` popup (profile switch, toggle, snooze presets, current-language toggle, Settings/Logs, clear cache & reset backoff) and VS Code `QuickPick` menu + force-refresh trigger.
+- `[vscode]` Enterprise HTTP proxy and `http.proxyStrictSSL` TLS support via built-in Node networking (`proxyFetch`).
+- `[ci]` Weekly `schedule` CI runs, `npm run typecheck:js` (`tsc` + `vue-tsc`), `:plugin:verifyPlugin` compatibility matrix job, ZIP integrity gates (`settings-ui`, zero `kotlin-stdlib`/`annotations`, non-placeholder `<change-notes>`), and cross-manifest release version alignment test.
+
+### Fixed
+
+- `[jetbrains]` Exclude `kotlin-stdlib` and JetBrains `annotations` JARs from the JetBrains plugin distribution ZIP to prevent `LinkageError` on IntelliJ IDEA 2025/2026+.
+- `[jetbrains]` Preserve request correlation `id` in `JbUiBridge` error envelopes (preventing 120s UI hangs), move JCEF bridge handling off the CEF/OOP thread, eliminate duplicate `subscribeLogs`/`openTab` dispatches, and clean up temporary JCEF asset directories on dispose.
+- `[jetbrains]` Fix `SettingsWebPanel` recovery button empty-arguments dialog bug and `JcefEnvironment` baseline-version diagnostics for 2026.2+ bundled *Web Browser (JCEF)*.
+- `[jetbrains]` Run manual fallback insertion on EDT inside `WriteCommandAction` with disposed/offset guards, pass request IDs on `cancelScope`, share a single pooled `HttpClient`, move `PasswordSafe` lookups off EDT, and fix dynamic unload / Disposer / listener leaks.
+- `[jetbrains]` Fix `extractLatestNotes()` in Gradle build to skip `## [Unreleased]` instead of emitting placeholder `<change-notes>`, and fail `copySettingsUi` when `packages/settings/ui/dist` is missing.
+- `[both]` Reset fatal `401/402/403` error backoff on settings/key updates or cache clear and allow manual/probe recovery so completion is never permanently stuck.
+- `[both]` Auto-resolve `/completions` for `https://api.deepseek.com/beta` with `CODESTRAL_API`, preserve query parameters in `joinUrl`, fix streaming whitespace token stripping / stream reader cleanup / TS timeout classification, and fix concurrency and debounce bounds (`coerceIn`).
+- `[both]` Fix `SuggestionFilter` 1-char operator stripping & unintended whitespace trimming, `ContextualSkip` newline skipping, `IgnoreRules` glob anchoring & `dir/` matching, `ContextProbe` Rust lifetime & multiline string handling, LRU cache keying/TTL, and JSON/IPv6 URL validation.
+- `[settings-ui]` Resolve 26 `vue-tsc` errors, auto-save debounce races on snapshot load / probe / profile switch, cross-profile API key bleed, blank profile blocking global settings, numeric input backspace coercion, dropdown keyboard navigation & upward flip positioning, light/high-contrast theme flashing, and import modal error layering.
+- `[vscode]` Eliminate 33× cascading `settings.json` writes via diff-only mirroring and re-entrancy guard, unify `globalState` as single source of truth, fix empty `profiles: []` import/apply, wire `onLog` across all probes/model listing, fix initial `Show Logs` tab delivery, and guard `postMessage` on disposed Webviews.
+- `[jetbrains]` Format status bar `snoozeUntil` as human-readable local time instead of raw epoch milliseconds and sync IDE theme changes via `LafManagerListener`.
+
+### Changed
+
+- `[jetbrains]` Adopt Plan A IntelliJ IDEA 2024.2–2026.2+ single-package compatibility: keep `sinceBuild=242` with JDK 21 bytecode, replace internal `EditKeymapsDialog` with public `ShowSettingsUtil`, remove Kotlin `$default` / `DefaultConstructorMarker` Inline Completion signatures, use suspending `readAction` with windowed slicing, migrate `AutoCompleteBundle` to modern `DynamicBundle`, and remove dead legacy classes.
+- `[both]` Raise Node.js baseline to Node 20+ (CI uses Node 22), make `npm run test:js` self-contained from a clean checkout, and add JetBrains ZIP integrity verification to `scripts/package-local.sh`.
+
 ## [0.2.4] - 2026-08-21
 
 ### Fixed
