@@ -124,6 +124,30 @@
       "expected": "= 0)"
     },
     {
+      "id": "single_digit_completion_not_dropped_by_isUseless",
+      "raw": "0",
+      "prefix": "const n = 10",
+      "suffix": "",
+      "firstLineOnly": false,
+      "expected": "0"
+    },
+    {
+      "id": "single_operator_completion_not_dropped_by_isUseless",
+      "raw": "+",
+      "prefix": "i +",
+      "suffix": "",
+      "firstLineOnly": false,
+      "expected": "+"
+    },
+    {
+      "id": "first_line_only_preserves_leading_newline",
+      "raw": "\n    return 1\n    return 2",
+      "prefix": "if (ok) {",
+      "suffix": "",
+      "firstLineOnly": true,
+      "expected": "\n    return 1"
+    },
+    {
       "id": "suffix_overlap_end_to_end",
       "raw": "a + b)",
       "prefix": "console.log(",

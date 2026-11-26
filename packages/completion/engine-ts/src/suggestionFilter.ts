@@ -9,7 +9,12 @@ export function postprocess(
   text = text.replace(/\s+$/, "");
   if (!text) return null;
   if (firstLineOnly) {
-    text = text.split("\n")[0] ?? "";
+    const firstNonWs = text.search(/\S/);
+    if (firstNonWs < 0) return null;
+    const nlAfter = text.indexOf("\n", firstNonWs);
+    if (nlAfter >= 0) {
+      text = text.slice(0, nlAfter);
+    }
   }
   text = removePrefixOverlap(text, prefix);
   text = removeSuffixOverlap(text, suffix);
@@ -25,11 +30,17 @@ export function isUseless(params: {
 }): boolean {
   const trimmed = params.suggestion.trim();
   if (!trimmed) return true;
-  if (params.prefix.replace(/\s+$/, "").endsWith(trimmed)) return true;
-  if (params.suffix.replace(/^\s+/, "").startsWith(trimmed)) return true;
+  if (isSubstantiveDuplicate(trimmed)) {
+    if (params.prefix.replace(/\s+$/, "").endsWith(trimmed)) return true;
+    if (params.suffix.replace(/^\s+/, "").startsWith(trimmed)) return true;
+  }
   if (duplicatesEdgeLines(params)) return true;
   if (containsRepetitivePhrase(params.suggestion)) return true;
   return false;
+}
+
+function isSubstantiveDuplicate(trimmed: string): boolean {
+  return trimmed.length >= 3;
 }
 
 export function removePrefixOverlap(suggestion: string, prefix: string): string {

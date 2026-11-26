@@ -427,19 +427,19 @@ export class HttpCompletionClient implements CompletionClient {
       if (chunkUsage) usage = chunkUsage;
       const delta = parseStreamDeltaObj(wire, parsed);
       if (delta) {
+        out += delta;
         if (stopAtNewline) {
-          const nlIdx = delta.indexOf("\n");
-          if (nlIdx >= 0) {
-            const firstLine = (out + delta.slice(0, nlIdx)).replace(/\r$/, "");
-            if (firstLine.trim().length > 0) {
-              out = firstLine;
+          const firstNonWs = out.search(/\S/);
+          if (firstNonWs >= 0) {
+            const nlIdx = out.indexOf("\n", firstNonWs);
+            if (nlIdx >= 0) {
+              out = out.slice(0, nlIdx).replace(/\r$/, "");
               doneReading = true;
               controller.abort();
               return true;
             }
           }
         }
-        out += delta;
       }
       return false;
     };

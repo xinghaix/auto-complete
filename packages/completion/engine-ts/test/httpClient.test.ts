@@ -192,6 +192,46 @@ describe("HttpCompletionClient streaming SSE", () => {
     assert.equal(aborted, true);
     assert.equal(cancelled, true);
   });
+
+  it("early-stops on single chunk containing leading newline followed by multiple lines", async () => {
+    let aborted = false;
+    let cancelled = false;
+    const encoder = new TextEncoder();
+    const stream = new ReadableStream<Uint8Array>({
+      start(controller) {
+        controller.enqueue(
+          encoder.encode('data: {"choices":[{"delta":{"content":"\\nfoo\\nbar"}}]}\n'),
+        );
+        // Never close stream to prove early-stop returns immediately.
+      },
+      cancel() {
+        cancelled = true;
+      },
+    });
+    const fetchMock: typeof fetch = async (_url, init) => {
+      init?.signal?.addEventListener("abort", () => {
+        aborted = true;
+      });
+      return new Response(stream, { status: 200 });
+    };
+
+    const client = new HttpCompletionClient(makeConfig({ stream: true }), "completion", () => {}, fetchMock);
+    const resp = await client.complete(
+      {
+        model: "m",
+        prefix: "if (ok) {",
+        suffix: "",
+        maxTokens: 64,
+        temperature: 0,
+        stream: true,
+        stopAtNewline: true,
+      },
+      new CancellationToken(),
+    );
+    assert.equal(resp.text, "\nfoo");
+    assert.equal(aborted, true);
+    assert.equal(cancelled, true);
+  });
 });
 
 describe("URL resolution, DeepSeek Beta FIM, extraBodyJson & stopSequences", () => {

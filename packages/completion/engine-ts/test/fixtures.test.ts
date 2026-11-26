@@ -377,9 +377,15 @@ describe("prompt templates", () => {
 });
 
 describe("filter / skip / validation basics", () => {
-  it("removes prefix overlap and postprocesses fences", () => {
+  it("removes prefix overlap, preserves short operator/digit completions and leading-newline firstLineOnly", () => {
     assert.equal(removePrefixOverlap("foobar", "foo"), "bar");
     assert.equal(postprocess("```ts\nx\n```", "", "", false), "x");
+    assert.equal(postprocess("0", "const n = 10", "", false), "0");
+    assert.equal(postprocess("+", "i +", "", false), "+");
+    assert.equal(postprocess("==", "if (a ==", "", false), "==");
+    assert.equal(postprocess("\n    return 1\n    return 2", "if (ok) {", "", true), "\n    return 1");
+    assert.equal(postprocess("foo", "println(foo", ")", false), null);
+    assert.equal(postprocess("bar", "const x = bar  ", "", false), null);
     assert.equal(shouldShowOnlyFirstLine("  const x = ", "a\nb"), true);
     assert.equal(shouldSkip("const fo", "obar", "typescript"), true);
   });
