@@ -12,6 +12,7 @@ export function postprocess(
     text = text.split("\n")[0] ?? "";
   }
   text = removePrefixOverlap(text, prefix);
+  text = removeSuffixOverlap(text, suffix);
   if (!text) return null;
   if (isUseless({ suggestion: text, prefix, suffix })) return null;
   return text;
@@ -35,17 +36,83 @@ export function removePrefixOverlap(suggestion: string, prefix: string): string 
   if (!suggestion || !prefix) return suggestion;
   const max = Math.min(suggestion.length, prefix.length, 200);
   for (let n = max; n > 0; n--) {
-    if (prefix.endsWith(suggestion.slice(0, n))) {
-      return suggestion.slice(n);
-    }
+    const overlap = suggestion.slice(0, n);
+    if (!prefix.endsWith(overlap)) continue;
+    if (n < 3 && !isSafeShortPrefixOverlap(overlap, prefix, n)) continue;
+    return suggestion.slice(n);
   }
   return suggestion;
 }
 
-export function shouldShowOnlyFirstLine(prefix: string, suggestion: string): boolean {
-  if (!suggestion.includes("\n")) return false;
+export function removeSuffixOverlap(suggestion: string, suffix: string): string {
+  if (!suggestion || !suffix) return suggestion;
+  const nlIdx = suffix.indexOf("\n");
+  const suffixFirstLine = nlIdx >= 0 ? suffix.slice(0, nlIdx) : suffix;
+  if (!suffixFirstLine) return suggestion;
+  const max = Math.min(suggestion.length, suffixFirstLine.length, 200);
+  for (let n = max; n > 0; n--) {
+    const candidate = suffixFirstLine.slice(0, n);
+    if (!suggestion.endsWith(candidate)) continue;
+    if (!candidate.trim()) continue;
+    if (n === 1) {
+      if (/[A-Za-z0-9_]/.test(candidate)) continue;
+      if (isBalancedClosingDelimiter(suggestion, candidate)) continue;
+    }
+    return suggestion.slice(0, suggestion.length - n);
+  }
+  return suggestion;
+}
+
+export function isMidLine(prefix: string): boolean {
   const line = prefix.slice(prefix.lastIndexOf("\n") + 1);
   return line.length > 0 && /\S/.test(line);
+}
+
+export function shouldShowOnlyFirstLine(prefix: string, suggestion: string): boolean {
+  if (!suggestion.includes("\n")) return false;
+  return isMidLine(prefix);
+}
+
+export function stripCodeFences(text: string): string {
+  if (!text.trimStart().startsWith("```")) {
+    return text;
+  }
+  let t = text.trimStart().slice(3);
+  const nl = t.indexOf("\n");
+  if (nl >= 0) t = t.slice(nl + 1);
+  const trimmedEnd = t.trimEnd();
+  if (trimmedEnd.endsWith("```")) {
+    t = trimmedEnd.slice(0, -3);
+    if (t.endsWith("\n")) t = t.slice(0, -1);
+  }
+  return t;
+}
+
+function isSafeShortPrefixOverlap(overlap: string, prefix: string, n: number): boolean {
+  // Never strip < 3 char operators, punctuation, digits, or whitespace (e.g. ==, &&, ||, ++, ::, 100, (()).
+  if (!/^[A-Za-z_]+$/.test(overlap)) return false;
+  // Require word boundary immediately before the overlap in prefix.
+  const prevIdx = prefix.length - n - 1;
+  if (prevIdx >= 0 && /[A-Za-z0-9_]/.test(prefix[prevIdx]!)) return false;
+  return true;
+}
+
+function isBalancedClosingDelimiter(suggestion: string, delim: string): boolean {
+  const pairs: Record<string, string> = {
+    ")": "(",
+    "]": "[",
+    "}": "{",
+  };
+  const open = pairs[delim];
+  if (!open) return false;
+  let opens = 0;
+  let closes = 0;
+  for (let i = 0; i < suggestion.length; i++) {
+    const ch = suggestion[i];
+    if (ch === open) opens++;
+    else if (ch === delim) closes++;
+  }
+  return closes <= opens;
 }
 
 function duplicatesEdgeLines(params: {
@@ -58,10 +125,8 @@ function duplicatesEdgeLines(params: {
   const lines = trimmed.split("\n");
   const first = lines[0]!.trim();
   const last = lines[lines.length - 1]!.trim();
-  const prefixLast = params.prefix
-    .replace(/\s+$/, "")
-    .slice(params.prefix.replace(/\s+$/, "").lastIndexOf("\n") + 1)
-    .trim();
+  const prefixNoTrail = params.prefix.replace(/\s+$/, "");
+  const prefixLast = prefixNoTrail.slice(prefixNoTrail.lastIndexOf("\n") + 1).trim();
   const suffixFirst = params.suffix
     .replace(/^\s+/, "")
     .split("\n")[0]!
@@ -90,15 +155,4 @@ function containsRepetitivePhrase(suggestion: string): boolean {
     }
   }
   return false;
-}
-
-function stripCodeFences(text: string): string {
-  let t = text.trim();
-  if (t.startsWith("```")) {
-    t = t.slice(3);
-    const nl = t.indexOf("\n");
-    if (nl >= 0) t = t.slice(nl + 1);
-    if (t.endsWith("```")) t = t.slice(0, -3);
-  }
-  return t;
 }

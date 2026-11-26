@@ -1,0 +1,97 @@
+{
+  "name": "url_resolution_regression",
+  "relativePathCases": [
+    {
+      "id": "empty_path_prepends_v1",
+      "baseUrl": "http://127.0.0.1:11434",
+      "suffix": "/chat/completions",
+      "expectedRelativePath": "/v1/chat/completions",
+      "expectedJoinedUrl": "http://127.0.0.1:11434/v1/chat/completions"
+    },
+    {
+      "id": "slash_only_path_prepends_v1",
+      "baseUrl": "http://127.0.0.1:11434/",
+      "suffix": "/chat/completions",
+      "expectedRelativePath": "/v1/chat/completions",
+      "expectedJoinedUrl": "http://127.0.0.1:11434/v1/chat/completions"
+    },
+    {
+      "id": "v1_base_keeps_suffix",
+      "baseUrl": "http://127.0.0.1:11434/v1",
+      "suffix": "/chat/completions",
+      "expectedRelativePath": "/chat/completions",
+      "expectedJoinedUrl": "http://127.0.0.1:11434/v1/chat/completions"
+    },
+    {
+      "id": "beta_base_preserved_no_v1",
+      "baseUrl": "https://api.deepseek.com/beta",
+      "suffix": "/completions",
+      "expectedRelativePath": "/completions",
+      "expectedJoinedUrl": "https://api.deepseek.com/beta/completions"
+    },
+    {
+      "id": "v2_base_preserved_no_v1",
+      "baseUrl": "https://api.example.com/v2",
+      "suffix": "/chat/completions",
+      "expectedRelativePath": "/chat/completions",
+      "expectedJoinedUrl": "https://api.example.com/v2/chat/completions"
+    },
+    {
+      "id": "query_params_preserved_in_joinUrl",
+      "baseUrl": "https://my.openai.azure.com/openai/deployments/d1?api-version=2024-02-01",
+      "suffix": "/chat/completions",
+      "expectedRelativePath": "/chat/completions",
+      "expectedJoinedUrl": "https://my.openai.azure.com/openai/deployments/d1/chat/completions?api-version=2024-02-01"
+    }
+  ],
+  "templateResolutionCases": [
+    {
+      "id": "deepseek_beta_uses_codestral_api",
+      "model": "deepseek-chat",
+      "baseUrl": "https://api.deepseek.com/beta",
+      "expectedTemplate": "CODESTRAL_API"
+    },
+    {
+      "id": "mistral_codestral_base_uses_codestral_api",
+      "model": "codestral-latest",
+      "baseUrl": "https://codestral.mistral.ai/v1",
+      "expectedTemplate": "CODESTRAL_API"
+    },
+    {
+      "id": "demo1_coder_not_o1",
+      "model": "demo1-coder",
+      "baseUrl": "http://127.0.0.1:11434/v1",
+      "expectedTemplate": "QWEN"
+    },
+    {
+      "id": "proto3_coder_not_o3",
+      "model": "proto3-coder",
+      "baseUrl": "http://127.0.0.1:11434/v1",
+      "expectedTemplate": "QWEN"
+    },
+    {
+      "id": "o3_mini_is_chat",
+      "model": "o3-mini",
+      "baseUrl": "https://api.example.com/v1",
+      "expectedTemplate": "CHAT"
+    },
+    {
+      "id": "qwen3_coder_is_qwen",
+      "model": "qwen3-coder:30b",
+      "baseUrl": "http://127.0.0.1:11434/v1",
+      "expectedTemplate": "QWEN"
+    },
+    {
+      "id": "codellama_is_codellama",
+      "model": "codellama:7b",
+      "baseUrl": "http://127.0.0.1:11434/v1",
+      "expectedTemplate": "CODELLAMA"
+    },
+    {
+      "id": "codegeex_is_qwen",
+      "model": "codegeex4:9b",
+      "baseUrl": "http://127.0.0.1:11434/v1",
+      "expectedTemplate": "QWEN"
+    }
+  ]
+}

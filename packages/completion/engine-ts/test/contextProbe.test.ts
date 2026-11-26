@@ -35,4 +35,45 @@ describe("inspectContext", () => {
     const r = inspectContext('const s = "a\\"b', "javascript");
     assert.equal(r.inString, true);
   });
+
+  it("recognizes lines starting with // or # inside multiline strings as strings, not comments", () => {
+    const tsTemplate = inspectContext("const s = `hello\n// not a comment", "typescript");
+    assert.equal(tsTemplate.inString, true);
+    assert.equal(tsTemplate.inComment, false);
+
+    const pyTriple = inspectContext('doc = """line1\n# still docstring', "python");
+    assert.equal(pyTriple.inString, true);
+    assert.equal(pyTriple.inComment, false);
+
+    const pySingleTriple = inspectContext("doc = '''line1\n# still docstring", "python");
+    assert.equal(pySingleTriple.inString, true);
+    assert.equal(pySingleTriple.inComment, false);
+  });
+
+  it("ignores Rust lifetimes and closed char literals without poisoning subsequent code", () => {
+    const r = inspectContext(
+      "fn first<'a>(x: &'a str, y: &'static str) -> &'a str {\n  let c = 'z';\n  let out = ",
+      "rust",
+    );
+    assert.equal(r.inString, false);
+    assert.equal(r.inComment, false);
+  });
+
+  it("resets unclosed single-line quotes on newline", () => {
+    const r = inspectContext('const broken = "unclosed\nconst ok = ', "typescript");
+    assert.equal(r.inString, false);
+    assert.equal(r.inComment, false);
+  });
+
+  it("supports SQL -- line comments and HTML <!-- --> comments", () => {
+    const sql = inspectContext("SELECT 1;\n-- filter active", "sql");
+    assert.equal(sql.inComment, true);
+    assert.equal(sql.inString, false);
+
+    const htmlOpen = inspectContext("<div>\n<!-- pending", "html");
+    assert.equal(htmlOpen.inComment, true);
+
+    const htmlClosed = inspectContext("<!-- done -->\n<div>", "html");
+    assert.equal(htmlClosed.inComment, false);
+  });
 });

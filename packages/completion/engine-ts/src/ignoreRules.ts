@@ -9,78 +9,187 @@ export const DEFAULT_GLOBS = [
   "**/vendor/**",
 ];
 
+interface CompiledRule {
+  negated: boolean;
+  rootAnchored: boolean;
+  regex: RegExp;
+}
+
 export class IgnoreRules {
-  private patterns: string[];
+  private rules: CompiledRule[];
 
   constructor(
     globs: string[],
     private respectGitignore = true,
     gitignorePatterns: string[] = [],
   ) {
-    this.patterns = [...globs, ...(this.respectGitignore ? gitignorePatterns : [])]
-      .map((g) => g.trim())
-      .filter((g) => g && !g.startsWith("#"));
+    const raw = [...globs, ...(this.respectGitignore ? gitignorePatterns : [])];
+    this.rules = [];
+    for (const entry of raw) {
+      const compiled = compileRule(entry);
+      if (compiled) this.rules.push(compiled);
+    }
   }
 
   isIgnored(path: string, relativePath?: string | null): boolean {
-    const candidates = [
-      path,
-      relativePath,
-      path.replace(/\\/g, "/"),
-      relativePath?.replace(/\\/g, "/"),
-    ].filter(Boolean) as string[];
+    const rawPath = normalizePath(path);
+    const rawRel = relativePath ? normalizePath(relativePath) : null;
 
-    for (const candidate of candidates) {
-      const normalized = candidate.replace(/\\/g, "/");
-      for (const pattern of this.patterns) {
-        if (matchGlob(pattern, normalized)) return true;
+    // Built-in hard protection for .git / node_modules segments unless explicitly negated
+    const target = rawRel || rawPath;
+    if (!target) return false;
+
+    const rootTarget = stripLeadingSlash(rawRel ?? rawPath);
+    const candidates = rawRel ? [rawRel] : [rawPath];
+
+    let ignored = isHardIgnored(rawPath) || (rawRel ? isHardIgnored(rawRel) : false);
+
+    for (const rule of this.rules) {
+      let matched = false;
+      if (rule.rootAnchored) {
+        matched = rule.regex.test(rootTarget);
+      } else {
+        for (const candidate of candidates) {
+          if (rule.regex.test(candidate) || rule.regex.test(stripLeadingSlash(candidate))) {
+            matched = true;
+            break;
+          }
+        }
       }
-      const name = normalized.split("/").pop() ?? "";
-      if (name === "node_modules" || name === ".git") return true;
+      if (matched) {
+        ignored = !rule.negated;
+      }
     }
-    const slash = path.replace(/\\/g, "/");
-    if (slash.includes("/node_modules/") || slash.endsWith("/node_modules")) return true;
-    if (slash.includes("/.git/") || slash.endsWith("/.git")) return true;
-    return false;
+    return ignored;
   }
 
   static parseGitignore(text: string): string[] {
     return text
       .split(/\r?\n/)
       .map((l) => l.trim())
-      .filter((l) => l && !l.startsWith("#") && !l.startsWith("!"))
-      .map((line) => {
-        if (line.startsWith("/")) return `**${line}`;
-        if (line.includes("/")) return `**/${line}`;
-        return `**/${line}`;
-      });
+      .filter((l) => l && !l.startsWith("#"));
   }
 }
 
-/** Minimal glob matcher for ** / * patterns used by ignore rules. */
-function matchGlob(pattern: string, path: string): boolean {
-  let p = pattern.startsWith("glob:") ? pattern.slice(5) : pattern;
-  // Escape regex specials except * and ?
-  let re = "";
-  for (let i = 0; i < p.length; i++) {
-    const c = p[i]!;
-    if (c === "*" && p[i + 1] === "*") {
-      re += ".*";
-      i++;
-      if (p[i + 1] === "/") i++; // ** /
-    } else if (c === "*") {
-      re += "[^/]*";
-    } else if (c === "?") {
-      re += "[^/]";
-    } else if (/[.+^${}()|[\]\\]/.test(c)) {
-      re += "\\" + c;
+function normalizePath(p: string): string {
+  return p.replace(/\\/g, "/").replace(/^\.\//, "");
+}
+
+function stripLeadingSlash(p: string): string {
+  return p.replace(/^\/+/, "");
+}
+
+function isHardIgnored(p: string): boolean {
+  const segs = p.split("/");
+  return segs.includes("node_modules") || segs.includes(".git");
+}
+
+function compileRule(raw: string): CompiledRule | null {
+  let pattern = raw.trim();
+  if (!pattern || pattern.startsWith("#")) return null;
+
+  let negated = false;
+  if (pattern.startsWith("!")) {
+    negated = true;
+    pattern = pattern.slice(1).trim();
+    if (!pattern) return null;
+  }
+
+  if (pattern.startsWith("glob:")) {
+    pattern = pattern.slice(5).trim();
+    if (!pattern) return null;
+  }
+
+  let rootAnchored = false;
+  if (pattern.startsWith("/")) {
+    rootAnchored = true;
+    pattern = pattern.replace(/^\/+/, "");
+    if (!pattern) return null;
+  }
+
+  const trailingSlash = pattern.endsWith("/");
+  if (trailingSlash) {
+    pattern = pattern.replace(/\/+$/, "");
+    if (!pattern) return null;
+  }
+
+  let regexSource: string;
+  if (rootAnchored) {
+    const body = globToRegex(pattern);
+    regexSource = trailingSlash ? `^${body}(?:/.*)?$` : `^${body}(?:/.*)?$`;
+  } else if (trailingSlash) {
+    // Trailing-slash directory rule: normalize `dir/` to `**/dir/**`
+    const normalized = pattern.startsWith("**/") ? `${pattern}/**` : `**/${pattern}/**`;
+    regexSource = `^${globToRegex(normalized)}$`;
+  } else if (!pattern.includes("/")) {
+    // Basename / directory rule without slashes (e.g. `*.log`, `build`, `.env`)
+    const body = globToRegex(pattern);
+    regexSource = `^(?:^|.*/)${body}(?:/.*)?$`;
+  } else {
+    // Contains slash (e.g. `**/build/**`, `src/*.ts`, `a/b`)
+    const body = globToRegex(pattern);
+    if (pattern.endsWith("/**") || pattern.endsWith("/*") || pattern.endsWith("*")) {
+      regexSource = `^${body}$`;
     } else {
-      re += c;
+      regexSource = `^${body}(?:/.*)?$`;
     }
   }
+
   try {
-    return new RegExp(`^${re}$`).test(path) || new RegExp(re).test(path);
+    return {
+      negated,
+      rootAnchored,
+      regex: new RegExp(regexSource),
+    };
   } catch {
-    return false;
+    return null;
   }
+}
+
+/**
+ * Compile a glob string into an unanchored regex fragment.
+ * `**\/` compiles to `(?:^|.*\/)` (or `(?:.*\/)?`) so directory boundaries are strictly respected.
+ */
+function globToRegex(pattern: string): string {
+  let re = "";
+  let i = 0;
+  while (i < pattern.length) {
+    const c = pattern[i]!;
+    // Handle `/**` at end of pattern
+    if (c === "/" && pattern[i + 1] === "*" && pattern[i + 2] === "*" && i + 3 === pattern.length) {
+      re += "(?:/.*)?";
+      i += 3;
+      continue;
+    }
+    // Handle `**/`
+    if (c === "*" && pattern[i + 1] === "*" && pattern[i + 2] === "/") {
+      re += i === 0 ? "(?:^|.*/)" : "(?:.*/)?";
+      i += 3;
+      continue;
+    }
+    // Handle `**`
+    if (c === "*" && pattern[i + 1] === "*") {
+      re += ".*";
+      i += 2;
+      continue;
+    }
+    if (c === "*") {
+      re += "[^/]*";
+      i += 1;
+      continue;
+    }
+    if (c === "?") {
+      re += "[^/]";
+      i += 1;
+      continue;
+    }
+    if (/[.+^${}()|[\]\\]/.test(c)) {
+      re += "\\" + c;
+      i += 1;
+      continue;
+    }
+    re += c;
+    i += 1;
+  }
+  return re;
 }

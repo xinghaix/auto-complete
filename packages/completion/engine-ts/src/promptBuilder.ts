@@ -1,7 +1,68 @@
+import { createHash } from "node:crypto";
+
 export interface BuiltPrompt {
   prefix: string;
   suffix: string;
   styleHint?: string;
+}
+
+export interface LruKeyOptions {
+  promptTemplate?: string;
+  baseUrl?: string;
+  temperature?: number;
+  maxTokens?: number;
+  firstLineOnlyWhenMidLine?: boolean;
+}
+
+const SLASH_COMMENT_LANGS = new Set([
+  "javascript",
+  "javascriptreact",
+  "typescript",
+  "typescriptreact",
+  "java",
+  "kotlin",
+  "scala",
+  "go",
+  "rust",
+  "c",
+  "cpp",
+  "csharp",
+  "php",
+  "swift",
+  "dart",
+  "scss",
+  "less",
+  "jsonc",
+]);
+
+const HASH_COMMENT_LANGS = new Set([
+  "python",
+  "ruby",
+  "shellscript",
+  "bash",
+  "zsh",
+  "sh",
+  "yaml",
+  "toml",
+  "perl",
+  "r",
+  "dockerfile",
+  "makefile",
+]);
+
+const DASH_COMMENT_LANGS = new Set(["sql", "mysql", "postgresql", "lua", "haskell", "elm"]);
+
+const HTML_COMMENT_LANGS = new Set(["html", "xml", "vue", "svelte", "markdown"]);
+
+export function formatCommentLine(line: string, language?: string | null): string {
+  const lang = (language ?? "").trim().toLowerCase();
+  if (!lang) return line;
+  if (SLASH_COMMENT_LANGS.has(lang)) return `// ${line}`;
+  if (HASH_COMMENT_LANGS.has(lang)) return `# ${line}`;
+  if (DASH_COMMENT_LANGS.has(lang)) return `-- ${line}`;
+  if (HTML_COMMENT_LANGS.has(lang)) return `<!-- ${line} -->`;
+  if (lang === "css") return `/* ${line} */`;
+  return line;
 }
 
 export function buildPrompt(opts: {
@@ -14,19 +75,19 @@ export function buildPrompt(opts: {
   sendFilePath: boolean;
   recentSnippets?: string[];
 }): BuiltPrompt {
-  const prunedPrefix = takeEnd(opts.prefix, Math.max(0, opts.maxPrefixChars));
-  const prunedSuffix = takeStart(opts.suffix, Math.max(0, opts.maxSuffixChars));
+  const prunedPrefix = takeEnd(opts.prefix, opts.maxPrefixChars);
+  const prunedSuffix = takeStart(opts.suffix, opts.maxSuffixChars);
   const parts: string[] = [];
   if (opts.sendFilePath && opts.path?.trim()) {
-    parts.push(`File: ${opts.path}`);
+    parts.push(formatCommentLine(`File: ${opts.path}`, opts.language));
   }
   if (opts.language?.trim()) {
-    parts.push(`Language: ${opts.language}`);
+    parts.push(formatCommentLine(`Language: ${opts.language}`, opts.language));
   }
   if (opts.recentSnippets && opts.recentSnippets.length > 0) {
-    parts.push("Related snippets:");
+    parts.push(formatCommentLine("Related snippets:", opts.language));
     opts.recentSnippets.forEach((snippet, index) => {
-      parts.push(`--- snippet ${index + 1} ---`);
+      parts.push(formatCommentLine(`--- snippet ${index + 1} ---`, opts.language));
       parts.push(snippet.replace(/\s+$/, ""));
     });
   }
@@ -47,25 +108,76 @@ export function chatUserContent(prefix: string, suffix: string): string {
   );
 }
 
-export function lruKey(language: string, model: string, prefix: string, suffix: string): string {
-  return `${language}|${model}|${hashCode(prefix)}|${hashCode(suffix)}|${prefix.length}|${suffix.length}`;
+export function lruKey(
+  language: string,
+  model: string,
+  prefix: string,
+  suffix: string,
+  extra?: LruKeyOptions,
+): string {
+  const h = createHash("sha256");
+  h.update(language);
+  h.update("\0");
+  h.update(model);
+  h.update("\0");
+  h.update(extra?.promptTemplate ?? "");
+  h.update("\0");
+  h.update(extra?.baseUrl ?? "");
+  h.update("\0");
+  h.update(extra?.temperature !== undefined ? String(extra.temperature) : "");
+  h.update("\0");
+  h.update(extra?.maxTokens !== undefined ? String(extra.maxTokens) : "");
+  h.update("\0");
+  h.update(
+    extra?.firstLineOnlyWhenMidLine !== undefined
+      ? String(extra.firstLineOnlyWhenMidLine)
+      : "",
+  );
+  h.update("\0");
+  h.update(String(prefix.length));
+  h.update(":");
+  h.update(prefix);
+  h.update("\0");
+  h.update(String(suffix.length));
+  h.update(":");
+  h.update(suffix);
+  return h.digest("hex");
+}
+
+function isHighSurrogate(code: number): boolean {
+  return code >= 0xd800 && code <= 0xdbff;
+}
+
+function isLowSurrogate(code: number): boolean {
+  return code >= 0xdc00 && code <= 0xdfff;
 }
 
 function takeEnd(text: string, max: number): string {
-  if (max <= 0 || text.length <= max) return text;
-  return text.slice(text.length - max);
+  if (max <= 0) return "";
+  if (text.length <= max) return text;
+  let start = text.length - max;
+  if (
+    start > 0 &&
+    start < text.length &&
+    isLowSurrogate(text.charCodeAt(start)) &&
+    isHighSurrogate(text.charCodeAt(start - 1))
+  ) {
+    start += 1;
+  }
+  return text.slice(start);
 }
 
 function takeStart(text: string, max: number): string {
-  if (max <= 0 || text.length <= max) return text;
-  return text.slice(0, max);
-}
-
-/** Java-compatible String.hashCode for dual-engine LRU key parity. */
-function hashCode(s: string): number {
-  let h = 0;
-  for (let i = 0; i < s.length; i++) {
-    h = (Math.imul(31, h) + s.charCodeAt(i)) | 0;
+  if (max <= 0) return "";
+  if (text.length <= max) return text;
+  let end = max;
+  if (
+    end > 0 &&
+    end < text.length &&
+    isHighSurrogate(text.charCodeAt(end - 1)) &&
+    isLowSurrogate(text.charCodeAt(end))
+  ) {
+    end -= 1;
   }
-  return h;
+  return text.slice(0, end);
 }

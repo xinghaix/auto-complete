@@ -82,7 +82,8 @@ export class LogBuffer {
   append(entry: LogEntry): void {
     this.entries.push(entry);
     this.trim();
-    for (const l of this.listeners) {
+    const snapshot = [...this.listeners];
+    for (const l of snapshot) {
       try {
         l(entry);
       } catch {

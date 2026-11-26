@@ -16,7 +16,8 @@
       "probe": true,
       "stopTokens": [],
       "tokenPrompt": null,
-      "defaultPath": "/fim/completions"
+      "defaultPath": "/fim/completions",
+      "notes": "OpenAI-style FIM with JSON prompt + suffix fields. For DeepSeek Beta cloud FIM (https://api.deepseek.com/beta), default path resolves to /completions when fimPath is empty."
     },
     {
       "id": "QWEN",
@@ -34,7 +35,8 @@
         "<|im_end|>"
       ],
       "tokenPrompt": "<|fim_prefix|>{prefix}<|fim_suffix|>{suffix}<|fim_middle|>",
-      "defaultPath": "/completions"
+      "defaultPath": "/completions",
+      "notes": "Covers Qwen2.5-Coder, Qwen3-Coder, CodeGemma, and CodeGeeX token FIM models."
     },
     {
       "id": "DEEPSEEK",
@@ -49,7 +51,8 @@
         "<｜end▁of▁sentence｜>"
       ],
       "tokenPrompt": "<｜fim▁begin｜>{prefix}<｜fim▁hole｜>{suffix}<｜fim▁end｜>",
-      "defaultPath": "/completions"
+      "defaultPath": "/completions",
+      "notes": "Local/self-hosted DeepSeek Coder token FIM. Cloud DeepSeek Beta FIM (deepseek.com/beta) uses CODESTRAL_API with /completions."
     },
     {
       "id": "STARCODER",
@@ -69,6 +72,23 @@
       "defaultPath": "/completions"
     },
     {
+      "id": "CODELLAMA",
+      "shortLabel": "(fim) CodeLlama",
+      "wireFormat": "COMPLETION_PROMPT",
+      "probe": true,
+      "stopTokens": [
+        "<EOT>",
+        "<PRE>",
+        "<SUF>",
+        "<MID>",
+        "</s>",
+        "<|endoftext|>"
+      ],
+      "tokenPrompt": "<PRE>{prefix}<SUF>{suffix}<MID>",
+      "defaultPath": "/completions",
+      "notes": "Native CodeLlama infill tokens (<PRE>/<SUF>/<MID>)."
+    },
+    {
       "id": "CHAT",
       "shortLabel": "(chat) Pseudo-FIM",
       "wireFormat": "CHAT_MESSAGES",
@@ -76,6 +96,20 @@
       "stopTokens": [],
       "tokenPrompt": null,
       "defaultPath": "/chat/completions"
+    }
+  ],
+  "baseUrlHints": [
+    {
+      "match": "deepseek.com/beta",
+      "template": "CODESTRAL_API",
+      "defaultFimPath": "/completions",
+      "notes": "DeepSeek Beta cloud FIM API uses POST /beta/completions with JSON prompt + suffix."
+    },
+    {
+      "match": "mistral.ai",
+      "template": "CODESTRAL_API",
+      "defaultFimPath": "/fim/completions",
+      "notes": "Mistral / Codestral API uses FIM_FIELDS."
     }
   ],
   "detectionRules": [
@@ -88,14 +122,23 @@
       "matchAny": ["coder", "code"],
       "template": "DEEPSEEK"
     },
-    { "match": ["qwen", "codegemma"], "template": "QWEN" },
     {
-      "match": ["starcoder", "santacoder", "codellama", "code-llama", "crystalcoder"],
+      "match": ["qwen3-coder", "qwen", "codegemma", "codegeex"],
+      "template": "QWEN"
+    },
+    {
+      "match": ["codellama", "code-llama"],
+      "template": "CODELLAMA"
+    },
+    {
+      "match": ["starcoder", "santacoder", "crystalcoder"],
       "template": "STARCODER"
     },
     {
-      "match": ["gpt-", "claude", "o1", "o3", "o4", "chatgpt"],
-      "template": "CHAT"
+      "match": ["gpt-", "claude", "chatgpt"],
+      "matchRegex": ["(?:^|[-_/:])o[134](?:$|[-_.:])"],
+      "template": "CHAT",
+      "notes": "Word-boundary regex prevents matching demo1-coder or proto3-coder."
     },
     {
       "match": ["coder", "code-"],

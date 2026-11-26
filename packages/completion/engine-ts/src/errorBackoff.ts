@@ -19,14 +19,20 @@ export class CancelledError extends Error {
 
 export class CancellationToken {
   private cancelled = false;
-  private onCancelCb: (() => void) | null = null;
+  private listeners = new Set<() => void>();
 
   cancel(): void {
     if (this.cancelled) return;
     this.cancelled = true;
-    const cb = this.onCancelCb;
-    this.onCancelCb = null;
-    cb?.();
+    const cbs = [...this.listeners];
+    this.listeners.clear();
+    for (const cb of cbs) {
+      try {
+        cb();
+      } catch {
+        /* ignore */
+      }
+    }
   }
 
   isCancelled(): boolean {
@@ -37,12 +43,19 @@ export class CancellationToken {
     if (this.cancelled) throw new CancelledError();
   }
 
-  onCancel(action: () => void): void {
-    this.onCancelCb = action;
+  onCancel(action: () => void): () => void {
     if (this.cancelled) {
-      this.onCancelCb = null;
-      action();
+      try {
+        action();
+      } catch {
+        /* ignore */
+      }
+      return () => {};
     }
+    this.listeners.add(action);
+    return () => {
+      this.listeners.delete(action);
+    };
   }
 }
 
@@ -113,6 +126,10 @@ export class ErrorBackoff {
     }
     if (this.blockedUntil > 0 && now < this.blockedUntil) return true;
     return false;
+  }
+
+  isFatal(): boolean {
+    return this.fatal;
   }
 
   getFatalStatus(): number | null {

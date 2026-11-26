@@ -31,9 +31,12 @@
     "enableInComments": { "type": "boolean", "default": true },
     "enableInStrings": { "type": "boolean", "default": true },
     "disabledLanguages": {
-      "type": "array",
-      "items": { "type": "string" },
-      "default": []
+      "oneOf": [
+        { "type": "string" },
+        { "type": "array", "items": { "type": "string" } }
+      ],
+      "default": [],
+      "description": "Disabled language IDs (array in portable exports or comma/newline-separated string in UI snapshots)"
     },
     "firstLineOnlyWhenMidLine": { "type": "boolean", "default": true },
     "sendFilePath": { "type": "boolean", "default": true },
@@ -45,8 +48,10 @@
       "description": "Settings panel language: auto follows IDE, or force a catalog locale"
     },
     "ignoreGlobs": {
-      "type": "array",
-      "items": { "type": "string" },
+      "oneOf": [
+        { "type": "string" },
+        { "type": "array", "items": { "type": "string" } }
+      ],
       "default": [
         "**/.git/**",
         "**/node_modules/**",
@@ -56,7 +61,8 @@
         "**/.idea/**",
         "**/.gradle/**",
         "**/vendor/**"
-      ]
+      ],
+      "description": "Ignore glob patterns (array in portable exports or newline-separated string in UI snapshots)"
     },
     "debounceMinMs": { "type": "integer", "minimum": 0, "default": 150 },
     "debounceInitialMs": { "type": "integer", "minimum": 0, "default": 300 },
@@ -127,8 +133,18 @@
         },
         "promptTemplate": {
           "type": "string",
-          "enum": ["AUTO", "CODESTRAL_API", "QWEN", "DEEPSEEK", "STARCODER", "CHAT"],
+          "enum": ["AUTO", "CODESTRAL_API", "QWEN", "DEEPSEEK", "STARCODER", "CODELLAMA", "CHAT"],
           "default": "AUTO"
+        },
+        "extraBodyJson": {
+          "type": "string",
+          "default": "",
+          "description": "Optional JSON object merged into completion request payload; protected keys (model, prompt, suffix, messages, stream) cannot be overridden"
+        },
+        "stopSequences": {
+          "type": "string",
+          "default": "",
+          "description": "Optional additional stop sequences (newline-separated or JSON string array) appended to template stop tokens"
         },
         "temperature": { "type": "number", "minimum": 0, "maximum": 2, "default": 0 },
         "maxTokens": { "type": "integer", "minimum": 16, "maximum": 1024, "default": 128 },
