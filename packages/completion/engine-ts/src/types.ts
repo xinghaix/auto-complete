@@ -2,7 +2,7 @@ export type Trigger = "AUTO" | "MANUAL";
 
 export type CacheMatchType = "EXACT" | "PARTIAL_TYPING" | "BACKWARD_DELETION";
 
-export type WireFormat = "FIM_FIELDS" | "COMPLETION_PROMPT" | "CHAT_MESSAGES";
+export type WireFormat = "FIM_FIELDS" | "COMPLETION_PROMPT" | "CHAT_MESSAGES" | "RESPONSES_API";
 
 export type PromptTemplateId =
   | "AUTO"
@@ -11,7 +11,8 @@ export type PromptTemplateId =
   | "DEEPSEEK"
   | "STARCODER"
   | "CODELLAMA"
-  | "CHAT";
+  | "CHAT"
+  | "RESPONSES";
 
 export type ProviderKind = "OPENAI_COMPATIBLE" | "MISTRAL_FIM" | "CUSTOM";
 
@@ -103,6 +104,7 @@ export interface ProviderConfig {
   fimPath?: string;
   chatPath?: string;
   completionsPath?: string;
+  responsesPath?: string;
   requestStyle?: RequestStyle;
   promptTemplate?: PromptTemplateId;
   temperature?: number;

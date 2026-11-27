@@ -14,6 +14,7 @@ export type Profile = {
   fimPath?: string;
   chatPath?: string;
   completionsPath?: string;
+  responsesPath?: string;
   authHeaderTemplate?: string;
   extraHeadersJson?: string;
   extraBodyJson?: string;

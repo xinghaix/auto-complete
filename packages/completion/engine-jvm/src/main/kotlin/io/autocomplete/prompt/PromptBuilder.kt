@@ -72,18 +72,25 @@ object PromptBuilder {
         }
     }
 
+    const val STRICT_COMPLETION_INSTRUCTIONS: String =
+        "You are a strict inline code completion engine. " +
+            "Output ONLY the exact raw code to insert at <cursor> between <prefix> and <suffix>. " +
+            "Never repeat text already in <prefix> or <suffix>. " +
+            "Never wrap output in markdown code fences, backticks, or quotes. " +
+            "Never add explanations, placeholder instructions, or conversational text. " +
+            "If no completion makes sense, output nothing."
+
     fun chatUserContent(
         prefix: String,
         suffix: String,
     ): String =
         buildString {
-            append("Complete the code at the cursor. Output only the completion text.\n")
-            append("<prefix>\n")
+            append("Complete the code at <cursor>. Output only raw code to insert, nothing else.\n")
+            append("<prefix>")
             append(prefix)
-            append("\n</prefix>\n")
-            append("<suffix>\n")
+            append("</prefix><cursor><suffix>")
             append(suffix)
-            append("\n</suffix>\n")
+            append("</suffix>")
         }
 
     fun lruKey(

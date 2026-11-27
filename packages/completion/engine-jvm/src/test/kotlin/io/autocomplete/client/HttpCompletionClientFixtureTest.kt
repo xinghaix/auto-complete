@@ -50,6 +50,15 @@ class HttpCompletionClientFixtureTest {
             exchange.sendResponseHeaders(200, bytes.size.toLong())
             exchange.responseBody.use { it.write(bytes) }
         }
+        server.createContext("/v1/responses") { exchange ->
+            lastPath = exchange.requestURI.path
+            lastBody = exchange.requestBody.readAllBytes().toString(StandardCharsets.UTF_8)
+            val payload =
+                """{"output_text":"return a + b","usage":{"input_tokens":5,"output_tokens":4}}"""
+            val bytes = payload.toByteArray()
+            exchange.sendResponseHeaders(200, bytes.size.toLong())
+            exchange.responseBody.use { it.write(bytes) }
+        }
         server.createContext("/v1/models") { exchange ->
             lastPath = exchange.requestURI.path
             lastAuthorization = exchange.requestHeaders.getFirst("Authorization")

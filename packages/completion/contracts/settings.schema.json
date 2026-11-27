@@ -125,6 +125,7 @@
         "fimPath": { "type": "string", "default": "" },
         "chatPath": { "type": "string", "default": "/chat/completions" },
         "completionsPath": { "type": "string", "default": "" },
+        "responsesPath": { "type": "string", "default": "" },
         "requestStyle": {
           "type": "string",
           "enum": ["AUTO", "FIM", "CHAT"],
@@ -133,13 +134,13 @@
         },
         "promptTemplate": {
           "type": "string",
-          "enum": ["AUTO", "CODESTRAL_API", "QWEN", "DEEPSEEK", "STARCODER", "CODELLAMA", "CHAT"],
+          "enum": ["AUTO", "CODESTRAL_API", "QWEN", "DEEPSEEK", "STARCODER", "CODELLAMA", "CHAT", "RESPONSES"],
           "default": "AUTO"
         },
         "extraBodyJson": {
           "type": "string",
           "default": "",
-          "description": "Optional JSON object merged into completion request payload; protected keys (model, prompt, suffix, messages, stream) cannot be overridden"
+          "description": "Optional JSON object merged into completion request payload; protected keys (model, prompt, suffix, messages, input, instructions, stream) cannot be overridden"
         },
         "stopSequences": {
           "type": "string",

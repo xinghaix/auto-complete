@@ -4,7 +4,7 @@ import {
   HttpStatusError,
 } from "./errorBackoff.js";
 import { contextTokensFromModelObject } from "./modelLimits.js";
-import { chatUserContent } from "./promptBuilder.js";
+import { chatUserContent, STRICT_COMPLETION_INSTRUCTIONS } from "./promptBuilder.js";
 import {
   formatTokenPrompt,
   isDeepSeekBetaUrl,
@@ -70,11 +70,40 @@ const PROTECTED_BODY_KEYS = new Set([
   "prompt",
   "suffix",
   "messages",
+  "input",
+  "instructions",
   "stream",
   "__proto__",
   "constructor",
   "prototype",
 ]);
+
+function httpStatusFallbackMessage(status: number): string {
+  switch (status) {
+    case 400:
+      return "Bad Request";
+    case 401:
+      return "Unauthorized";
+    case 403:
+      return "Forbidden";
+    case 404:
+      return "Not Found";
+    case 405:
+      return "Method Not Allowed";
+    case 429:
+      return "Too Many Requests";
+    case 500:
+      return "Internal Server Error";
+    case 502:
+      return "Bad Gateway";
+    case 503:
+      return "Service Unavailable";
+    case 504:
+      return "Gateway Timeout";
+    default:
+      return `HTTP ${status} (empty response body)`;
+  }
+}
 
 const SENSITIVE_QUERY_KEY_RE =
   /(?:key|token|secret|auth|password|passwd|pwd|credential|sig|signature)/i;
@@ -144,9 +173,12 @@ export class HttpCompletionClient implements CompletionClient {
       }
       token.throwIfCancelled();
       if (!res.ok) {
-        const text = await res.text().catch(() => "");
-        const preview = redactSecrets(text.slice(0, 300), this.config.apiKey);
-        this.emitFailure(safeUrl, template, started, res.status, preview, text.length);
+        const rawErr = (await res.text().catch(() => "")).trim();
+        const preview = redactSecrets(
+          (rawErr || httpStatusFallbackMessage(res.status)).slice(0, 300),
+          this.config.apiKey,
+        );
+        this.emitFailure(safeUrl, template, started, res.status, preview, rawErr.length);
         throw new HttpStatusError(
           res.status,
           `POST ${safeUrl} -> HTTP ${res.status}: ${preview}`,
@@ -160,8 +192,26 @@ export class HttpCompletionClient implements CompletionClient {
           !!request.stopAtNewline,
           controller,
         );
-        this.emitSuccess(safeUrl, template, started, res.status, null, streamed.text.length);
-        return { text: streamed.text, usage: streamed.usage, rawStatus: res.status };
+        if (streamed.streamError) {
+          const safeErr = redactSecrets(streamed.streamError, this.config.apiKey);
+          this.emitFailure(safeUrl, template, started, res.status, safeErr);
+          throw new HttpStatusError(res.status, `POST ${safeUrl} -> HTTP ${res.status}: ${safeErr}`);
+        }
+        this.emitSuccess(
+          safeUrl,
+          template,
+          started,
+          res.status,
+          null,
+          streamed.text.length,
+          streamed.emptyReason,
+        );
+        return {
+          text: streamed.text,
+          usage: streamed.usage,
+          rawStatus: res.status,
+          emptyReason: streamed.emptyReason,
+        };
       }
       const raw = await res.text();
       const parsedText = parseText(wire, raw);
@@ -239,9 +289,10 @@ export class HttpCompletionClient implements CompletionClient {
       };
     } catch (e) {
       const status = e instanceof HttpStatusError ? e.status : null;
+      const wf = wireFormat(concrete);
       const hint =
-        wireFormat(concrete) !== "CHAT_MESSAGES" && isChatEndpointPath(path)
-          ? " (hint: FIM path override points to /chat/completions; clear FIM path or use CHAT template)"
+        wf !== "CHAT_MESSAGES" && wf !== "RESPONSES_API" && isChatEndpointPath(path)
+          ? " (hint: FIM path override points to /chat/completions; clear FIM path or use CHAT/RESPONSES template)"
           : "";
       return {
         template: concrete,
@@ -402,14 +453,25 @@ export class HttpCompletionClient implements CompletionClient {
     token: CancellationToken,
     stopAtNewline: boolean,
     controller: AbortController,
-  ): Promise<{ text: string; usage: Usage | null }> {
-    if (!res.body) return { text: "", usage: null };
+  ): Promise<{
+    text: string;
+    usage: Usage | null;
+    emptyReason: string | null;
+    streamError: string | null;
+  }> {
+    if (!res.body) {
+      return { text: "", usage: null, emptyReason: "empty completion", streamError: null };
+    }
     const reader = res.body.getReader();
     const decoder = new TextDecoder();
     let buf = "";
     let out = "";
     let usage: Usage | null = null;
     let doneReading = false;
+    let streamFinishReason = "";
+    let streamSawReasoning = false;
+    let streamReasoningTokens = 0;
+    let streamError: string | null = null;
 
     const processLine = (rawLine: string): boolean => {
       const line = rawLine.endsWith("\r") ? rawLine.slice(0, -1) : rawLine;
@@ -429,8 +491,27 @@ export class HttpCompletionClient implements CompletionClient {
       } catch {
         return false;
       }
+      const eventType = typeof parsed.type === "string" ? parsed.type.toLowerCase() : "";
       const chunkUsage = parseUsageObj(parsed);
       if (chunkUsage) usage = chunkUsage;
+      const chunkReasoningTokens = extractReasoningTokensObj(parsed);
+      if (chunkReasoningTokens > streamReasoningTokens) {
+        streamReasoningTokens = chunkReasoningTokens;
+      }
+      if (chunkHasReasoningObj(parsed)) streamSawReasoning = true;
+      const fr = extractFinishReasonObj(parsed);
+      if (fr) streamFinishReason = fr;
+
+      if (eventType === "response.failed" || eventType === "error") {
+        const respObj = parsed.response as Record<string, unknown> | undefined;
+        const errObj = (respObj?.error ?? parsed.error) as Record<string, unknown> | undefined;
+        streamError =
+          (typeof errObj?.message === "string" && errObj.message.trim()) ||
+          "response stream failed";
+        doneReading = true;
+        return true;
+      }
+
       const delta = parseStreamDeltaObj(wire, parsed);
       if (delta) {
         out += delta;
@@ -446,6 +527,16 @@ export class HttpCompletionClient implements CompletionClient {
             }
           }
         }
+      }
+      if (eventType === "response.completed" || eventType === "response.incomplete") {
+        if (!out) {
+          const respObj = parsed.response as Record<string, unknown> | undefined;
+          if (respObj && typeof respObj === "object" && !Array.isArray(respObj)) {
+            out = extractResponsesApiText(respObj);
+          }
+        }
+        doneReading = true;
+        return true;
       }
       return false;
     };
@@ -470,7 +561,15 @@ export class HttpCompletionClient implements CompletionClient {
           }
         }
       }
-      return { text: out, usage };
+      const emptyReason = out.trim()
+        ? null
+        : formatEmptyDiagnostic(
+            streamFinishReason,
+            streamSawReasoning || streamReasoningTokens > 0,
+            streamReasoningTokens,
+            "",
+          );
+      return { text: out, usage, emptyReason, streamError };
     } finally {
       await reader.cancel().catch(() => {});
       try {
@@ -679,6 +778,10 @@ export function pathFor(template: PromptTemplateId, cfg: ProviderConfig): string
       const custom = cfg.chatPath?.trim();
       return custom || defaultOpenAiRelativePath(cfg.baseUrl, "/chat/completions");
     }
+    case "RESPONSES_API": {
+      const custom = cfg.responsesPath?.trim();
+      return custom || defaultOpenAiRelativePath(cfg.baseUrl, "/responses");
+    }
   }
 }
 
@@ -753,8 +856,7 @@ export function bodyFor(
         messages: [
           {
             role: "system",
-            content:
-              "You are a code completion engine. Continue the code at the cursor. Output only the completion text, no markdown.",
+            content: STRICT_COMPLETION_INSTRUCTIONS,
           },
           {
             role: "user",
@@ -766,7 +868,23 @@ export function bodyFor(
         stream,
       };
       break;
+    case "RESPONSES_API":
+      body = {
+        model,
+        instructions: STRICT_COMPLETION_INSTRUCTIONS,
+        input: chatUserContent(request.prefix, request.suffix),
+        max_output_tokens: maxTokens,
+        store: false,
+        stream,
+      };
+      // Omit default temperature=0 and stop on Responses API for compatibility with reasoning models.
+      if (request.temperature > 0) {
+        body.temperature = request.temperature;
+      }
+      break;
   }
+
+  const allowStop = wireFormat(template) !== "RESPONSES_API";
 
   // Safely merge optional extraBodyJson without overwriting protected keys.
   if (cfg.extraBodyJson?.trim()) {
@@ -776,6 +894,7 @@ export function bodyFor(
         for (const [k, v] of Object.entries(extra as Record<string, unknown>)) {
           if (PROTECTED_BODY_KEYS.has(k)) continue;
           if (k === "stop") {
+            if (!allowStop) continue;
             if (typeof v === "string" && v.length > 0) {
               stops.push(v);
             } else if (Array.isArray(v)) {
@@ -793,12 +912,14 @@ export function bodyFor(
     }
   }
 
-  for (const seq of parseStopSequences(cfg.stopSequences)) {
-    stops.push(seq);
-  }
+  if (allowStop) {
+    for (const seq of parseStopSequences(cfg.stopSequences)) {
+      stops.push(seq);
+    }
 
-  if (stops.length > 0) {
-    body.stop = [...new Set(stops)];
+    if (stops.length > 0) {
+      body.stop = [...new Set(stops)];
+    }
   }
 
   return JSON.stringify(body);
@@ -843,6 +964,71 @@ function extractResponsesApiText(json: Record<string, unknown>): string {
   return out;
 }
 
+function extractFinishReasonObj(json: Record<string, unknown>): string {
+  const choices = json.choices as unknown[] | undefined;
+  const first = (choices?.[0] ?? null) as Record<string, unknown> | null;
+  const respObj = json.response as Record<string, unknown> | undefined;
+  const incomplete = (respObj?.incomplete_details ?? json.incomplete_details) as
+    | Record<string, unknown>
+    | undefined;
+  const status = respObj?.status ?? json.status;
+  return (
+    (typeof first?.finish_reason === "string" && first.finish_reason.trim()) ||
+    (typeof incomplete?.reason === "string" && incomplete.reason.trim()) ||
+    (status === "incomplete" ? "incomplete" : "")
+  );
+}
+
+function chunkHasReasoningObj(json: Record<string, unknown>): boolean {
+  const eventType = typeof json.type === "string" ? json.type.toLowerCase() : "";
+  if (eventType.includes("reasoning")) return true;
+  const choices = json.choices as unknown[] | undefined;
+  const first = (choices?.[0] ?? null) as Record<string, unknown> | null;
+  const msg = (first?.message ?? null) as Record<string, unknown> | null;
+  const delta = (first?.delta ?? null) as Record<string, unknown> | null;
+  return [
+    msg?.reasoning_content,
+    msg?.reasoning,
+    delta?.reasoning_content,
+    delta?.reasoning,
+    first?.reasoning,
+  ].some((v) => typeof v === "string" && v.trim().length > 0);
+}
+
+function extractReasoningTokensObj(json: Record<string, unknown>): number {
+  const respObj = json.response as Record<string, unknown> | undefined;
+  const usage = (respObj?.usage ?? json.usage) as Record<string, unknown> | undefined;
+  const details = (usage?.completion_tokens_details ?? usage?.output_tokens_details) as
+    | Record<string, unknown>
+    | undefined;
+  return numberOrNull(details?.reasoning_tokens) ?? 0;
+}
+
+function formatEmptyDiagnostic(
+  finishReason: string,
+  reasoningConsumed: boolean,
+  reasoningTokens: number,
+  refusal: string,
+): string {
+  if (refusal) {
+    return `empty completion (refusal: ${refusal.slice(0, 120)})`;
+  }
+  if (reasoningConsumed) {
+    const meta: string[] = [];
+    if (finishReason) meta.push(`finish_reason=${finishReason}`);
+    if (reasoningTokens > 0) meta.push(`reasoning_tokens=${reasoningTokens}`);
+    const prefix = meta.length > 0 ? `${meta.join(", ")}; ` : "";
+    return `empty completion (${prefix}reasoning consumed output budget — increase maxTokens or disable reasoning in extraBodyJson)`;
+  }
+  if (finishReason === "length" || finishReason === "max_output_tokens") {
+    return `empty completion (finish_reason=${finishReason} — increase maxTokens)`;
+  }
+  if (finishReason && finishReason !== "stop") {
+    return `empty completion (finish_reason=${finishReason})`;
+  }
+  return "empty completion";
+}
+
 export function diagnoseEmptyResponse(body: string): string {
   let json: Record<string, unknown>;
   try {
@@ -858,36 +1044,15 @@ export function diagnoseEmptyResponse(body: string): string {
   const first = (choices?.[0] ?? null) as Record<string, unknown> | null;
   const msg = (first?.message ?? null) as Record<string, unknown> | null;
   const refusal = typeof msg?.refusal === "string" ? msg.refusal.trim() : "";
-  if (refusal) {
-    return `empty completion (refusal: ${refusal.slice(0, 120)})`;
-  }
-  const incomplete = json.incomplete_details as Record<string, unknown> | undefined;
-  const finishReason =
-    (typeof first?.finish_reason === "string" && first.finish_reason.trim()) ||
-    (typeof incomplete?.reason === "string" && incomplete.reason.trim()) ||
-    (json.status === "incomplete" ? "incomplete" : "");
-  const hasReasoningText = [msg?.reasoning_content, msg?.reasoning, first?.reasoning].some(
-    (v) => typeof v === "string" && v.trim().length > 0,
+  const finishReason = extractFinishReasonObj(json);
+  const hasReasoningText = chunkHasReasoningObj(json);
+  const reasoningTokens = extractReasoningTokensObj(json);
+  return formatEmptyDiagnostic(
+    finishReason,
+    hasReasoningText || reasoningTokens > 0,
+    reasoningTokens,
+    refusal,
   );
-  const usage = json.usage as Record<string, unknown> | undefined;
-  const details = (usage?.completion_tokens_details ?? usage?.output_tokens_details) as
-    | Record<string, unknown>
-    | undefined;
-  const reasoningTokens = numberOrNull(details?.reasoning_tokens) ?? 0;
-  if (hasReasoningText || reasoningTokens > 0) {
-    const meta: string[] = [];
-    if (finishReason) meta.push(`finish_reason=${finishReason}`);
-    if (reasoningTokens > 0) meta.push(`reasoning_tokens=${reasoningTokens}`);
-    const prefix = meta.length > 0 ? `${meta.join(", ")}; ` : "";
-    return `empty completion (${prefix}reasoning consumed output budget — increase maxTokens or set reasoning_effort in extraBodyJson)`;
-  }
-  if (finishReason === "length") {
-    return "empty completion (finish_reason=length — increase maxTokens)";
-  }
-  if (finishReason && finishReason !== "stop") {
-    return `empty completion (finish_reason=${finishReason})`;
-  }
-  return "empty completion";
 }
 
 export function parseText(wire: WireFormat, body: string): string {
@@ -902,7 +1067,13 @@ export function parseText(wire: WireFormat, body: string): string {
   const choices = json.choices as unknown[] | undefined;
   const first = (choices?.[0] ?? null) as Record<string, unknown> | null;
   let extracted = "";
-  if (wire === "CHAT_MESSAGES") {
+  if (wire === "RESPONSES_API") {
+    const msg = first?.message as Record<string, unknown> | undefined;
+    extracted =
+      extractResponsesApiText(json) ||
+      extractTextValue(msg?.content) ||
+      extractTextValue(first?.text);
+  } else if (wire === "CHAT_MESSAGES") {
     const msg = first?.message as Record<string, unknown> | undefined;
     extracted = extractTextValue(msg?.content) || extractTextValue(first?.text);
   } else {
@@ -916,19 +1087,19 @@ export function parseText(wire: WireFormat, body: string): string {
 }
 
 function parseStreamDeltaObj(wire: WireFormat, json: Record<string, unknown>): string {
+  const eventType = typeof json.type === "string" ? json.type.toLowerCase() : "";
+  if (eventType === "response.output_text.delta") {
+    return extractTextValue(json.delta);
+  }
   const choices = json.choices as unknown[] | undefined;
   const first = (choices?.[0] ?? null) as Record<string, unknown> | null;
   if (first) {
-    if (wire === "CHAT_MESSAGES") {
+    if (wire === "CHAT_MESSAGES" || wire === "RESPONSES_API") {
       const delta = first.delta as Record<string, unknown> | undefined;
       return extractTextValue(delta?.content) || extractTextValue(first.text);
     }
     const delta = first.delta as Record<string, unknown> | undefined;
     return extractTextValue(first.text) || extractTextValue(delta?.content);
-  }
-  const eventType = typeof json.type === "string" ? json.type.toLowerCase() : "";
-  if (eventType === "response.output_text.delta") {
-    return extractTextValue(json.delta);
   }
   return "";
 }
@@ -944,7 +1115,8 @@ function parseUsage(body: string): Usage | null {
 }
 
 function parseUsageObj(json: Record<string, unknown>): Usage | null {
-  const usage = json.usage;
+  const respObj = json.response as Record<string, unknown> | undefined;
+  const usage = respObj?.usage ?? json.usage;
   if (!usage || typeof usage !== "object" || Array.isArray(usage)) return null;
   const u = usage as Record<string, unknown>;
   const inputTokens = numberOrNull(u.prompt_tokens ?? u.input_tokens);

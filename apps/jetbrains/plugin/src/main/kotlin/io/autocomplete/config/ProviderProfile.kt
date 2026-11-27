@@ -24,6 +24,7 @@ data class ProviderProfile(
     var fimPath: String = "",
     var chatPath: String = "/chat/completions",
     var completionsPath: String = "",
+    var responsesPath: String = "",
     var requestStyle: String = RequestStyle.AUTO.name,
     var promptTemplate: String = PromptTemplate.AUTO.name,
     var temperature: Double = 0.0,

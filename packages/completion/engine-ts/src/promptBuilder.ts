@@ -96,15 +96,18 @@ export function buildPrompt(opts: {
   return { prefix: finalPrefix, suffix: prunedSuffix, styleHint: "fim" };
 }
 
+export const STRICT_COMPLETION_INSTRUCTIONS =
+  "You are a strict inline code completion engine. " +
+  "Output ONLY the exact raw code to insert at <cursor> between <prefix> and <suffix>. " +
+  "Never repeat text already in <prefix> or <suffix>. " +
+  "Never wrap output in markdown code fences, backticks, or quotes. " +
+  "Never add explanations, placeholder instructions, or conversational text. " +
+  "If no completion makes sense, output nothing.";
+
 export function chatUserContent(prefix: string, suffix: string): string {
   return (
-    "Complete the code at the cursor. Output only the completion text.\n" +
-    "<prefix>\n" +
-    prefix +
-    "\n</prefix>\n" +
-    "<suffix>\n" +
-    suffix +
-    "\n</suffix>\n"
+    "Complete the code at <cursor>. Output only raw code to insert, nothing else.\n" +
+    `<prefix>${prefix}</prefix><cursor><suffix>${suffix}</suffix>`
   );
 }
 

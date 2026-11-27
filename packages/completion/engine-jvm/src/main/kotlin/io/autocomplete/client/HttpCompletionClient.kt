@@ -104,6 +104,7 @@ data class ProviderConfig(
     val fimPath: String = "",
     val chatPath: String = "/chat/completions",
     val completionsPath: String = "",
+    val responsesPath: String = "",
     val requestStyle: RequestStyle = RequestStyle.AUTO,
     /** Stored template id; [PromptTemplate.AUTO] resolves from model name / baseUrl. */
     val promptTemplate: PromptTemplate = PromptTemplate.AUTO,
@@ -276,8 +277,10 @@ class HttpCompletionClient(
             val status = (e as? HttpStatusException)?.status
             val rawErr = e.message.orEmpty().ifBlank { e.javaClass.simpleName }
             val hint =
-                if (concrete.wireFormat() != WireFormat.CHAT_MESSAGES && isChatEndpointPath(path)) {
-                    " (hint: FIM path override points to /chat/completions; clear FIM path or use CHAT template)"
+                if (concrete.wireFormat() !in setOf(WireFormat.CHAT_MESSAGES, WireFormat.RESPONSES_API) &&
+                    isChatEndpointPath(path)
+                ) {
+                    " (hint: FIM path override points to /chat/completions; clear FIM path or use CHAT/RESPONSES template)"
                 } else {
                     ""
                 }
@@ -422,7 +425,8 @@ class HttpCompletionClient(
         token.throwIfCancelled()
         val status = response.statusCode()
         if (status !in 200..299) {
-            val safeBody = SecretRedactor.redactText(response.body().take(300), config.apiKey)
+            val rawErr = response.body().trim().ifEmpty { httpStatusFallbackMessage(status) }
+            val safeBody = SecretRedactor.redactText(rawErr.take(300), config.apiKey)
             emitFailure(request.method(), safeUrl, template, started, status, safeBody, response.body().length)
             throw HttpStatusException(
                 status,
@@ -468,14 +472,15 @@ class HttpCompletionClient(
             throw CancelledException()
         }
         if (status !in 200..299) {
+            val fallbackMsg = httpStatusFallbackMessage(status)
             val errorText =
                 runCatching {
                     stream.use { input ->
                         val buf = ByteArray(1024)
                         val read = input.read(buf)
-                        if (read > 0) String(buf, 0, read, StandardCharsets.UTF_8) else "stream failed"
+                        if (read > 0) String(buf, 0, read, StandardCharsets.UTF_8).trim().ifEmpty { fallbackMsg } else fallbackMsg
                     }
-                }.getOrDefault("stream failed")
+                }.getOrDefault(fallbackMsg)
             val safeError = SecretRedactor.redactText(errorText.take(300), config.apiKey)
             emitFailure(request.method(), safeUrl, template, started, status, safeError)
             throw HttpStatusException(status, "${request.method()} $safeUrl -> HTTP $status: $safeError")
@@ -496,6 +501,10 @@ class HttpCompletionClient(
 
         val sb = StringBuilder()
         var usage: Usage? = null
+        var streamFinishReason = ""
+        var streamSawReasoning = false
+        var streamReasoningTokens = 0
+        var streamFailedMessage: String? = null
         try {
             stream.use { input ->
                 BufferedReader(InputStreamReader(input, StandardCharsets.UTF_8)).use { reader ->
@@ -510,7 +519,20 @@ class HttpCompletionClient(
                         val data = trimmed.removePrefix("data:").trim()
                         if (data == "[DONE]") break
                         val chunk = runCatching { Json.parseObject(data) }.getOrNull() ?: continue
+                        val eventType = chunk["type"]?.toString()?.lowercase().orEmpty()
                         parseUsageFromMap(chunk)?.let { usage = it }
+                        val chunkReasoning = extractReasoningTokensFromMap(chunk)
+                        if (chunkReasoning > streamReasoningTokens) streamReasoningTokens = chunkReasoning
+                        if (chunkHasReasoningContent(chunk)) streamSawReasoning = true
+                        extractFinishReasonFromMap(chunk).takeIf { it.isNotEmpty() }?.let { streamFinishReason = it }
+                        if (eventType == "response.failed" || eventType == "error") {
+                            val respObj = chunk["response"] as? Map<*, *>
+                            val errObj = (respObj?.get("error") as? Map<*, *>) ?: (chunk["error"] as? Map<*, *>)
+                            streamFailedMessage =
+                                errObj?.get("message")?.toString()?.trim()?.takeIf { it.isNotEmpty() }
+                                    ?: "response stream failed"
+                            break
+                        }
                         val delta = parseStreamDeltaFromMap(wire, chunk)
                         if (delta.isNotEmpty()) {
                             sb.append(delta)
@@ -525,6 +547,16 @@ class HttpCompletionClient(
                                     }
                                 }
                             }
+                        }
+                        if (eventType == "response.completed" || eventType == "response.incomplete") {
+                            if (sb.isEmpty()) {
+                                val respObj = chunk["response"] as? Map<*, *>
+                                if (respObj != null) {
+                                    val fallbackText = extractResponsesApiText(respObj.entries.associate { it.key.toString() to it.value })
+                                    if (fallbackText.isNotEmpty()) sb.append(fallbackText)
+                                }
+                            }
+                            break
                         }
                     }
                 }
@@ -549,10 +581,26 @@ class HttpCompletionClient(
             emitFailure(request.method(), safeUrl, template, started, null, detail)
             throw RuntimeException("${request.method()} $safeUrl failed: $detail")
         }
+        if (streamFailedMessage != null) {
+            val safeError = SecretRedactor.redactText(streamFailedMessage!!, config.apiKey)
+            emitFailure(request.method(), safeUrl, template, started, status, safeError)
+            throw HttpStatusException(status, "${request.method()} $safeUrl -> HTTP $status: $safeError")
+        }
 
         val text = sb.toString()
-        emitSuccess(request.method(), safeUrl, template, started, status, null, text.length)
-        return ProviderResponse(text = text, usage = usage, rawStatus = status)
+        val emptyReason =
+            if (text.isBlank()) {
+                formatEmptyDiagnostic(
+                    finishReason = streamFinishReason,
+                    reasoningConsumed = streamSawReasoning || streamReasoningTokens > 0,
+                    reasoningTokens = streamReasoningTokens,
+                    refusal = "",
+                )
+            } else {
+                null
+            }
+        emitSuccess(request.method(), safeUrl, template, started, status, null, text.length, emptyReason)
+        return ProviderResponse(text = text, usage = usage, rawStatus = status, emptyReason = emptyReason)
     }
 
     private fun pathFor(
@@ -596,8 +644,7 @@ class HttpCompletionClient(
                     listOf(
                         mapOf(
                             "role" to "system",
-                            "content" to
-                                "You are a code completion engine. Continue the code at the cursor. Output only the completion text, no markdown.",
+                            "content" to PromptBuilder.STRICT_COMPLETION_INSTRUCTIONS,
                         ),
                         mapOf(
                             "role" to "user",
@@ -611,31 +658,48 @@ class HttpCompletionClient(
                 payload["stream"] = stream
                 if (combinedStops.isNotEmpty()) payload["stop"] = combinedStops
             }
+            WireFormat.RESPONSES_API -> {
+                payload["model"] = model
+                payload["instructions"] = PromptBuilder.STRICT_COMPLETION_INSTRUCTIONS
+                payload["input"] = PromptBuilder.chatUserContent(request.prefix, request.suffix)
+                payload["max_output_tokens"] = maxTokens
+                payload["store"] = false
+                payload["stream"] = stream
+                // Omit default temperature=0 and stop on Responses API: OpenAI reasoning models
+                // reject temperature when effort != none and /responses does not support top-level stop.
+                if (request.temperature > 0.0) {
+                    payload["temperature"] = request.temperature
+                }
+            }
         }
 
-        mergeExtraBody(payload, cfg.extraBodyJson)
+        mergeExtraBody(payload, cfg.extraBodyJson, allowStop = template.wireFormat() != WireFormat.RESPONSES_API)
         return Json.obj(*payload.entries.map { it.key to it.value }.toTypedArray())
     }
 
     private fun mergeExtraBody(
         target: MutableMap<String, Any?>,
         extraBodyJson: String,
+        allowStop: Boolean = true,
     ) {
         if (extraBodyJson.isBlank()) return
         val extra = runCatching { Json.parseObject(extraBodyJson) }.getOrNull() ?: return
         for ((key, value) in extra) {
             if (key in PROTECTED_BODY_KEYS) continue
-            if (key == "stop" && target.containsKey("stop")) {
-                val existing = (target["stop"] as? List<*>)?.mapNotNull { it?.toString() }.orEmpty()
-                val added =
-                    when (value) {
-                        is List<*> -> value.mapNotNull { it?.toString() }.filter { it.isNotEmpty() }
-                        is String -> if (value.isNotEmpty()) listOf(value) else emptyList()
-                        else -> emptyList()
-                    }
-                val merged = (existing + added).distinct()
-                if (merged.isNotEmpty()) target["stop"] = merged
-                continue
+            if (key == "stop") {
+                if (!allowStop) continue
+                if (target.containsKey("stop")) {
+                    val existing = (target["stop"] as? List<*>)?.mapNotNull { it?.toString() }.orEmpty()
+                    val added =
+                        when (value) {
+                            is List<*> -> value.mapNotNull { it?.toString() }.filter { it.isNotEmpty() }
+                            is String -> if (value.isNotEmpty()) listOf(value) else emptyList()
+                            else -> emptyList()
+                        }
+                    val merged = (existing + added).distinct()
+                    if (merged.isNotEmpty()) target["stop"] = merged
+                    continue
+                }
             }
             target[key] = value
         }
@@ -650,6 +714,12 @@ class HttpCompletionClient(
         val first = choices?.firstOrNull() as? Map<*, *>
         val extracted =
             when (wire) {
+                WireFormat.RESPONSES_API ->
+                    extractResponsesApiText(json)
+                        .ifEmpty {
+                            val msg = first?.get("message") as? Map<*, *>
+                            extractTextValue(msg?.get("content"))
+                        }.ifEmpty { extractTextValue(first?.get("text")) }
                 WireFormat.FIM_FIELDS, WireFormat.COMPLETION_PROMPT -> {
                     extractTextValue(first?.get("text"))
                         .ifEmpty {
@@ -711,26 +781,64 @@ class HttpCompletionClient(
         val first = choices?.firstOrNull() as? Map<*, *>
         val msg = first?.get("message") as? Map<*, *>
         val refusal = msg?.get("refusal")?.toString()?.trim().orEmpty()
+        val finishReason = extractFinishReasonFromMap(json)
+        val hasReasoningText = chunkHasReasoningContent(json)
+        val reasoningTokens = extractReasoningTokensFromMap(json)
+        return formatEmptyDiagnostic(
+            finishReason = finishReason,
+            reasoningConsumed = hasReasoningText || reasoningTokens > 0,
+            reasoningTokens = reasoningTokens,
+            refusal = refusal,
+        )
+    }
+
+    private fun extractFinishReasonFromMap(json: Map<String, Any?>): String {
+        val choices = json["choices"] as? List<*>
+        val first = choices?.firstOrNull() as? Map<*, *>
+        val respObj = json["response"] as? Map<*, *>
+        val incomplete = (respObj?.get("incomplete_details") as? Map<*, *>) ?: (json["incomplete_details"] as? Map<*, *>)
+        return first?.get("finish_reason")?.toString()?.trim().orEmpty()
+            .ifEmpty { incomplete?.get("reason")?.toString()?.trim().orEmpty() }
+            .ifEmpty {
+                val st = (respObj?.get("status") ?: json["status"])?.toString()?.trim().orEmpty()
+                if (st == "incomplete") st else ""
+            }
+    }
+
+    private fun chunkHasReasoningContent(json: Map<String, Any?>): Boolean {
+        val eventType = json["type"]?.toString()?.lowercase().orEmpty()
+        if (eventType.contains("reasoning")) return true
+        val choices = json["choices"] as? List<*>
+        val first = choices?.firstOrNull() as? Map<*, *>
+        val msg = first?.get("message") as? Map<*, *>
+        val delta = first?.get("delta") as? Map<*, *>
+        return listOf(
+            msg?.get("reasoning_content"),
+            msg?.get("reasoning"),
+            delta?.get("reasoning_content"),
+            delta?.get("reasoning"),
+            first?.get("reasoning"),
+        ).any { it is String && it.isNotBlank() }
+    }
+
+    private fun extractReasoningTokensFromMap(json: Map<String, Any?>): Int {
+        val respObj = json["response"] as? Map<*, *>
+        val usage = (respObj?.get("usage") as? Map<*, *>) ?: (json["usage"] as? Map<*, *>) ?: return 0
+        val completionDetails =
+            (usage["completion_tokens_details"] as? Map<*, *>)
+                ?: (usage["output_tokens_details"] as? Map<*, *>)
+        return (completionDetails?.get("reasoning_tokens") as? Number)?.toInt() ?: 0
+    }
+
+    private fun formatEmptyDiagnostic(
+        finishReason: String,
+        reasoningConsumed: Boolean,
+        reasoningTokens: Int,
+        refusal: String,
+    ): String {
         if (refusal.isNotEmpty()) {
             return "empty completion (refusal: ${refusal.take(120)})"
         }
-        val finishReason =
-            first?.get("finish_reason")?.toString()?.trim().orEmpty()
-                .ifEmpty {
-                    val incomplete = json["incomplete_details"] as? Map<*, *>
-                    incomplete?.get("reason")?.toString()?.trim().orEmpty()
-                }.ifEmpty {
-                    json["status"]?.toString()?.trim()?.takeIf { it == "incomplete" }.orEmpty()
-                }
-        val hasReasoningText =
-            listOf(msg?.get("reasoning_content"), msg?.get("reasoning"), first?.get("reasoning"))
-                .any { it is String && it.isNotBlank() }
-        val usage = json["usage"] as? Map<*, *>
-        val completionDetails =
-            (usage?.get("completion_tokens_details") as? Map<*, *>)
-                ?: (usage?.get("output_tokens_details") as? Map<*, *>)
-        val reasoningTokens = (completionDetails?.get("reasoning_tokens") as? Number)?.toInt() ?: 0
-        val reasoningConsumed = hasReasoningText || reasoningTokens > 0
         return when {
             reasoningConsumed -> {
                 val meta =
@@ -739,10 +847,10 @@ class HttpCompletionClient(
                         if (reasoningTokens > 0) add("reasoning_tokens=$reasoningTokens")
                     }.joinToString(", ")
                 val prefix = if (meta.isNotEmpty()) "$meta; " else ""
-                "empty completion (${prefix}reasoning consumed output budget — increase maxTokens or set reasoning_effort in extraBodyJson)"
+                "empty completion (${prefix}reasoning consumed output budget — increase maxTokens or disable reasoning in extraBodyJson)"
             }
-            finishReason == "length" ->
-                "empty completion (finish_reason=length — increase maxTokens)"
+            finishReason == "length" || finishReason == "max_output_tokens" ->
+                "empty completion (finish_reason=$finishReason — increase maxTokens)"
             finishReason.isNotEmpty() && finishReason != "stop" ->
                 "empty completion (finish_reason=$finishReason)"
             else -> "empty completion"
@@ -761,6 +869,10 @@ class HttpCompletionClient(
         wire: WireFormat,
         json: Map<String, Any?>,
     ): String {
+        val eventType = json["type"]?.toString()?.lowercase().orEmpty()
+        if (eventType == "response.output_text.delta") {
+            return extractTextValue(json["delta"])
+        }
         val choices = json["choices"] as? List<*>
         val first = choices?.firstOrNull() as? Map<*, *>
         if (first != null) {
@@ -771,16 +883,12 @@ class HttpCompletionClient(
                             val delta = first["delta"] as? Map<*, *>
                             extractTextValue(delta?.get("content"))
                         }
-                WireFormat.CHAT_MESSAGES -> {
+                WireFormat.CHAT_MESSAGES, WireFormat.RESPONSES_API -> {
                     val delta = first["delta"] as? Map<*, *>
                     extractTextValue(delta?.get("content"))
                         .ifEmpty { extractTextValue(first["text"]) }
                 }
             }
-        }
-        val eventType = json["type"]?.toString()?.lowercase().orEmpty()
-        if (eventType == "response.output_text.delta") {
-            return extractTextValue(json["delta"])
         }
         return ""
     }
@@ -791,7 +899,8 @@ class HttpCompletionClient(
     }
 
     private fun parseUsageFromMap(json: Map<String, Any?>): Usage? {
-        val usage = json["usage"] as? Map<*, *> ?: return null
+        val respObj = json["response"] as? Map<*, *>
+        val usage = (respObj?.get("usage") as? Map<*, *>) ?: (json["usage"] as? Map<*, *>) ?: return null
         val input = ((usage["prompt_tokens"] ?: usage["input_tokens"]) as? Number)?.toInt()
         val output = ((usage["completion_tokens"] ?: usage["output_tokens"]) as? Number)?.toInt()
         if (input == null && output == null) return null
@@ -957,7 +1066,23 @@ class HttpCompletionClient(
             )
 
     companion object {
-        private val PROTECTED_BODY_KEYS = setOf("model", "prompt", "suffix", "messages", "stream")
+        private val PROTECTED_BODY_KEYS =
+            setOf("model", "prompt", "suffix", "messages", "input", "instructions", "stream")
+
+        private fun httpStatusFallbackMessage(status: Int): String =
+            when (status) {
+                400 -> "Bad Request"
+                401 -> "Unauthorized"
+                403 -> "Forbidden"
+                404 -> "Not Found"
+                405 -> "Method Not Allowed"
+                429 -> "Too Many Requests"
+                500 -> "Internal Server Error"
+                502 -> "Bad Gateway"
+                503 -> "Service Unavailable"
+                504 -> "Gateway Timeout"
+                else -> "HTTP $status (empty response body)"
+            }
 
         private val sharedDefaultClient: HttpClient by lazy { createDefaultHttpClient() }
 
@@ -1000,6 +1125,10 @@ class HttpCompletionClient(
                 WireFormat.CHAT_MESSAGES -> {
                     val custom = cfg.chatPath.trim()
                     if (custom.isNotEmpty()) custom else defaultOpenAiRelativePath(cfg.baseUrl, "/chat/completions")
+                }
+                WireFormat.RESPONSES_API -> {
+                    val custom = cfg.responsesPath.trim()
+                    if (custom.isNotEmpty()) custom else defaultOpenAiRelativePath(cfg.baseUrl, "/responses")
                 }
             }
 

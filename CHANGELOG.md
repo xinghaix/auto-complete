@@ -19,7 +19,7 @@
 - `[settings-ui]` Quick Service Presets (Ollama Local, DeepSeek Beta FIM, Mistral Codestral, vLLM / LM Studio), explicit **Save key** button, **Test connection** button, and 1-click **Apply recommended template** after **Try all templates**.
 - `[settings-ui]` Local Session Stats card (requests, cache hits, accepted, cancelled, failed, P50/P95 latency, debounce, backoff status — local-only, zero upload) and **Clear cache & reset backoff** button.
 - `[settings-ui]` Logs search filter, auto-scroll toggle, structured diagnostic fields, and host-bridged clipboard copy (`copyToClipboard`) with in-panel fallback modal.
-- `[both]` `CODELLAMA` FIM prompt template (`<PRE>/<SUF>/<MID>`), per-profile `extraBodyJson` and `stopSequences`, and mid-line streaming early-stop.
+- `[both]` `CODELLAMA` FIM prompt template (`<PRE>/<SUF>/<MID>`), native `RESPONSES` template for OpenAI `/v1/responses` (`instructions`, `input`, `max_output_tokens`, `store: false`, nested `extraBodyJson` such as `{"reasoning":{"effort":"none"}}`), per-profile `extraBodyJson` / `stopSequences` / `responsesPath`, and mid-line streaming early-stop.
 - `[both]` Status bar quick menus: JetBrains `JBPopupFactory` popup (profile switch, toggle, snooze presets, current-language toggle, Settings/Logs, clear cache & reset backoff) and VS Code `QuickPick` menu + force-refresh trigger.
 - `[vscode]` Enterprise HTTP proxy and `http.proxyStrictSSL` TLS support via built-in Node networking (`proxyFetch`).
 - `[ci]` Weekly `schedule` CI runs, `npm run typecheck:js` (`tsc` + `vue-tsc`), `:plugin:verifyPlugin` compatibility matrix job, ZIP integrity gates (`settings-ui`, zero `kotlin-stdlib`/`annotations`, non-placeholder `<change-notes>`), and cross-manifest release version alignment test.

@@ -71,6 +71,7 @@ class AutoCompleteSettingsService :
         var fimPath: String = "",
         var chatPath: String = "/chat/completions",
         var completionsPath: String = "",
+        var responsesPath: String = "",
         var requestStyle: String = RequestStyle.AUTO.name,
         var promptTemplate: String = PromptTemplate.AUTO.name,
         var temperature: Double = 0.0,
@@ -564,6 +565,7 @@ class AutoCompleteSettingsService :
                             fimPath = empty.fimPath,
                             chatPath = empty.chatPath,
                             completionsPath = empty.completionsPath,
+                            responsesPath = empty.responsesPath,
                             requestStyle = empty.requestStyle,
                             promptTemplate = empty.promptTemplate,
                             temperature = empty.temperature,
@@ -644,6 +646,7 @@ class AutoCompleteSettingsService :
             fimPath = snap.fimPath.trim(),
             chatPath = snap.chatPath.trim().ifBlank { "/chat/completions" },
             completionsPath = snap.completionsPath.trim(),
+            responsesPath = snap.responsesPath.trim(),
             requestStyle = parseRequestStyle(snap.requestStyle),
             promptTemplate = resolveTemplateFor(snap.promptTemplate, snap.requestStyle),
             temperature = snap.temperature,
@@ -671,6 +674,7 @@ class AutoCompleteSettingsService :
             fimPath = profile.fimPath.trim(),
             chatPath = profile.chatPath.trim().ifBlank { "/chat/completions" },
             completionsPath = profile.completionsPath.trim(),
+            responsesPath = profile.responsesPath.trim(),
             requestStyle = parseRequestStyle(profile.requestStyle),
             promptTemplate = resolveTemplateFor(profile.promptTemplate, profile.requestStyle),
             temperature = profile.temperature,
@@ -899,6 +903,7 @@ class AutoCompleteSettingsService :
         state.fimPath = profile.fimPath
         state.chatPath = profile.chatPath
         state.completionsPath = profile.completionsPath
+        state.responsesPath = profile.responsesPath
         state.requestStyle = profile.requestStyle
         state.promptTemplate = profile.promptTemplate
         state.temperature = profile.temperature
@@ -923,6 +928,7 @@ class AutoCompleteSettingsService :
         profile.fimPath = state.fimPath
         profile.chatPath = state.chatPath
         profile.completionsPath = state.completionsPath
+        profile.responsesPath = state.responsesPath
         profile.requestStyle = state.requestStyle
         profile.promptTemplate = state.promptTemplate
         profile.temperature = state.temperature

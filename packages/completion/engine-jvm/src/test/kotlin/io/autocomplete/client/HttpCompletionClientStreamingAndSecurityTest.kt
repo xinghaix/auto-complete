@@ -511,4 +511,78 @@ class HttpCompletionClientStreamingAndSecurityTest {
         assertEquals("/completions", HttpCompletionClient.resolvePath(PromptTemplate.QWEN, cfg))
         assertEquals("/chat/completions", HttpCompletionClient.resolvePath(PromptTemplate.CODESTRAL_API, cfg))
     }
+
+    @Test
+    fun responsesApiBlockingAndStreamingSupportNestedReasoningAndClean404() {
+        var capturedBody = ""
+        server.createContext("/v1/responses") { exchange ->
+            capturedBody = exchange.requestBody.readAllBytes().toString(StandardCharsets.UTF_8)
+            if (capturedBody.contains("\"stream\":true")) {
+                val sse =
+                    listOf(
+                        """data: {"type":"response.output_text.delta","delta":"return "}""",
+                        """data: {"type":"response.output_text.delta","delta":"a + b"}""",
+                        """data: {"type":"response.completed","response":{"status":"completed","usage":{"input_tokens":12,"output_tokens":4}}}""",
+                        "",
+                    ).joinToString("\n\n")
+                val bytes = sse.toByteArray(StandardCharsets.UTF_8)
+                exchange.responseHeaders.add("Content-Type", "text/event-stream")
+                exchange.sendResponseHeaders(200, bytes.size.toLong())
+                exchange.responseBody.use { it.write(bytes) }
+            } else {
+                val payload =
+                    """{"status":"completed","output":[{"type":"message","content":[{"type":"output_text","text":"return a + b"}]}],"usage":{"input_tokens":12,"output_tokens":4}}"""
+                val bytes = payload.toByteArray(StandardCharsets.UTF_8)
+                exchange.sendResponseHeaders(200, bytes.size.toLong())
+                exchange.responseBody.use { it.write(bytes) }
+            }
+        }
+        server.createContext("/v1/empty-404") { exchange ->
+            exchange.requestBody.readAllBytes()
+            exchange.sendResponseHeaders(404, -1)
+            exchange.close()
+        }
+
+        val baseCfg =
+            ProviderConfig(
+                kind = ProviderKind.OPENAI_COMPATIBLE,
+                baseUrl = "http://127.0.0.1:$port/v1",
+                apiKey = "",
+                model = "gpt-6-luna",
+                promptTemplate = PromptTemplate.RESPONSES,
+                extraBodyJson = """{"reasoning":{"effort":"none"},"input":"hijack","stop":["\n\n"]}""",
+                stopSequences = "###",
+                maxTokens = 256,
+                timeoutMs = 3000,
+            )
+
+        val blocking = HttpCompletionClient(baseCfg).probeTemplate(PromptTemplate.RESPONSES)
+        assertEquals(io.autocomplete.prompt.TemplateProbeStatus.SUCCESS, blocking.status)
+        assertEquals("return a + b", blocking.preview)
+        assertEquals("/responses", blocking.resolvedPath)
+        assertTrue(capturedBody.contains("\"instructions\""), "expected instructions: $capturedBody")
+        assertTrue(capturedBody.contains("\"max_output_tokens\":256"), "expected max_output_tokens: $capturedBody")
+        assertTrue(capturedBody.contains("\"store\":false"), "expected store=false: $capturedBody")
+        assertTrue(capturedBody.contains("\"effort\":\"none\""), "expected nested reasoning.effort=none: $capturedBody")
+        assertFalse(capturedBody.contains("\"hijack\""), "protected input key must not be overwritten: $capturedBody")
+        assertFalse(capturedBody.contains("\"stop\""), "Responses API must omit top-level stop: $capturedBody")
+        assertFalse(capturedBody.contains("\"temperature\""), "Responses API must omit default temperature=0: $capturedBody")
+
+        val streaming = HttpCompletionClient(baseCfg.copy(stream = true)).probeTemplate(PromptTemplate.RESPONSES)
+        assertEquals(io.autocomplete.prompt.TemplateProbeStatus.SUCCESS, streaming.status)
+        assertEquals("return a + b", streaming.preview)
+
+        val empty404 =
+            HttpCompletionClient(
+                baseCfg.copy(
+                    promptTemplate = PromptTemplate.CODESTRAL_API,
+                    fimPath = "/empty-404",
+                    stream = true,
+                ),
+            ).probeTemplate(PromptTemplate.CODESTRAL_API)
+        assertEquals(io.autocomplete.prompt.TemplateProbeStatus.FAILED, empty404.status)
+        assertEquals(404, empty404.httpStatus)
+        assertTrue(empty404.error.contains("Not Found"), "expected Not Found instead of stream failed: ${empty404.error}")
+        assertFalse(empty404.error.contains("stream failed"), "should not emit generic stream failed: ${empty404.error}")
+    }
 }

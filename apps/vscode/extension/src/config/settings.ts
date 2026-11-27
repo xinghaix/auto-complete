@@ -25,6 +25,7 @@ export type StoredProfile = {
   fimPath?: string;
   chatPath?: string;
   completionsPath?: string;
+  responsesPath?: string;
   requestStyle?: string;
   promptTemplate?: string;
   temperature?: number;
@@ -468,6 +469,7 @@ export async function saveProfiles(
       await updateConfigIfChanged(cfg, "fimPath", active.fimPath ?? "");
       await updateConfigIfChanged(cfg, "chatPath", active.chatPath ?? "/chat/completions");
       await updateConfigIfChanged(cfg, "completionsPath", active.completionsPath ?? "");
+      await updateConfigIfChanged(cfg, "responsesPath", active.responsesPath ?? "");
     } else {
       // Last profile deleted / empty profile list: clear mirrored profile keys cleanly.
       await updateConfigIfChanged(cfg, "baseUrl", "");
@@ -481,6 +483,7 @@ export async function saveProfiles(
       await updateConfigIfChanged(cfg, "fimPath", "");
       await updateConfigIfChanged(cfg, "chatPath", "");
       await updateConfigIfChanged(cfg, "completionsPath", "");
+      await updateConfigIfChanged(cfg, "responsesPath", "");
     }
   });
 }
@@ -531,6 +534,7 @@ export async function syncExternalConfigChanges(
     "fimPath",
     "chatPath",
     "completionsPath",
+    "responsesPath",
   ];
   const affectedProfileKeys = profileKeys.filter((k) =>
     event.affectsConfiguration(`autoComplete.${k}`),
@@ -597,6 +601,7 @@ export function profileToProviderConfig(profile: StoredProfile, apiKey: string):
     fimPath: profile.fimPath ?? "",
     chatPath: profile.chatPath ?? "/chat/completions",
     completionsPath: profile.completionsPath ?? "",
+    responsesPath: profile.responsesPath ?? "",
     requestStyle: "AUTO",
     promptTemplate: (profile.promptTemplate as PromptTemplateId) ?? "AUTO",
     temperature: profile.temperature ?? 0,
@@ -693,6 +698,7 @@ export async function buildEngineSettings(
         fimPath: "",
         chatPath: "/chat/completions",
         completionsPath: "",
+        responsesPath: "",
         requestStyle: "AUTO",
         promptTemplate: "AUTO",
         temperature: 0,
@@ -772,6 +778,7 @@ export async function toSnapshot(context: vscode.ExtensionContext) {
       fimPath: p.fimPath ?? "",
       chatPath: p.chatPath ?? "/chat/completions",
       completionsPath: p.completionsPath ?? "",
+      responsesPath: p.responsesPath ?? "",
       authHeaderTemplate: p.authHeaderTemplate ?? DEFAULT_AUTH_HEADER_TEMPLATE,
       extraHeadersJson: p.extraHeadersJson ?? "{}",
       extraBodyJson: p.extraBodyJson ?? "",
@@ -841,6 +848,7 @@ export async function createProfile(
     fimPath: preset?.fimPath ?? "",
     chatPath: preset?.chatPath ?? "/chat/completions",
     completionsPath: preset?.completionsPath ?? "",
+    responsesPath: "",
     promptTemplate: preset?.promptTemplate ?? "AUTO",
     temperature: 0,
     maxTokens: 128,

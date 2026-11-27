@@ -91,7 +91,8 @@
             "DEEPSEEK",
             "STARCODER",
             "CODELLAMA",
-            "CHAT"
+            "CHAT",
+            "RESPONSES"
           ],
           "default": "AUTO",
           "description": "Prompt template (AUTO detects from model name)"
@@ -239,6 +240,11 @@
         "autoComplete.completionsPath": {
           "type": "string",
           "default": ""
+        },
+        "autoComplete.responsesPath": {
+          "type": "string",
+          "default": "",
+          "description": "Override OpenAI Responses API path (empty = /responses)"
         }
       }
     }

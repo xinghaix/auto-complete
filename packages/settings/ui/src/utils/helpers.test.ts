@@ -251,11 +251,19 @@ describe("helpers (settings-ui)", () => {
     assert.ok(dedup.includes("(hint: FIM path override points to /chat/completions"));
 
     const rec = pickRecommendedTemplate([
-      { template: "CHAT", status: "SUCCESS", latencyMs: 320 },
+      { template: "CHAT", status: "SUCCESS", latencyMs: 320, preview: "return a + b" },
       { template: "QWEN", status: "EMPTY", latencyMs: 50 },
-      { template: "CODESTRAL_API", status: "SUCCESS", latencyMs: 120 },
+      { template: "CODESTRAL_API", status: "SUCCESS", latencyMs: 120, preview: "return a + b" },
     ]);
     assert.equal(rec?.template, "CODESTRAL_API");
+
+    const cleanOverFenced = pickRecommendedTemplate([
+      { template: "DEEPSEEK", status: "SUCCESS", latencyMs: 1400, preview: "```python return a + b ```" },
+      { template: "QWEN", status: "SUCCESS", latencyMs: 1200, preview: "def add(a, b): return a + b" },
+      { template: "RESPONSES", status: "SUCCESS", latencyMs: 1800, preview: "return a + b" },
+      { template: "CHAT", status: "SUCCESS", latencyMs: 2200, preview: "return a + b" },
+    ]);
+    assert.equal(cleanOverFenced?.template, "RESPONSES");
   });
 
   it("formatLogLine renders both message and error even when message is empty string", () => {

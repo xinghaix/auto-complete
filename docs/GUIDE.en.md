@@ -59,9 +59,10 @@ Exports remove API-key state, auth-header templates, and extra headers; imports 
 | `QWEN` / `DEEPSEEK` / `STARCODER` | Token-style FIM | `/completions` |
 | `CODELLAMA` | Native CodeLlama `<PRE>/<SUF>/<MID>` token FIM | `/completions` |
 | `CHAT` | Chat-only | `/chat/completions` |
+| `RESPONSES` | Native OpenAI Responses API (supports nested `extraBodyJson` e.g. `{"reasoning":{"effort":"none"}}`) | `/responses` |
 | `AUTO` | Infer from model name; else CHAT | auto |
 
-- Paths join Base URL (preserving URL query parameters); Advanced can override `fimPath` / `chatPath` / `completionsPath`.
+- Paths join Base URL (preserving URL query parameters); Advanced can override `fimPath` / `chatPath` / `completionsPath` / `responsesPath`.
 - Advanced also supports **`extraBodyJson`** (JSON object merged into completion request bodies for provider-specific options) and **`stopSequences`** (per-profile custom stop strings).
 - Defaults: ~128 tokens, temperature 0, 3s completion timeout; probes use ~15s.
 - **Streaming early-stop:** when streaming and `firstLineOnlyWhenMidLine` applies mid-line, the client stops as soon as the first non-empty line finishes (`\n`) to cut latency.

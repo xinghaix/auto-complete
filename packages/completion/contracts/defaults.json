@@ -18,6 +18,7 @@
       "fimPath": "",
       "chatPath": "/chat/completions",
       "completionsPath": "",
+      "responsesPath": "",
       "requestStyle": "AUTO",
       "promptTemplate": "AUTO",
       "temperature": 0,

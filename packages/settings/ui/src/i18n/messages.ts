@@ -62,6 +62,7 @@ export type MessageKey =
   | "fimPath"
   | "chatPath"
   | "completionsPath"
+  | "responsesPath"
   | "extraHeaders"
   | "extraBodyJson"
   | "stopSequences"
@@ -139,6 +140,7 @@ export type MessageKey =
   | "templateStarcoder"
   | "templateCodellama"
   | "templateChat"
+  | "templateResponses"
   | "failed"
   | "dismiss"
   | "exportFailed"
@@ -185,6 +187,7 @@ export type MessageKey =
   | "helpFimPath"
   | "helpChatPath"
   | "helpCompletionsPath"
+  | "helpResponsesPath"
   | "helpExtraHeaders"
   | "helpExtraBodyJson"
   | "helpStopSequences"
@@ -311,6 +314,7 @@ export const en: Messages = {
   fimPath: "FIM path override",
   chatPath: "Chat path",
   completionsPath: "Completions path",
+  responsesPath: "Responses path",
   extraHeaders: "Extra headers JSON (plaintext; not exported)",
   extraBodyJson: "Extra body JSON",
   stopSequences: "Stop sequences",
@@ -388,6 +392,7 @@ export const en: Messages = {
   templateStarcoder: "(fim) StarCoder",
   templateCodellama: "(fim) CodeLlama",
   templateChat: "(chat) Pseudo-FIM",
+  templateResponses: "(responses) OpenAI Responses",
   failed: "failed",
   dismiss: "Dismiss",
   exportFailed: "Export failed",
@@ -434,6 +439,7 @@ export const en: Messages = {
   helpFimPath: "Optional FIM path relative to Base URL. Leave empty to use the template default (often /fim/completions).",
   helpChatPath: "Chat completions path relative to Base URL. Default /chat/completions for OpenAI-compatible servers.",
   helpCompletionsPath: "Optional /completions path for token-style FIM (Qwen, DeepSeek, StarCoder). Leave empty for the template default.",
+  helpResponsesPath: "Optional OpenAI Responses API path (relative to Base URL). Leave empty for /responses. Supports extraBodyJson such as {\"reasoning\":{\"effort\":\"none\"}}.",
   helpExtraHeaders: "Extra non-sensitive request headers as a JSON object, e.g. {\"X-Custom\":\"value\"}. Must parse as a plain object, not an array.",
   helpExtraBodyJson: "Optional extra JSON object merged into completion request bodies (e.g. {\"top_p\": 0.9}). Protected keys like model/prompt/messages are never overwritten.",
   helpStopSequences: "Optional custom stop sequences (comma or newline separated) appended to the request stop list.",
@@ -562,6 +568,7 @@ export const zh: Messages = {
   fimPath: "FIM 路径覆盖",
   chatPath: "Chat 路径",
   completionsPath: "Completions 路径",
+  responsesPath: "Responses 路径",
   extraHeaders: "额外 Headers JSON（明文；不导出）",
   extraBodyJson: "额外请求体 JSON",
   stopSequences: "自定义停止词",
@@ -639,6 +646,7 @@ export const zh: Messages = {
   templateStarcoder: "(fim) StarCoder",
   templateCodellama: "(fim) CodeLlama",
   templateChat: "(chat) 伪 FIM",
+  templateResponses: "(responses) OpenAI Responses",
   failed: "失败",
   dismiss: "关闭",
   exportFailed: "导出失败",
@@ -685,6 +693,7 @@ export const zh: Messages = {
   helpFimPath: "相对 Base URL 的 FIM 路径覆盖。留空使用模板默认（常见 /fim/completions）。",
   helpChatPath: "Chat 补全路径（相对 Base URL）。OpenAI 兼容服务默认 /chat/completions。",
   helpCompletionsPath: "Token 式 FIM（Qwen / DeepSeek / StarCoder）的 /completions 路径。留空用模板默认。",
+  helpResponsesPath: "OpenAI Responses API 路径（相对 Base URL）。留空默认 /responses，可在「额外请求体 JSON」传 {\"reasoning\":{\"effort\":\"none\"}} 关闭思考。",
   helpExtraHeaders: "额外非敏感 HTTP 头，JSON 对象，如 {\"X-Custom\":\"value\"}。必须是对象，不能是数组。",
   helpExtraBodyJson: "可选的额外 JSON 对象，会合并进补全请求体（如 {\"top_p\": 0.9}）；不会覆盖 model/prompt/messages 等受保护字段。",
   helpStopSequences: "可选自定义停止词（逗号或换行分隔），会追加到请求的 stop 列表中。",
@@ -813,6 +822,7 @@ export const ja: Messages = {
   fimPath: "FIM パス上書き",
   chatPath: "Chat パス",
   completionsPath: "Completions パス",
+  responsesPath: "Responses パス",
   extraHeaders: "追加ヘッダー JSON（平文・エクスポート対象外）",
   extraBodyJson: "追加リクエスト本文 JSON",
   stopSequences: "カスタム停止シーケンス",
@@ -890,6 +900,7 @@ export const ja: Messages = {
   templateStarcoder: "(fim) StarCoder",
   templateCodellama: "(fim) CodeLlama",
   templateChat: "(chat) 疑似 FIM",
+  templateResponses: "(responses) OpenAI Responses",
   failed: "失敗",
   dismiss: "閉じる",
   exportFailed: "エクスポートに失敗しました",
@@ -936,6 +947,7 @@ export const ja: Messages = {
   helpFimPath: "Base URL 相対の FIM パス上書き。空ならテンプレ既定（多くは /fim/completions）。",
   helpChatPath: "Chat 補完パス。OpenAI 互換の既定は /chat/completions。",
   helpCompletionsPath: "トークン FIM（Qwen / DeepSeek / StarCoder）用 /completions パス。空で既定。",
+  helpResponsesPath: "OpenAI Responses API パス（Base URL 相対）。空で既定 /responses。追加本文 JSON で {\"reasoning\":{\"effort\":\"none\"}} などを指定できます。",
   helpExtraHeaders: "追加の非機密 HTTP ヘッダーの JSON オブジェクト。例: {\"X-Custom\":\"value\"}。配列は不可。",
   helpExtraBodyJson: "補完リクエスト本文にマージする追加 JSON オブジェクト（例: {\"top_p\": 0.9}）。model/prompt/messages などの保護キーは上書きされません。",
   helpStopSequences: "リクエストの stop に追加するカスタム停止シーケンス（カンマまたは改行区切り）。",
@@ -1064,6 +1076,7 @@ export const ko: Messages = {
   fimPath: "FIM 경로 재정의",
   chatPath: "Chat 경로",
   completionsPath: "Completions 경로",
+  responsesPath: "Responses 경로",
   extraHeaders: "추가 헤더 JSON(평문, 내보내지 않음)",
   extraBodyJson: "추가 요청 본문 JSON",
   stopSequences: "사용자 지정 중지 시퀀스",
@@ -1141,6 +1154,7 @@ export const ko: Messages = {
   templateStarcoder: "(fim) StarCoder",
   templateCodellama: "(fim) CodeLlama",
   templateChat: "(chat) 의사 FIM",
+  templateResponses: "(responses) OpenAI Responses",
   failed: "실패",
   dismiss: "닫기",
   exportFailed: "내보내기 실패",
@@ -1187,6 +1201,7 @@ export const ko: Messages = {
   helpFimPath: "Base URL 상대 FIM 경로 재정의. 비우면 템플릿 기본(대개 /fim/completions).",
   helpChatPath: "Chat 완성 경로. OpenAI 호환 기본 /chat/completions.",
   helpCompletionsPath: "토큰 FIM(Qwen/DeepSeek/StarCoder)용 /completions 경로. 비우면 기본.",
+  helpResponsesPath: "OpenAI Responses API 경로(Base URL 상대). 비우면 기본 /responses. 추가 요청 본문 JSON에 {\"reasoning\":{\"effort\":\"none\"}} 등을 지정할 수 있습니다.",
   helpExtraHeaders: "추가 비민감 HTTP 헤더 JSON 객체. 예: {\"X-Custom\":\"value\"}. 배열 불가.",
   helpExtraBodyJson: "완성 요청 본문에 병합할 선택적 JSON 객체(예: {\"top_p\": 0.9}). model/prompt/messages 등 보호 키는 덮어쓰지 않습니다.",
   helpStopSequences: "요청 stop 목록에 추가할 사용자 지정 중지 시퀀스(쉼표 또는 줄바꿈 구분).",

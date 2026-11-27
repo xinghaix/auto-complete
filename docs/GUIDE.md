@@ -59,9 +59,10 @@ API Key:   无鉴权则留空
 | `QWEN` / `DEEPSEEK` / `STARCODER` | 各类 token 式 FIM | `/completions` |
 | `CODELLAMA` | CodeLlama 原生 `<PRE>/<SUF>/<MID>` token 式 FIM | `/completions` |
 | `CHAT` | 仅 chat 的服务 | `/chat/completions` |
+| `RESPONSES` | OpenAI 原生 Responses API（支持 `extraBodyJson` 如 `{"reasoning":{"effort":"none"}}`） | `/responses` |
 | `AUTO` | 按模型名猜测，猜不到用 CHAT | 自动 |
 
-- 路径相对 Base URL 拼接（自动保留 URL query 参数）；高级展开里可自定义 `fimPath` / `chatPath` / `completionsPath`。
+- 路径相对 Base URL 拼接（自动保留 URL query 参数）；高级展开里可自定义 `fimPath` / `chatPath` / `completionsPath` / `responsesPath`。
 - 高级里还支持 **`extraBodyJson`**（合并进请求体的 JSON 对象，用于服务端特定采样参数）与 **`stopSequences`**（按配置追加自定义停止词）。
 - 默认约 128 token、温度 0、补全超时 3 秒、探测超时 15 秒。
 - **流式早停**：开启流式响应且处于行中（`firstLineOnlyWhenMidLine` 生效）时，收到首个非空行换行符即提前停止流并返回，显著降低行中补全延迟。

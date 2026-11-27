@@ -541,4 +541,82 @@ describe("listModels & probeTemplate", () => {
       "/completions",
     );
   });
+
+  it("supports native OpenAI RESPONSES template (blocking + SSE streaming + nested reasoning.effort + clean 404)", async () => {
+    let seenUrl = "";
+    let seenBody: Record<string, unknown> = {};
+    const fetchMock: typeof fetch = async (url, init) => {
+      seenUrl = String(url);
+      seenBody = JSON.parse(String(init?.body ?? "{}")) as Record<string, unknown>;
+      if (seenBody.stream) {
+        const sse = [
+          `data: ${JSON.stringify({ type: "response.output_text.delta", delta: "return " })}`,
+          `data: ${JSON.stringify({ type: "response.output_text.delta", delta: "a + b" })}`,
+          `data: ${JSON.stringify({ type: "response.completed", response: { status: "completed", usage: { input_tokens: 10, output_tokens: 4 } } })}`,
+          "",
+        ].join("\n\n");
+        return new Response(
+          new ReadableStream({
+            start(c) {
+              c.enqueue(new TextEncoder().encode(sse));
+              c.close();
+            },
+          }),
+          { status: 200, headers: { "Content-Type": "text/event-stream" } },
+        );
+      }
+      return new Response(
+        JSON.stringify({
+          status: "completed",
+          output: [{ type: "message", content: [{ type: "output_text", text: "return a + b" }] }],
+          usage: { input_tokens: 10, output_tokens: 4 },
+        }),
+        { status: 200 },
+      );
+    };
+
+    const cfg = makeConfig({
+      baseUrl: "http://127.0.0.1:8317/v1",
+      model: "gpt-6-luna",
+      promptTemplate: "RESPONSES",
+      maxTokens: 256,
+      temperature: 0,
+      extraBodyJson: JSON.stringify({ reasoning: { effort: "none" }, input: "hijack", stop: ["\n\n"] }),
+      stopSequences: "###",
+    });
+
+    const blocking = await new HttpCompletionClient(cfg, "template_probe", () => {}, fetchMock).probeTemplate(
+      "RESPONSES",
+    );
+    assert.equal(blocking.status, "SUCCESS");
+    assert.equal(blocking.preview, "return a + b");
+    assert.equal(seenUrl, "http://127.0.0.1:8317/v1/responses");
+    assert.equal(seenBody.max_output_tokens, 256);
+    assert.equal(seenBody.store, false);
+    assert.deepEqual(seenBody.reasoning, { effort: "none" });
+    assert.ok(typeof seenBody.instructions === "string" && seenBody.instructions.includes("<cursor>"));
+    assert.ok(typeof seenBody.input === "string" && !seenBody.input.includes("hijack"));
+    assert.equal(seenBody.stop, undefined);
+    assert.equal(seenBody.temperature, undefined);
+
+    const streaming = await new HttpCompletionClient(
+      { ...cfg, stream: true },
+      "template_probe",
+      () => {},
+      fetchMock,
+    ).probeTemplate("RESPONSES");
+    assert.equal(streaming.status, "SUCCESS");
+    assert.equal(streaming.preview, "return a + b");
+
+    const empty404Fetch: typeof fetch = async () => new Response("", { status: 404 });
+    const notFound = await new HttpCompletionClient(
+      { ...cfg, promptTemplate: "CODESTRAL_API", stream: true },
+      "template_probe",
+      () => {},
+      empty404Fetch,
+    ).probeTemplate("CODESTRAL_API");
+    assert.equal(notFound.status, "FAILED");
+    assert.equal(notFound.httpStatus, 404);
+    assert.match(notFound.error ?? "", /Not Found/);
+  });
 });

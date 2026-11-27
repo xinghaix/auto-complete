@@ -96,6 +96,16 @@
       "stopTokens": [],
       "tokenPrompt": null,
       "defaultPath": "/chat/completions"
+    },
+    {
+      "id": "RESPONSES",
+      "shortLabel": "(responses) OpenAI Responses",
+      "wireFormat": "RESPONSES_API",
+      "probe": true,
+      "stopTokens": [],
+      "tokenPrompt": null,
+      "defaultPath": "/responses",
+      "notes": "Native OpenAI Responses API (POST /responses with instructions, input, max_output_tokens, store=false). Supports nested extraBodyJson such as {\"reasoning\":{\"effort\":\"none\"}}."
     }
   ],
   "baseUrlHints": [
@@ -147,8 +157,8 @@
     }
   ],
   "defaultTemplate": "CHAT",
-  "chatSystemPrompt": "You are a code completion engine. Continue the code at the cursor. Output only the completion text, no markdown.",
-  "chatUserTemplate": "Complete the code at the cursor. Output only the completion text.\n<prefix>\n{prefix}\n</prefix>\n<suffix>\n{suffix}\n</suffix>\n",
+  "chatSystemPrompt": "You are a strict inline code completion engine. Output ONLY the exact raw code to insert at <cursor> between <prefix> and <suffix>. Never repeat text already in <prefix> or <suffix>. Never wrap output in markdown code fences, backticks, or quotes. Never add explanations, placeholder instructions, or conversational text. If no completion makes sense, output nothing.",
+  "chatUserTemplate": "Complete the code at <cursor>. Output only raw code to insert, nothing else.\n<prefix>{prefix}</prefix><cursor><suffix>{suffix}</suffix>",
   "probePrefix": "def add(a, b):\n    ",
   "probeSuffix": "\n"
 }

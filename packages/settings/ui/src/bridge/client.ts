@@ -487,6 +487,14 @@ async function mockHandle(msg: BridgeRequest): Promise<BridgeResponse> {
               resolvedPath: "/chat/completions",
               error: "mock: no backend",
             },
+            {
+              template: "RESPONSES",
+              status: "FAILED",
+              httpStatus: null,
+              latencyMs: 6,
+              resolvedPath: "/responses",
+              error: "mock: no backend",
+            },
           ] satisfies ProbeResult[],
         },
       };

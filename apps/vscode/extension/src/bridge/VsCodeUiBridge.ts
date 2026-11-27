@@ -628,6 +628,10 @@ export class VsCodeUiBridge {
             typeof raw.completionsPath === "string"
               ? raw.completionsPath
               : (prev?.completionsPath ?? ""),
+          responsesPath:
+            typeof raw.responsesPath === "string"
+              ? raw.responsesPath
+              : (prev?.responsesPath ?? ""),
           promptTemplate:
             typeof raw.promptTemplate === "string"
               ? raw.promptTemplate
@@ -770,6 +774,7 @@ export class VsCodeUiBridge {
           fimPath: typeof raw.fimPath === "string" ? raw.fimPath : "",
           chatPath: typeof raw.chatPath === "string" ? raw.chatPath : "/chat/completions",
           completionsPath: typeof raw.completionsPath === "string" ? raw.completionsPath : "",
+          responsesPath: typeof raw.responsesPath === "string" ? raw.responsesPath : "",
           promptTemplate: typeof raw.promptTemplate === "string" ? raw.promptTemplate : "AUTO",
           temperature:
             typeof raw.temperature === "number" && Number.isFinite(raw.temperature)

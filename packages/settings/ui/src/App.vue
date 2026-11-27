@@ -317,6 +317,7 @@ const templateOptions = computed(() => [
   { value: "STARCODER", label: tr("templateStarcoder") },
   { value: "CODELLAMA", label: tr("templateCodellama") },
   { value: "CHAT", label: tr("templateChat") },
+  { value: "RESPONSES", label: tr("templateResponses") },
 ]);
 
 const themeOptions = computed(() => [
@@ -1655,7 +1656,7 @@ function compactLogTime(raw?: string): string {
               :help="tr('helpApiKey')"
               input-id="field-api-key"
             >
-              <div class="hstack">
+              <div class="key-input-row">
                 <input
                   id="field-api-key"
                   v-model="apiKey"
@@ -1673,12 +1674,14 @@ function compactLogTime(raw?: string): string {
                 >
                   {{ savingKey ? tr("savingKey") : tr("saveKey") }}
                 </button>
+              </div>
+              <div class="key-meta-row">
                 <span class="pill" :class="{ on: form.hasApiKey }">
                   {{ form.hasApiKey ? tr("keyConfigured") : tr("keyMissing") }}
                 </span>
                 <button
                   type="button"
-                  class="btn btn-ghost"
+                  class="btn btn-ghost btn-sm"
                   :disabled="!activeId"
                   @click="void onClearKey()"
                 >
@@ -1957,6 +1960,22 @@ function compactLogTime(raw?: string): string {
                   spellcheck="false"
                   @input="
                     patchForm({ completionsPath: ($event.target as HTMLInputElement).value })
+                  "
+                />
+              </PropertyRow>
+              <PropertyRow
+                :label="tr('responsesPath')"
+                :help="tr('helpResponsesPath')"
+                input-id="field-responses-path"
+              >
+                <input
+                  id="field-responses-path"
+                  type="text"
+                  :value="form.responsesPath ?? ''"
+                  placeholder="/responses"
+                  spellcheck="false"
+                  @input="
+                    patchForm({ responsesPath: ($event.target as HTMLInputElement).value })
                   "
                 />
               </PropertyRow>

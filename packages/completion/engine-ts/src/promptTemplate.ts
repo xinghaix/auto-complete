@@ -70,6 +70,12 @@ const META: Record<Exclude<PromptTemplateId, "AUTO">, TemplateMeta> = {
     wireFormat: "CHAT_MESSAGES",
     stopTokens: [],
   },
+  RESPONSES: {
+    id: "RESPONSES",
+    shortLabel: "(responses) OpenAI Responses",
+    wireFormat: "RESPONSES_API",
+    stopTokens: [],
+  },
 };
 
 export function fromStored(value: string | null | undefined): PromptTemplateId {
@@ -114,7 +120,7 @@ export function formatTokenPrompt(t: PromptTemplateId, prefix: string, suffix: s
 }
 
 export function probeCandidates(): PromptTemplateId[] {
-  return ["CODESTRAL_API", "QWEN", "DEEPSEEK", "STARCODER", "CODELLAMA", "CHAT"];
+  return ["CODESTRAL_API", "QWEN", "DEEPSEEK", "STARCODER", "CODELLAMA", "CHAT", "RESPONSES"];
 }
 
 export function fromLegacyRequestStyle(requestStyle: string | null | undefined): PromptTemplateId {

@@ -420,11 +420,25 @@ export function formatProbeLine(p: ProbeResult, fallbackTemplate?: string): stri
   return parts.join(" ");
 }
 
-/** Pick the fastest successful concrete template from probeAllTemplates results. */
+function isNoisyProbePreview(preview: string | undefined): boolean {
+  const s = (preview ?? "").trim();
+  if (!s) return false;
+  if (s.includes("```")) return true;
+  if (/^\s*def\s+add\s*\(/i.test(s)) return true;
+  return false;
+}
+
+/**
+ * Pick the best successful concrete template from probeAllTemplates results.
+ * Prefers clean completions (no markdown fences or repeated probe prefix) over noisy ones,
+ * then picks the lowest latency within the winning tier.
+ */
 export function pickRecommendedTemplate(results: ProbeResult[]): ProbeResult | null {
   const ok = results.filter((r) => r.status === "SUCCESS" && Boolean(r.template?.trim()));
   if (ok.length === 0) return null;
-  return ok.reduce((best, cur) => {
+  const clean = ok.filter((r) => !isNoisyProbePreview(r.preview));
+  const pool = clean.length > 0 ? clean : ok;
+  return pool.reduce((best, cur) => {
     const bestMs = typeof best.latencyMs === "number" ? best.latencyMs : Number.POSITIVE_INFINITY;
     const curMs = typeof cur.latencyMs === "number" ? cur.latencyMs : Number.POSITIVE_INFINITY;
     return curMs < bestMs ? cur : best;

@@ -506,6 +506,7 @@ class JbUiBridge(
                         str("fimPath")?.let { fimPath = it }
                         str("chatPath")?.let { chatPath = it }
                         str("completionsPath")?.let { completionsPath = it }
+                        str("responsesPath")?.let { responsesPath = it }
                         str("authHeaderTemplate")?.let { authHeaderTemplate = it }
                         str("extraHeadersJson")?.let { extraHeadersJson = it }
                         str("extraBodyJson")?.let { extraBodyJson = it }
@@ -541,6 +542,7 @@ class JbUiBridge(
                 candidate.fimPath = ap.fimPath
                 candidate.chatPath = ap.chatPath
                 candidate.completionsPath = ap.completionsPath
+                candidate.responsesPath = ap.responsesPath
                 candidate.authHeaderTemplate = ap.authHeaderTemplate
                 candidate.extraHeadersJson = ap.extraHeadersJson
                 candidate.extraBodyJson = ap.extraBodyJson
@@ -561,6 +563,7 @@ class JbUiBridge(
                 candidate.fimPath = empty.fimPath
                 candidate.chatPath = empty.chatPath
                 candidate.completionsPath = empty.completionsPath
+                candidate.responsesPath = empty.responsesPath
                 candidate.overrideContextBudget = false
                 candidate.profileMaxPrefixChars = empty.maxPrefixChars
                 candidate.profileMaxSuffixChars = empty.maxSuffixChars
@@ -617,6 +620,7 @@ class JbUiBridge(
                 fimPath = candidate.fimPath
                 chatPath = candidate.chatPath
                 completionsPath = candidate.completionsPath
+                responsesPath = candidate.responsesPath
                 authHeaderTemplate = candidate.authHeaderTemplate
                 extraHeadersJson = candidate.extraHeadersJson
                 extraBodyJson = candidate.extraBodyJson
@@ -713,6 +717,7 @@ class JbUiBridge(
                     "fimPath" to p.fimPath,
                     "chatPath" to p.chatPath,
                     "completionsPath" to p.completionsPath,
+                    "responsesPath" to p.responsesPath,
                     "authHeaderTemplate" to p.authHeaderTemplate,
                     "extraHeadersJson" to p.extraHeadersJson,
                     "extraBodyJson" to p.extraBodyJson,

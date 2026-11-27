@@ -589,6 +589,31 @@ textarea::-webkit-scrollbar-thumb:hover {
   flex: 0 0 auto;
 }
 
+.key-input-row {
+  display: flex;
+  flex-wrap: nowrap;
+  gap: 6px;
+  align-items: center;
+}
+
+.key-input-row > input {
+  flex: 1 1 120px;
+  min-width: 0;
+}
+
+.key-input-row > button {
+  flex: 0 0 auto;
+  white-space: nowrap;
+}
+
+.key-meta-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  align-items: center;
+  margin-top: 2px;
+}
+
 /* checkbox lines */
 .check {
   display: flex;

@@ -15,6 +15,9 @@ enum class WireFormat {
 
     /** OpenAI chat style: `messages` array. */
     CHAT_MESSAGES,
+
+    /** Native OpenAI Responses API: `instructions` + `input` + `max_output_tokens` on `/responses`. */
+    RESPONSES_API,
 }
 
 /**
@@ -30,6 +33,7 @@ enum class PromptTemplate {
     STARCODER,
     CODELLAMA,
     CHAT,
+    RESPONSES,
     ;
 
     fun isAuto(): Boolean = this == AUTO
@@ -40,6 +44,7 @@ enum class PromptTemplate {
             CODESTRAL_API -> WireFormat.FIM_FIELDS
             QWEN, DEEPSEEK, STARCODER, CODELLAMA -> WireFormat.COMPLETION_PROMPT
             CHAT -> WireFormat.CHAT_MESSAGES
+            RESPONSES -> WireFormat.RESPONSES_API
         }
 
     /** Stable short label for logs / defaults (English). */
@@ -52,6 +57,7 @@ enum class PromptTemplate {
             STARCODER -> "(fim) StarCoder"
             CODELLAMA -> "(fim) CodeLlama"
             CHAT -> "(chat) Pseudo-FIM"
+            RESPONSES -> "(responses) OpenAI Responses"
         }
 
     fun stopTokens(): List<String> =
@@ -110,7 +116,7 @@ enum class PromptTemplate {
             DEEPSEEK -> "<｜fim▁begin｜>$prefix<｜fim▁hole｜>$suffix<｜fim▁end｜>"
             STARCODER -> "<fim_prefix>$prefix<fim_suffix>$suffix<fim_middle>"
             CODELLAMA -> "<PRE>$prefix<SUF>$suffix<MID>"
-            AUTO, CODESTRAL_API, CHAT -> prefix
+            AUTO, CODESTRAL_API, CHAT, RESPONSES -> prefix
         }
 
     companion object {
@@ -121,7 +127,7 @@ enum class PromptTemplate {
 
         /** Concrete templates users can probe (excludes AUTO). */
         fun probeCandidates(): List<PromptTemplate> =
-            listOf(CODESTRAL_API, QWEN, DEEPSEEK, STARCODER, CODELLAMA, CHAT)
+            listOf(CODESTRAL_API, QWEN, DEEPSEEK, STARCODER, CODELLAMA, CHAT, RESPONSES)
 
         /**
          * Migrate legacy requestStyle setting into a template when promptTemplate is absent.
