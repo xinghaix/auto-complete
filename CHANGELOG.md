@@ -2,6 +2,8 @@
 
 ## [Unreleased]
 
+## [0.2.5] - 2026-11-27
+
 ### Security
 
 - `[both]` Prevent plaintext credential leakage through `authHeaderTemplate`: fix the UI placeholder to `Authorization: Bearer ${apiKey}`, require `${apiKey}` in server/UI validation, stop mirroring `authHeaderTemplate` and `extraHeadersJson` to VS Code `settings.json` (Settings Sync), and disable cloud roaming (`RoamingType.DISABLED`) on JetBrains `autoCompleteSettings.xml`.
