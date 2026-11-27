@@ -237,6 +237,19 @@ describe("helpers (settings-ui)", () => {
     assert.ok(line.includes("/fim/completions"));
     assert.ok(line.includes("empty response"));
 
+    const dedup = formatProbeLine({
+      template: "CODESTRAL_API",
+      status: "FAILED",
+      httpStatus: 400,
+      latencyMs: 668,
+      resolvedUrl: "http://127.0.0.1:8317/v1/chat/completions",
+      error:
+        'POST http://127.0.0.1:8317/v1/chat/completions -> HTTP 400: {"error":{"message":"Missing required parameter: \'input\'.","type":"invalid_request_error"}} (hint: FIM path override points to /chat/completions; clear FIM path or use CHAT template)',
+    });
+    assert.equal(dedup.split("http://127.0.0.1:8317/v1/chat/completions").length - 1, 1);
+    assert.ok(dedup.includes("Missing required parameter: 'input'."));
+    assert.ok(dedup.includes("(hint: FIM path override points to /chat/completions"));
+
     const rec = pickRecommendedTemplate([
       { template: "CHAT", status: "SUCCESS", latencyMs: 320 },
       { template: "QWEN", status: "EMPTY", latencyMs: 50 },

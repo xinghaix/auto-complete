@@ -129,6 +129,7 @@ export interface ProviderResponse {
   text: string;
   usage?: Usage | null;
   rawStatus?: number | null;
+  emptyReason?: string | null;
 }
 
 export interface EngineSettings {

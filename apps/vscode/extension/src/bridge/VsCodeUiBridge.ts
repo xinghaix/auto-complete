@@ -895,12 +895,14 @@ export class VsCodeUiBridge {
     const started = Date.now();
     try {
       const resp = await client.testConnection();
+      const isEmpty = !resp.text.trim();
       return {
         template,
-        status: resp.text.trim() ? "SUCCESS" : "EMPTY",
+        status: isEmpty ? "EMPTY" : "SUCCESS",
         httpStatus: resp.rawStatus ?? null,
         latencyMs: Date.now() - started,
         preview: resp.text.replace(/\n/g, " ").trim().slice(0, 80),
+        error: isEmpty ? (resp.emptyReason || "empty completion") : undefined,
         resolvedPath,
         resolvedUrl,
       };

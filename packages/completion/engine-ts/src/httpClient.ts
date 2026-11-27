@@ -166,8 +166,9 @@ export class HttpCompletionClient implements CompletionClient {
       const raw = await res.text();
       const parsedText = parseText(wire, raw);
       const usage = parseUsage(raw);
-      this.emitSuccess(safeUrl, template, started, res.status, raw.length, parsedText.length);
-      return { text: parsedText, usage, rawStatus: res.status };
+      const emptyReason = parsedText.trim() ? null : diagnoseEmptyResponse(raw);
+      this.emitSuccess(safeUrl, template, started, res.status, raw.length, parsedText.length, emptyReason);
+      return { text: parsedText, usage, rawStatus: res.status, emptyReason };
     } catch (e) {
       if (timedOut) {
         const detail = `timed out after ${hardTimeout}ms`;
@@ -224,7 +225,7 @@ export class HttpCompletionClient implements CompletionClient {
           preview,
           resolvedPath: path,
           resolvedUrl,
-          error: "empty completion",
+          error: resp.emptyReason || "empty completion",
         };
       }
       return {
@@ -238,15 +239,20 @@ export class HttpCompletionClient implements CompletionClient {
       };
     } catch (e) {
       const status = e instanceof HttpStatusError ? e.status : null;
+      const hint =
+        wireFormat(concrete) !== "CHAT_MESSAGES" && isChatEndpointPath(path)
+          ? " (hint: FIM path override points to /chat/completions; clear FIM path or use CHAT template)"
+          : "";
       return {
         template: concrete,
         status: "FAILED",
         httpStatus: status,
         latencyMs: Date.now() - started,
-        error: redactSecrets(
-          e instanceof Error ? e.message || e.name : String(e),
-          this.config.apiKey,
-        ),
+        error:
+          redactSecrets(
+            e instanceof Error ? e.message || e.name : String(e),
+            this.config.apiKey,
+          ) + hint,
         resolvedPath: path,
         resolvedUrl,
       };
@@ -362,9 +368,9 @@ export class HttpCompletionClient implements CompletionClient {
       model: this.config.model,
       prefix: "def add(a, b):\n    ",
       suffix: "\n",
-      maxTokens: Math.min(this.config.maxTokens ?? 128, 16),
+      maxTokens: clamp(this.config.maxTokens ?? 128, 16, 1024),
       temperature: 0,
-      stream: false,
+      stream: Boolean(this.config.stream),
     };
   }
 
@@ -482,7 +488,9 @@ export class HttpCompletionClient implements CompletionClient {
     status: number,
     rawResponseChars: number | null,
     completionChars: number,
+    emptyReason?: string | null,
   ): void {
+    const reasonSuffix = emptyReason ? ` detail=${emptyReason}` : "";
     this.emitLog({
       level: "INFO",
       operation: this.operation,
@@ -493,7 +501,7 @@ export class HttpCompletionClient implements CompletionClient {
       status,
       latencyMs: Date.now() - started,
       responseChars: rawResponseChars,
-      message: `request succeeded completionChars=${completionChars} template=${shortLabel(template)}`,
+      message: `request succeeded completionChars=${completionChars} template=${shortLabel(template)}${reasonSuffix}`,
     });
   }
 
@@ -645,6 +653,11 @@ export function resolveUrl(template: PromptTemplateId, cfg: ProviderConfig): str
   return joinUrl(cfg.baseUrl, pathFor(template, cfg));
 }
 
+export function isChatEndpointPath(path: string): boolean {
+  const clean = path.trim().split("?")[0].replace(/\/+$/, "").toLowerCase();
+  return clean === "/chat/completions" || clean.endsWith("/chat/completions");
+}
+
 export function pathFor(template: PromptTemplateId, cfg: ProviderConfig): string {
   switch (wireFormat(template)) {
     case "FIM_FIELDS": {
@@ -655,12 +668,13 @@ export function pathFor(template: PromptTemplateId, cfg: ProviderConfig): string
       }
       return defaultOpenAiRelativePath(cfg.baseUrl, "/fim/completions");
     }
-    case "COMPLETION_PROMPT":
-      return (
-        cfg.completionsPath?.trim() ||
-        cfg.fimPath?.trim() ||
-        defaultOpenAiRelativePath(cfg.baseUrl, "/completions")
-      );
+    case "COMPLETION_PROMPT": {
+      const customComp = cfg.completionsPath?.trim();
+      if (customComp) return customComp;
+      const customFim = cfg.fimPath?.trim();
+      if (customFim && !isChatEndpointPath(customFim)) return customFim;
+      return defaultOpenAiRelativePath(cfg.baseUrl, "/completions");
+    }
     case "CHAT_MESSAGES": {
       const custom = cfg.chatPath?.trim();
       return custom || defaultOpenAiRelativePath(cfg.baseUrl, "/chat/completions");
@@ -790,6 +804,92 @@ export function bodyFor(
   return JSON.stringify(body);
 }
 
+function extractTextValue(raw: unknown): string {
+  if (typeof raw === "string") return raw;
+  if (Array.isArray(raw)) {
+    let out = "";
+    for (const part of raw) {
+      if (typeof part === "string") {
+        out += part;
+      } else if (part && typeof part === "object" && !Array.isArray(part)) {
+        const obj = part as Record<string, unknown>;
+        const type = typeof obj.type === "string" ? obj.type.toLowerCase() : "";
+        if (type && type !== "text" && type !== "output_text" && type !== "input_text") {
+          continue;
+        }
+        if (typeof obj.text === "string" && obj.text.length > 0) {
+          out += obj.text;
+        }
+      }
+    }
+    return out;
+  }
+  return "";
+}
+
+function extractResponsesApiText(json: Record<string, unknown>): string {
+  const direct = extractTextValue(json.output_text);
+  if (direct.length > 0) return direct;
+  if (!Array.isArray(json.output)) return "";
+  let out = "";
+  for (const item of json.output) {
+    if (!item || typeof item !== "object" || Array.isArray(item)) continue;
+    const obj = item as Record<string, unknown>;
+    const type = typeof obj.type === "string" ? obj.type.toLowerCase() : "";
+    if (type === "reasoning") continue;
+    const piece = extractTextValue(obj.content) || extractTextValue(obj.text);
+    if (piece.length > 0) out += piece;
+  }
+  return out;
+}
+
+export function diagnoseEmptyResponse(body: string): string {
+  let json: Record<string, unknown>;
+  try {
+    const parsed: unknown = JSON.parse(body);
+    if (!parsed || typeof parsed !== "object" || Array.isArray(parsed)) {
+      return "empty completion";
+    }
+    json = parsed as Record<string, unknown>;
+  } catch {
+    return "empty completion";
+  }
+  const choices = json.choices as unknown[] | undefined;
+  const first = (choices?.[0] ?? null) as Record<string, unknown> | null;
+  const msg = (first?.message ?? null) as Record<string, unknown> | null;
+  const refusal = typeof msg?.refusal === "string" ? msg.refusal.trim() : "";
+  if (refusal) {
+    return `empty completion (refusal: ${refusal.slice(0, 120)})`;
+  }
+  const incomplete = json.incomplete_details as Record<string, unknown> | undefined;
+  const finishReason =
+    (typeof first?.finish_reason === "string" && first.finish_reason.trim()) ||
+    (typeof incomplete?.reason === "string" && incomplete.reason.trim()) ||
+    (json.status === "incomplete" ? "incomplete" : "");
+  const hasReasoningText = [msg?.reasoning_content, msg?.reasoning, first?.reasoning].some(
+    (v) => typeof v === "string" && v.trim().length > 0,
+  );
+  const usage = json.usage as Record<string, unknown> | undefined;
+  const details = (usage?.completion_tokens_details ?? usage?.output_tokens_details) as
+    | Record<string, unknown>
+    | undefined;
+  const reasoningTokens = numberOrNull(details?.reasoning_tokens) ?? 0;
+  if (hasReasoningText || reasoningTokens > 0) {
+    const meta: string[] = [];
+    if (finishReason) meta.push(`finish_reason=${finishReason}`);
+    if (reasoningTokens > 0) meta.push(`reasoning_tokens=${reasoningTokens}`);
+    const prefix = meta.length > 0 ? `${meta.join(", ")}; ` : "";
+    return `empty completion (${prefix}reasoning consumed output budget — increase maxTokens or set reasoning_effort in extraBodyJson)`;
+  }
+  if (finishReason === "length") {
+    return "empty completion (finish_reason=length — increase maxTokens)";
+  }
+  if (finishReason && finishReason !== "stop") {
+    return `empty completion (finish_reason=${finishReason})`;
+  }
+  return "empty completion";
+}
+
 export function parseText(wire: WireFormat, body: string): string {
   let json: Record<string, unknown>;
   try {
@@ -801,32 +901,35 @@ export function parseText(wire: WireFormat, body: string): string {
   }
   const choices = json.choices as unknown[] | undefined;
   const first = (choices?.[0] ?? null) as Record<string, unknown> | null;
+  let extracted = "";
   if (wire === "CHAT_MESSAGES") {
     const msg = first?.message as Record<string, unknown> | undefined;
-    if (typeof msg?.content === "string" && msg.content.length > 0) return msg.content;
-    if (typeof first?.text === "string" && first.text.length > 0) return first.text;
-    return "";
+    extracted = extractTextValue(msg?.content) || extractTextValue(first?.text);
+  } else {
+    extracted =
+      extractTextValue(first?.text) ||
+      extractTextValue((first?.message as Record<string, unknown> | undefined)?.content) ||
+      extractTextValue(json.text);
   }
-  if (typeof first?.text === "string" && first.text.length > 0) return first.text;
-  const msg = first?.message as Record<string, unknown> | undefined;
-  if (typeof msg?.content === "string" && msg.content.length > 0) return msg.content;
-  if (typeof json.text === "string" && json.text.length > 0) return json.text;
-  return "";
+  if (extracted.length > 0) return extracted;
+  return extractResponsesApiText(json);
 }
 
 function parseStreamDeltaObj(wire: WireFormat, json: Record<string, unknown>): string {
   const choices = json.choices as unknown[] | undefined;
   const first = (choices?.[0] ?? null) as Record<string, unknown> | null;
-  if (!first) return "";
-  if (wire === "CHAT_MESSAGES") {
+  if (first) {
+    if (wire === "CHAT_MESSAGES") {
+      const delta = first.delta as Record<string, unknown> | undefined;
+      return extractTextValue(delta?.content) || extractTextValue(first.text);
+    }
     const delta = first.delta as Record<string, unknown> | undefined;
-    if (typeof delta?.content === "string" && delta.content.length > 0) return delta.content;
-    if (typeof first.text === "string" && first.text.length > 0) return first.text;
-    return "";
+    return extractTextValue(first.text) || extractTextValue(delta?.content);
   }
-  if (typeof first.text === "string" && first.text.length > 0) return first.text;
-  const delta = first.delta as Record<string, unknown> | undefined;
-  if (typeof delta?.content === "string" && delta.content.length > 0) return delta.content;
+  const eventType = typeof json.type === "string" ? json.type.toLowerCase() : "";
+  if (eventType === "response.output_text.delta") {
+    return extractTextValue(json.delta);
+  }
   return "";
 }
 

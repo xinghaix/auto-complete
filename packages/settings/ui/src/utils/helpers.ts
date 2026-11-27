@@ -366,6 +366,39 @@ export function formatContextLength(tokens?: number | null): string {
   return String(Math.round(tokens));
 }
 
+/** Strip redundant `POST <url> -> HTTP <status>:` prefix and extract concise JSON error.message. */
+export function cleanProbeError(rawError: string, resolvedUrl?: string): string {
+  let msg = rawError.trim();
+  if (!msg) return "";
+  // Strip duplicated transport prefix when URL/status are already rendered in the probe line.
+  msg = msg.replace(/^(?:POST|GET)\s+\S+\s*(?:->\s*HTTP\s+\d+\s*:|failed\s*:)\s*/i, "").trim();
+  if (resolvedUrl && msg.startsWith(resolvedUrl)) {
+    msg = msg.slice(resolvedUrl.length).replace(/^[\s:>-]+/, "").trim();
+  }
+  // Preserve any trailing diagnostic hint appended outside the JSON object.
+  const hintMatch = msg.match(/\s*(\(hint:[^)]*\))$/i);
+  const trailingHint = hintMatch ? ` ${hintMatch[1]}` : "";
+  const bodyPart = hintMatch ? msg.slice(0, msg.length - hintMatch[0].length).trim() : msg;
+  if (bodyPart.startsWith("{") && bodyPart.endsWith("}")) {
+    try {
+      const parsed = JSON.parse(bodyPart) as Record<string, unknown>;
+      const errObj =
+        parsed.error && typeof parsed.error === "object" && !Array.isArray(parsed.error)
+          ? (parsed.error as Record<string, unknown>)
+          : null;
+      const errMsg =
+        (typeof errObj?.message === "string" && errObj.message.trim()) ||
+        (typeof parsed.message === "string" && parsed.message.trim()) ||
+        (typeof parsed.error === "string" && parsed.error.trim()) ||
+        "";
+      if (errMsg) return `${errMsg}${trailingHint}`;
+    } catch {
+      /* keep original text */
+    }
+  }
+  return msg;
+}
+
 /** Format a single probe result with status, HTTP status, latency, path/URL, and preview/error. */
 export function formatProbeLine(p: ProbeResult, fallbackTemplate?: string): string {
   const parts: string[] = [];
@@ -380,7 +413,9 @@ export function formatProbeLine(p: ProbeResult, fallbackTemplate?: string): stri
   }
   const target = p.resolvedUrl?.trim() || p.resolvedPath?.trim();
   if (target) parts.push(target);
-  const msg = p.preview?.trim() || p.error?.trim();
+  const preview = p.preview?.trim();
+  const err = p.error?.trim() ? cleanProbeError(p.error, p.resolvedUrl) : "";
+  const msg = preview || err;
   if (msg) parts.push(`— ${msg}`);
   return parts.join(" ");
 }

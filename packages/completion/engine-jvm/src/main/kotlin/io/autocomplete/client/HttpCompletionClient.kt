@@ -44,6 +44,7 @@ data class ProviderResponse(
     val text: String,
     val usage: Usage? = null,
     val rawStatus: Int? = null,
+    val emptyReason: String? = null,
 )
 
 data class RemoteModel(
@@ -258,7 +259,7 @@ class HttpCompletionClient(
                     preview = preview,
                     resolvedPath = path,
                     resolvedUrl = safeUrl,
-                    error = "empty completion",
+                    error = resp.emptyReason ?: "empty completion",
                 )
             } else {
                 TemplateProbeResult(
@@ -274,12 +275,18 @@ class HttpCompletionClient(
         } catch (e: Exception) {
             val status = (e as? HttpStatusException)?.status
             val rawErr = e.message.orEmpty().ifBlank { e.javaClass.simpleName }
+            val hint =
+                if (concrete.wireFormat() != WireFormat.CHAT_MESSAGES && isChatEndpointPath(path)) {
+                    " (hint: FIM path override points to /chat/completions; clear FIM path or use CHAT template)"
+                } else {
+                    ""
+                }
             TemplateProbeResult(
                 template = concrete,
                 status = TemplateProbeStatus.FAILED,
                 httpStatus = status,
                 latencyMs = System.currentTimeMillis() - started,
-                error = SecretRedactor.redactText(rawErr, config.apiKey),
+                error = SecretRedactor.redactText(rawErr, config.apiKey) + hint,
                 resolvedPath = path,
                 resolvedUrl = safeUrl,
             )
@@ -295,9 +302,9 @@ class HttpCompletionClient(
             model = config.model,
             prefix = "def add(a, b):\n    ",
             suffix = "\n",
-            maxTokens = minOf(config.maxTokens, 16),
+            maxTokens = config.maxTokens.coerceIn(16, 1024),
             temperature = 0.0,
-            stream = false,
+            stream = config.stream,
         )
 
     fun listModels(): List<RemoteModel> {
@@ -424,8 +431,9 @@ class HttpCompletionClient(
         }
         val text = parseText(wire, response.body())
         val usage = parseUsage(response.body())
-        emitSuccess(request.method(), safeUrl, template, started, status, response.body().length, text.length)
-        return ProviderResponse(text = text, usage = usage, rawStatus = status)
+        val emptyReason = if (text.isBlank()) diagnoseEmptyResponse(response.body()) else null
+        emitSuccess(request.method(), safeUrl, template, started, status, response.body().length, text.length, emptyReason)
+        return ProviderResponse(text = text, usage = usage, rawStatus = status, emptyReason = emptyReason)
     }
 
     private fun completeStreaming(
@@ -640,19 +648,104 @@ class HttpCompletionClient(
         val json = runCatching { Json.parseObject(body) }.getOrNull() ?: return ""
         val choices = json["choices"] as? List<*>
         val first = choices?.firstOrNull() as? Map<*, *>
-        return when (wire) {
-            WireFormat.FIM_FIELDS, WireFormat.COMPLETION_PROMPT -> {
-                first?.get("text")?.toString().orEmpty()
-                    .ifEmpty {
-                        val msg = first?.get("message") as? Map<*, *>
-                        msg?.get("content")?.toString().orEmpty()
-                    }.ifEmpty { json["text"]?.toString().orEmpty() }
+        val extracted =
+            when (wire) {
+                WireFormat.FIM_FIELDS, WireFormat.COMPLETION_PROMPT -> {
+                    extractTextValue(first?.get("text"))
+                        .ifEmpty {
+                            val msg = first?.get("message") as? Map<*, *>
+                            extractTextValue(msg?.get("content"))
+                        }.ifEmpty { extractTextValue(json["text"]) }
+                }
+                WireFormat.CHAT_MESSAGES -> {
+                    val msg = first?.get("message") as? Map<*, *>
+                    extractTextValue(msg?.get("content"))
+                        .ifEmpty { extractTextValue(first?.get("text")) }
+                }
             }
-            WireFormat.CHAT_MESSAGES -> {
-                val msg = first?.get("message") as? Map<*, *>
-                msg?.get("content")?.toString().orEmpty()
-                    .ifEmpty { first?.get("text")?.toString().orEmpty() }
+        if (extracted.isNotEmpty()) return extracted
+        return extractResponsesApiText(json)
+    }
+
+    private fun extractTextValue(raw: Any?): String =
+        when (raw) {
+            null -> ""
+            is String -> raw
+            is List<*> ->
+                buildString {
+                    for (part in raw) {
+                        when (part) {
+                            is String -> append(part)
+                            is Map<*, *> -> {
+                                val type = part["type"]?.toString()?.lowercase().orEmpty()
+                                if (type.isNotEmpty() && type !in setOf("text", "output_text", "input_text")) {
+                                    continue
+                                }
+                                val piece = part["text"]?.toString().orEmpty()
+                                if (piece.isNotEmpty()) append(piece)
+                            }
+                        }
+                    }
+                }
+            else -> ""
+        }
+
+    private fun extractResponsesApiText(json: Map<String, Any?>): String {
+        val direct = extractTextValue(json["output_text"])
+        if (direct.isNotEmpty()) return direct
+        val output = json["output"] as? List<*> ?: return ""
+        return buildString {
+            for (item in output) {
+                val map = item as? Map<*, *> ?: continue
+                val type = map["type"]?.toString()?.lowercase().orEmpty()
+                if (type == "reasoning") continue
+                val piece = extractTextValue(map["content"]).ifEmpty { extractTextValue(map["text"]) }
+                if (piece.isNotEmpty()) append(piece)
             }
+        }
+    }
+
+    private fun diagnoseEmptyResponse(body: String): String {
+        val json = runCatching { Json.parseObject(body) }.getOrNull() ?: return "empty completion"
+        val choices = json["choices"] as? List<*>
+        val first = choices?.firstOrNull() as? Map<*, *>
+        val msg = first?.get("message") as? Map<*, *>
+        val refusal = msg?.get("refusal")?.toString()?.trim().orEmpty()
+        if (refusal.isNotEmpty()) {
+            return "empty completion (refusal: ${refusal.take(120)})"
+        }
+        val finishReason =
+            first?.get("finish_reason")?.toString()?.trim().orEmpty()
+                .ifEmpty {
+                    val incomplete = json["incomplete_details"] as? Map<*, *>
+                    incomplete?.get("reason")?.toString()?.trim().orEmpty()
+                }.ifEmpty {
+                    json["status"]?.toString()?.trim()?.takeIf { it == "incomplete" }.orEmpty()
+                }
+        val hasReasoningText =
+            listOf(msg?.get("reasoning_content"), msg?.get("reasoning"), first?.get("reasoning"))
+                .any { it is String && it.isNotBlank() }
+        val usage = json["usage"] as? Map<*, *>
+        val completionDetails =
+            (usage?.get("completion_tokens_details") as? Map<*, *>)
+                ?: (usage?.get("output_tokens_details") as? Map<*, *>)
+        val reasoningTokens = (completionDetails?.get("reasoning_tokens") as? Number)?.toInt() ?: 0
+        val reasoningConsumed = hasReasoningText || reasoningTokens > 0
+        return when {
+            reasoningConsumed -> {
+                val meta =
+                    buildList {
+                        if (finishReason.isNotEmpty()) add("finish_reason=$finishReason")
+                        if (reasoningTokens > 0) add("reasoning_tokens=$reasoningTokens")
+                    }.joinToString(", ")
+                val prefix = if (meta.isNotEmpty()) "$meta; " else ""
+                "empty completion (${prefix}reasoning consumed output budget — increase maxTokens or set reasoning_effort in extraBodyJson)"
+            }
+            finishReason == "length" ->
+                "empty completion (finish_reason=length — increase maxTokens)"
+            finishReason.isNotEmpty() && finishReason != "stop" ->
+                "empty completion (finish_reason=$finishReason)"
+            else -> "empty completion"
         }
     }
 
@@ -669,20 +762,27 @@ class HttpCompletionClient(
         json: Map<String, Any?>,
     ): String {
         val choices = json["choices"] as? List<*>
-        val first = choices?.firstOrNull() as? Map<*, *> ?: return ""
-        return when (wire) {
-            WireFormat.FIM_FIELDS, WireFormat.COMPLETION_PROMPT ->
-                first["text"]?.toString().orEmpty()
-                    .ifEmpty {
-                        val delta = first["delta"] as? Map<*, *>
-                        delta?.get("content")?.toString().orEmpty()
-                    }
-            WireFormat.CHAT_MESSAGES -> {
-                val delta = first["delta"] as? Map<*, *>
-                delta?.get("content")?.toString().orEmpty()
-                    .ifEmpty { first["text"]?.toString().orEmpty() }
+        val first = choices?.firstOrNull() as? Map<*, *>
+        if (first != null) {
+            return when (wire) {
+                WireFormat.FIM_FIELDS, WireFormat.COMPLETION_PROMPT ->
+                    extractTextValue(first["text"])
+                        .ifEmpty {
+                            val delta = first["delta"] as? Map<*, *>
+                            extractTextValue(delta?.get("content"))
+                        }
+                WireFormat.CHAT_MESSAGES -> {
+                    val delta = first["delta"] as? Map<*, *>
+                    extractTextValue(delta?.get("content"))
+                        .ifEmpty { extractTextValue(first["text"]) }
+                }
             }
         }
+        val eventType = json["type"]?.toString()?.lowercase().orEmpty()
+        if (eventType == "response.output_text.delta") {
+            return extractTextValue(json["delta"])
+        }
+        return ""
     }
 
     private fun parseUsage(body: String): Usage? {
@@ -692,8 +792,8 @@ class HttpCompletionClient(
 
     private fun parseUsageFromMap(json: Map<String, Any?>): Usage? {
         val usage = json["usage"] as? Map<*, *> ?: return null
-        val input = (usage["prompt_tokens"] as? Number)?.toInt()
-        val output = (usage["completion_tokens"] as? Number)?.toInt()
+        val input = ((usage["prompt_tokens"] ?: usage["input_tokens"]) as? Number)?.toInt()
+        val output = ((usage["completion_tokens"] ?: usage["output_tokens"]) as? Number)?.toInt()
         if (input == null && output == null) return null
         return Usage(inputTokens = input, outputTokens = output)
     }
@@ -767,7 +867,9 @@ class HttpCompletionClient(
         status: Int,
         rawResponseChars: Int?,
         completionChars: Int,
+        emptyReason: String? = null,
     ) {
+        val reasonSuffix = if (!emptyReason.isNullOrBlank()) " detail=$emptyReason" else ""
         emitLog(
             HttpLogEvent(
                 level = LogLevel.INFO,
@@ -779,7 +881,7 @@ class HttpCompletionClient(
                 status = status,
                 latencyMs = System.currentTimeMillis() - started,
                 responseChars = rawResponseChars,
-                message = "request succeeded completionChars=$completionChars template=${template.shortLabel()}",
+                message = "request succeeded completionChars=$completionChars template=${template.shortLabel()}$reasonSuffix",
             ),
         )
     }
@@ -891,7 +993,7 @@ class HttpCompletionClient(
                     val customFim = cfg.fimPath.trim()
                     when {
                         customComp.isNotEmpty() -> customComp
-                        customFim.isNotEmpty() -> customFim
+                        customFim.isNotEmpty() && !isChatEndpointPath(customFim) -> customFim
                         else -> defaultOpenAiRelativePath(cfg.baseUrl, "/completions")
                     }
                 }
@@ -900,6 +1002,11 @@ class HttpCompletionClient(
                     if (custom.isNotEmpty()) custom else defaultOpenAiRelativePath(cfg.baseUrl, "/chat/completions")
                 }
             }
+
+        fun isChatEndpointPath(path: String): Boolean {
+            val clean = path.trim().substringBefore('?').trimEnd('/').lowercase()
+            return clean == "/chat/completions" || clean.endsWith("/chat/completions")
+        }
 
         fun resolveUrl(
             template: PromptTemplate,

@@ -474,4 +474,71 @@ describe("listModels & probeTemplate", () => {
     assert.equal(res.resolvedPath, "/completions");
     assert.equal(res.resolvedUrl, "https://api.deepseek.com/beta/completions");
   });
+
+  it("honors config.maxTokens in probes, parses content arrays/Responses API, and diagnoses reasoning empty responses", async () => {
+    let seenMaxTokens = 0;
+    const partsFetch: typeof fetch = async (_url, init) => {
+      const parsed = JSON.parse(String(init?.body ?? "{}")) as { max_tokens?: number };
+      seenMaxTokens = parsed.max_tokens ?? 0;
+      return new Response(
+        JSON.stringify({
+          choices: [
+            {
+              message: {
+                content: [
+                  { type: "text", text: "return " },
+                  { type: "output_text", text: "a + b" },
+                ],
+              },
+            },
+          ],
+        }),
+        { status: 200 },
+      );
+    };
+    const partsClient = new HttpCompletionClient(
+      makeConfig({ promptTemplate: "CHAT", maxTokens: 256 }),
+      "template_probe",
+      () => {},
+      partsFetch,
+    );
+    const ok = await partsClient.probeTemplate("CHAT");
+    assert.equal(ok.status, "SUCCESS");
+    assert.equal(ok.preview, "return a + b");
+    assert.equal(seenMaxTokens, 256);
+
+    const reasoningEmptyFetch: typeof fetch = async () =>
+      new Response(
+        JSON.stringify({
+          choices: [
+            {
+              finish_reason: "length",
+              message: { content: "", reasoning_content: "thinking..." },
+            },
+          ],
+          usage: {
+            prompt_tokens: 10,
+            completion_tokens: 128,
+            completion_tokens_details: { reasoning_tokens: 128 },
+          },
+        }),
+        { status: 200 },
+      );
+    const emptyClient = new HttpCompletionClient(
+      makeConfig({ promptTemplate: "CHAT", maxTokens: 128 }),
+      "template_probe",
+      () => {},
+      reasoningEmptyFetch,
+    );
+    const empty = await emptyClient.probeTemplate("CHAT");
+    assert.equal(empty.status, "EMPTY");
+    assert.match(empty.error ?? "", /reasoning_tokens=128/);
+    assert.match(empty.error ?? "", /maxTokens/);
+
+    // COMPLETION_PROMPT must not inherit a chat endpoint accidentally entered in fimPath.
+    assert.equal(
+      pathFor("QWEN", makeConfig({ baseUrl: "http://127.0.0.1:11434/v1", fimPath: "/chat/completions" })),
+      "/completions",
+    );
+  });
 });

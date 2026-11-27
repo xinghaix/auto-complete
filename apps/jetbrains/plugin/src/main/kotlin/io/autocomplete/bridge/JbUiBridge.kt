@@ -831,12 +831,14 @@ class JbUiBridge(
         val started = System.currentTimeMillis()
         return try {
             val resp = client.testConnection()
+            val isEmpty = resp.text.isBlank()
             mapOf(
                 "template" to resolvedTemplate.name,
-                "status" to if (resp.text.isBlank()) "EMPTY" else "SUCCESS",
+                "status" to if (isEmpty) "EMPTY" else "SUCCESS",
                 "httpStatus" to resp.rawStatus,
                 "latencyMs" to (System.currentTimeMillis() - started),
                 "preview" to resp.text.replace('\n', ' ').trim().take(80),
+                "error" to if (isEmpty) (resp.emptyReason ?: "empty completion") else null,
                 "resolvedPath" to resolvedPath,
                 "resolvedUrl" to resolvedUrl,
             )

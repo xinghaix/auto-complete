@@ -440,4 +440,75 @@ class HttpCompletionClientStreamingAndSecurityTest {
             HttpCompletionClient.validateBaseUrl("https://user:pass@api.example.com/v1", allowRemote = true)
         }
     }
+
+    @Test
+    fun probeHonorsConfiguredMaxTokensParsesContentArrayAndDiagnosesReasoningEmpty() {
+        var capturedBody = ""
+        server.createContext("/v1/parts") { exchange ->
+            capturedBody = exchange.requestBody.readAllBytes().toString(StandardCharsets.UTF_8)
+            val payload =
+                """{"choices":[{"message":{"content":[{"type":"text","text":"return "},{"type":"output_text","text":"a + b"}]}}]}"""
+            val bytes = payload.toByteArray(StandardCharsets.UTF_8)
+            exchange.sendResponseHeaders(200, bytes.size.toLong())
+            exchange.responseBody.use { it.write(bytes) }
+        }
+        server.createContext("/v1/reasoning-empty") { exchange ->
+            exchange.requestBody.readAllBytes()
+            val payload =
+                """{"choices":[{"finish_reason":"length","message":{"content":"","reasoning_content":"thinking..."}}],"usage":{"prompt_tokens":10,"completion_tokens":128,"completion_tokens_details":{"reasoning_tokens":128}}}"""
+            val bytes = payload.toByteArray(StandardCharsets.UTF_8)
+            exchange.sendResponseHeaders(200, bytes.size.toLong())
+            exchange.responseBody.use { it.write(bytes) }
+        }
+
+        val partsClient =
+            HttpCompletionClient(
+                ProviderConfig(
+                    kind = ProviderKind.OPENAI_COMPATIBLE,
+                    baseUrl = "http://127.0.0.1:$port/v1",
+                    apiKey = "",
+                    model = "demo",
+                    promptTemplate = PromptTemplate.CHAT,
+                    chatPath = "/parts",
+                    maxTokens = 256,
+                    timeoutMs = 3000,
+                ),
+            )
+        val ok = partsClient.probeTemplate(PromptTemplate.CHAT)
+        assertEquals(io.autocomplete.prompt.TemplateProbeStatus.SUCCESS, ok.status)
+        assertEquals("return a + b", ok.preview)
+        assertTrue(capturedBody.contains("\"max_tokens\":256"), "probe must honor config.maxTokens: $capturedBody")
+
+        val emptyClient =
+            HttpCompletionClient(
+                ProviderConfig(
+                    kind = ProviderKind.OPENAI_COMPATIBLE,
+                    baseUrl = "http://127.0.0.1:$port/v1",
+                    apiKey = "",
+                    model = "demo",
+                    promptTemplate = PromptTemplate.CHAT,
+                    chatPath = "/reasoning-empty",
+                    maxTokens = 128,
+                    timeoutMs = 3000,
+                ),
+            )
+        val empty = emptyClient.probeTemplate(PromptTemplate.CHAT)
+        assertEquals(io.autocomplete.prompt.TemplateProbeStatus.EMPTY, empty.status)
+        assertTrue(empty.error.contains("reasoning_tokens=128"), "expected reasoning diagnostic: ${empty.error}")
+        assertTrue(empty.error.contains("maxTokens"), "expected maxTokens guidance: ${empty.error}")
+    }
+
+    @Test
+    fun completionPromptDoesNotInheritChatEndpointFromFimPath() {
+        val cfg =
+            ProviderConfig(
+                kind = ProviderKind.OPENAI_COMPATIBLE,
+                baseUrl = "http://127.0.0.1:11434/v1",
+                apiKey = "",
+                model = "qwen2.5-coder:7b",
+                fimPath = "/chat/completions",
+            )
+        assertEquals("/completions", HttpCompletionClient.resolvePath(PromptTemplate.QWEN, cfg))
+        assertEquals("/chat/completions", HttpCompletionClient.resolvePath(PromptTemplate.CODESTRAL_API, cfg))
+    }
 }
