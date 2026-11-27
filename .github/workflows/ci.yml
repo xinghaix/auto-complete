@@ -351,25 +351,12 @@ jobs:
           name: auto-complete-vsix
           path: release-assets
 
-      - name: Check whether this tag already has a release
-        id: existing_release
+      - name: Create or update release and upload packages
         env:
           GH_TOKEN: ${{ github.token }}
           TAG: ${{ github.ref_name }}
         run: |
-          if gh release view "$TAG" --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
-            echo "exists=true" >> "$GITHUB_OUTPUT"
-            echo "Release for $TAG already exists; publication will be skipped."
-          else
-            echo "exists=false" >> "$GITHUB_OUTPUT"
-          fi
-
-      - name: Create release and upload packages
-        if: steps.existing_release.outputs.exists == 'false'
-        env:
-          GH_TOKEN: ${{ github.token }}
-          TAG: ${{ github.ref_name }}
-        run: |
+          set -euo pipefail
           VERSION="${TAG#v}"
           # Prefer signed JB zip only; fail if missing.
           if ! ls release-assets/*-signed.zip >/dev/null 2>&1; then
@@ -377,10 +364,17 @@ jobs:
             ls -la release-assets || true
             exit 1
           fi
-          gh release create "$TAG" release-assets/*-signed.zip release-assets/*.vsix \
-            --repo "$GITHUB_REPOSITORY" \
-            --title "Auto Complete $VERSION" \
-            --generate-notes
+          if gh release view "$TAG" --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
+            echo "Release $TAG already exists; replacing release assets with latest packages."
+            gh release upload "$TAG" release-assets/*-signed.zip release-assets/*.vsix \
+              --repo "$GITHUB_REPOSITORY" \
+              --clobber
+          else
+            gh release create "$TAG" release-assets/*-signed.zip release-assets/*.vsix \
+              --repo "$GITHUB_REPOSITORY" \
+              --title "Auto Complete $VERSION" \
+              --generate-notes
+          fi
 
   # Optional Marketplace API publish on validated main release tags when PUBLISH_TOKEN is set.
   marketplace:
