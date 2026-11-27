@@ -2,6 +2,14 @@
 
 ## [Unreleased]
 
+## [0.2.6] - 2026-11-27
+
+### Fixed
+
+- `[both]` Embed strict in-place `<|cursor|>` inline-completion rules and few-shot examples inside `CHAT` user messages and `RESPONSES` `input` so proxies overriding top-level `system`/`instructions` (such as Codex/Claude OAuth gateways) keep producing raw, syntactically valid completions.
+- `[both]` Separate `File:` / `Language:` / `<related_context>` metadata outside `<code>...<|cursor|>...</code>` for `CHAT` and `RESPONSES` templates and strip echoed `<|cursor|>` or `Completion:` prefixes in `SuggestionFilter`.
+- `[ci]` Allow re-tagged GitHub Releases to overwrite release assets with `--clobber`.
+
 ## [0.2.5] - 2026-11-27
 
 ### Security
