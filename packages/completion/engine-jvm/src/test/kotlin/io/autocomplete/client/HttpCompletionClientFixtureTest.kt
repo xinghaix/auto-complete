@@ -119,6 +119,8 @@ class HttpCompletionClientFixtureTest {
         assertEquals(3, resp.usage?.inputTokens)
         assertEquals(2, resp.usage?.outputTokens)
         assertTrue(lastBody.contains("messages"))
+        assertTrue(lastBody.contains("<|cursor|>"))
+        assertTrue(lastBody.contains("Example 1:"))
         assertEquals("/v1/chat/completions", lastPath)
     }
 

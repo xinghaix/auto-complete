@@ -119,6 +119,8 @@ export function buildPrompt(opts: {
   };
 }
 
+export const COMPACT_SYSTEM_ROLE = "You are a strict inline code completion engine.";
+
 export const STRICT_COMPLETION_INSTRUCTIONS =
   "Task: Inline code completion (Fill-In-the-Middle).\n" +
   "Rules:\n" +

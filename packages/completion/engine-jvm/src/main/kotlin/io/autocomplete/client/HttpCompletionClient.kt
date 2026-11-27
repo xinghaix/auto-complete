@@ -645,7 +645,7 @@ class HttpCompletionClient(
                     listOf(
                         mapOf(
                             "role" to "system",
-                            "content" to PromptBuilder.STRICT_COMPLETION_INSTRUCTIONS,
+                            "content" to PromptBuilder.COMPACT_SYSTEM_ROLE,
                         ),
                         mapOf(
                             "role" to "user",
@@ -656,7 +656,7 @@ class HttpCompletionClient(
                                     path = request.path,
                                     language = request.language,
                                     recentSnippets = request.recentSnippets,
-                                    embedRules = false,
+                                    embedRules = true,
                                 ),
                         ),
                     )

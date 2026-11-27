@@ -4,7 +4,11 @@ import {
   HttpStatusError,
 } from "./errorBackoff.js";
 import { contextTokensFromModelObject } from "./modelLimits.js";
-import { chatUserContent, STRICT_COMPLETION_INSTRUCTIONS } from "./promptBuilder.js";
+import {
+  chatUserContent,
+  COMPACT_SYSTEM_ROLE,
+  STRICT_COMPLETION_INSTRUCTIONS,
+} from "./promptBuilder.js";
 import {
   formatTokenPrompt,
   isDeepSeekBetaUrl,
@@ -856,7 +860,7 @@ export function bodyFor(
         messages: [
           {
             role: "system",
-            content: STRICT_COMPLETION_INSTRUCTIONS,
+            content: COMPACT_SYSTEM_ROLE,
           },
           {
             role: "user",
@@ -864,7 +868,7 @@ export function bodyFor(
               path: request.path,
               language: request.language,
               recentSnippets: request.recentSnippets,
-              embedRules: false,
+              embedRules: true,
             }),
           },
         ],

@@ -82,6 +82,8 @@ object PromptBuilder {
         }
     }
 
+    const val COMPACT_SYSTEM_ROLE: String = "You are a strict inline code completion engine."
+
     const val STRICT_COMPLETION_INSTRUCTIONS: String =
         "Task: Inline code completion (Fill-In-the-Middle).\n" +
             "Rules:\n" +

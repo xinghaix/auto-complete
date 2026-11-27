@@ -613,6 +613,14 @@ describe("listModels & probeTemplate", () => {
     assert.equal(streaming.status, "SUCCESS");
     assert.equal(streaming.preview, "return a + b");
 
+    const chatBody = JSON.parse(
+      bodyFor("CHAT", { model: "gpt-6-luna", prefix: "def f():\n    ", suffix: "", maxTokens: 64, temperature: 0 }, cfg, false),
+    ) as { messages?: Array<{ role: string; content: string }> };
+    assert.equal(chatBody.messages?.[0]?.role, "system");
+    assert.equal(chatBody.messages?.[1]?.role, "user");
+    assert.ok(chatBody.messages?.[1]?.content.includes("<|cursor|>"));
+    assert.ok(chatBody.messages?.[1]?.content.includes("Example 1:"));
+
     const empty404Fetch: typeof fetch = async () => new Response("", { status: 404 });
     const notFound = await new HttpCompletionClient(
       { ...cfg, promptTemplate: "CODESTRAL_API", stream: true },
