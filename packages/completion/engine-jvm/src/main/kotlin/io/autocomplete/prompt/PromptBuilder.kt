@@ -7,9 +7,12 @@ data class BuiltPrompt(
     val prefix: String,
     val suffix: String,
     val styleHint: String = "fim",
+    val header: String = "",
 )
 
 object PromptBuilder {
+    const val CURSOR_MARKER: String = "<|cursor|>"
+
     fun build(
         prefix: String,
         suffix: String,
@@ -20,6 +23,7 @@ object PromptBuilder {
         sendFilePath: Boolean,
         recentSnippets: List<String> = emptyList(),
         wrapHeaderAsComment: Boolean = true,
+        includeHeaderInPrefix: Boolean = true,
     ): BuiltPrompt {
         val prunedPrefix = takeEnd(prefix, maxPrefixChars)
         val prunedSuffix = takeStart(suffix, maxSuffixChars)
@@ -43,11 +47,17 @@ object PromptBuilder {
                     }
                 }
             }
-        val finalPrefix = if (header.isEmpty()) prunedPrefix else header + "\n" + prunedPrefix
+        val finalPrefix =
+            if (!includeHeaderInPrefix || header.isEmpty()) {
+                prunedPrefix
+            } else {
+                header + "\n" + prunedPrefix
+            }
         return BuiltPrompt(
             prefix = finalPrefix,
             suffix = prunedSuffix,
-            styleHint = if (wrapHeaderAsComment) "fim" else "chat",
+            styleHint = if (includeHeaderInPrefix && wrapHeaderAsComment) "fim" else "chat",
+            header = if (includeHeaderInPrefix) "" else header,
         )
     }
 
@@ -73,24 +83,55 @@ object PromptBuilder {
     }
 
     const val STRICT_COMPLETION_INSTRUCTIONS: String =
-        "You are a strict inline code completion engine. " +
-            "Output ONLY the exact raw code to insert at <cursor> between <prefix> and <suffix>. " +
-            "Never repeat text already in <prefix> or <suffix>. " +
-            "Never wrap output in markdown code fences, backticks, or quotes. " +
-            "Never add explanations, placeholder instructions, or conversational text. " +
-            "If no completion makes sense, output nothing."
+        "Task: Inline code completion (Fill-In-the-Middle).\n" +
+            "Rules:\n" +
+            "1. Output ONLY the exact raw code to insert at <|cursor|> inside <code>.\n" +
+            "2. Continue seamlessly from the exact characters immediately before <|cursor|>, staying syntactically valid in the immediate enclosing block (e.g. struct fields, function body, expression, SQL clause).\n" +
+            "3. Never repeat characters already before or after <|cursor|>. Never copy unrelated lines from elsewhere in the file or <related_context>.\n" +
+            "4. Never wrap output in markdown code fences, backticks, or quotes. Never add explanations, comments about placeholders, or conversational text.\n" +
+            "5. Keep completions concise (usually the rest of the current line or small statement). If no completion makes sense, output nothing.\n\n" +
+            "Example 1:\n" +
+            "<code>def add(a, b):\n    <|cursor|>\n</code>\n" +
+            "Completion:\n" +
+            "return a + b\n\n" +
+            "Example 2:\n" +
+            "<code>type User struct {\n    Id   string `json:\"id\"`\n    Name <|cursor|>\n}</code>\n" +
+            "Completion:\n" +
+            "string `json:\"name\"`"
 
     fun chatUserContent(
         prefix: String,
         suffix: String,
+        path: String? = null,
+        language: String? = null,
+        recentSnippets: List<String> = emptyList(),
+        embedRules: Boolean = false,
     ): String =
         buildString {
-            append("Complete the code at <cursor>. Output only raw code to insert, nothing else.\n")
-            append("<prefix>")
+            if (embedRules) {
+                append(STRICT_COMPLETION_INSTRUCTIONS).append("\n\n")
+            } else {
+                append("Output ONLY the exact raw code to insert at ").append(CURSOR_MARKER).append(".\n")
+            }
+            if (!path.isNullOrBlank()) {
+                append("File: ").append(path.trim()).append('\n')
+            }
+            if (!language.isNullOrBlank()) {
+                append("Language: ").append(language.trim()).append('\n')
+            }
+            if (recentSnippets.isNotEmpty()) {
+                append("<related_context>\n")
+                recentSnippets.forEachIndexed { index, snippet ->
+                    append("--- snippet ").append(index + 1).append(" ---\n")
+                    append(snippet.trimEnd()).append('\n')
+                }
+                append("</related_context>\n")
+            }
+            append("<code>\n")
             append(prefix)
-            append("</prefix><cursor><suffix>")
+            append(CURSOR_MARKER)
             append(suffix)
-            append("</suffix>")
+            append("\n</code>\nCompletion:\n")
         }
 
     fun lruKey(

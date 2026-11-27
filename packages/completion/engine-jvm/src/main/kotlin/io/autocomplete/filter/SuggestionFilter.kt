@@ -19,6 +19,7 @@ object SuggestionFilter {
         firstLineOnly: Boolean,
     ): String? {
         var text = raw.replace("\r\n", "\n").replace('\r', '\n')
+        text = stripPromptArtifacts(text)
         text = stripCodeFences(text)
         text = text.trimEnd()
         if (text.isEmpty()) return null
@@ -101,6 +102,17 @@ object SuggestionFilter {
     ): Boolean {
         if (!suggestion.contains('\n')) return false
         return isMidLine(prefix)
+    }
+
+    internal fun stripPromptArtifacts(text: String): String {
+        var t = text.replace("<|cursor|>", "")
+        val trimmedStart = t.trimStart()
+        if (trimmedStart.startsWith("Completion:\n")) {
+            t = trimmedStart.removePrefix("Completion:\n")
+        } else if (trimmedStart.startsWith("Completion: ")) {
+            t = trimmedStart.removePrefix("Completion: ")
+        }
+        return t
     }
 
     internal fun stripCodeFences(text: String): String {

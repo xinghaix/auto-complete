@@ -1,9 +1,12 @@
 import { createHash } from "node:crypto";
 
+export const CURSOR_MARKER = "<|cursor|>";
+
 export interface BuiltPrompt {
   prefix: string;
   suffix: string;
   styleHint?: string;
+  header?: string;
 }
 
 export interface LruKeyOptions {
@@ -74,41 +77,98 @@ export function buildPrompt(opts: {
   language?: string | null;
   sendFilePath: boolean;
   recentSnippets?: string[];
+  includeHeaderInPrefix?: boolean;
 }): BuiltPrompt {
   const prunedPrefix = takeEnd(opts.prefix, opts.maxPrefixChars);
   const prunedSuffix = takeStart(opts.suffix, opts.maxSuffixChars);
+  const includeHeader = opts.includeHeaderInPrefix !== false;
   const parts: string[] = [];
   if (opts.sendFilePath && opts.path?.trim()) {
-    parts.push(formatCommentLine(`File: ${opts.path}`, opts.language));
+    parts.push(
+      includeHeader
+        ? formatCommentLine(`File: ${opts.path}`, opts.language)
+        : `File: ${opts.path}`,
+    );
   }
   if (opts.language?.trim()) {
-    parts.push(formatCommentLine(`Language: ${opts.language}`, opts.language));
+    parts.push(
+      includeHeader
+        ? formatCommentLine(`Language: ${opts.language}`, opts.language)
+        : `Language: ${opts.language}`,
+    );
   }
   if (opts.recentSnippets && opts.recentSnippets.length > 0) {
-    parts.push(formatCommentLine("Related snippets:", opts.language));
+    parts.push(
+      includeHeader
+        ? formatCommentLine("Related snippets:", opts.language)
+        : "Related snippets:",
+    );
     opts.recentSnippets.forEach((snippet, index) => {
-      parts.push(formatCommentLine(`--- snippet ${index + 1} ---`, opts.language));
+      const marker = `--- snippet ${index + 1} ---`;
+      parts.push(includeHeader ? formatCommentLine(marker, opts.language) : marker);
       parts.push(snippet.replace(/\s+$/, ""));
     });
   }
   const header = parts.length ? parts.join("\n") + "\n" : "";
-  const finalPrefix = header ? header + "\n" + prunedPrefix : prunedPrefix;
-  return { prefix: finalPrefix, suffix: prunedSuffix, styleHint: "fim" };
+  const finalPrefix = includeHeader && header ? header + "\n" + prunedPrefix : prunedPrefix;
+  return {
+    prefix: finalPrefix,
+    suffix: prunedSuffix,
+    styleHint: includeHeader ? "fim" : "chat",
+    header: includeHeader ? "" : header,
+  };
 }
 
 export const STRICT_COMPLETION_INSTRUCTIONS =
-  "You are a strict inline code completion engine. " +
-  "Output ONLY the exact raw code to insert at <cursor> between <prefix> and <suffix>. " +
-  "Never repeat text already in <prefix> or <suffix>. " +
-  "Never wrap output in markdown code fences, backticks, or quotes. " +
-  "Never add explanations, placeholder instructions, or conversational text. " +
-  "If no completion makes sense, output nothing.";
+  "Task: Inline code completion (Fill-In-the-Middle).\n" +
+  "Rules:\n" +
+  "1. Output ONLY the exact raw code to insert at <|cursor|> inside <code>.\n" +
+  "2. Continue seamlessly from the exact characters immediately before <|cursor|>, staying syntactically valid in the immediate enclosing block (e.g. struct fields, function body, expression, SQL clause).\n" +
+  "3. Never repeat characters already before or after <|cursor|>. Never copy unrelated lines from elsewhere in the file or <related_context>.\n" +
+  "4. Never wrap output in markdown code fences, backticks, or quotes. Never add explanations, comments about placeholders, or conversational text.\n" +
+  "5. Keep completions concise (usually the rest of the current line or small statement). If no completion makes sense, output nothing.\n\n" +
+  "Example 1:\n" +
+  "<code>def add(a, b):\n    <|cursor|>\n</code>\n" +
+  "Completion:\n" +
+  "return a + b\n\n" +
+  "Example 2:\n" +
+  '<code>type User struct {\n    Id   string `json:"id"`\n    Name <|cursor|>\n}</code>\n' +
+  "Completion:\n" +
+  'string `json:"name"`';
 
-export function chatUserContent(prefix: string, suffix: string): string {
-  return (
-    "Complete the code at <cursor>. Output only raw code to insert, nothing else.\n" +
-    `<prefix>${prefix}</prefix><cursor><suffix>${suffix}</suffix>`
-  );
+export function chatUserContent(
+  prefix: string,
+  suffix: string,
+  opts?: {
+    path?: string | null;
+    language?: string | null;
+    recentSnippets?: string[];
+    embedRules?: boolean;
+  },
+): string {
+  const parts: string[] = [];
+  if (opts?.embedRules) {
+    parts.push(`${STRICT_COMPLETION_INSTRUCTIONS}\n`);
+  } else {
+    parts.push(`Output ONLY the exact raw code to insert at ${CURSOR_MARKER}.`);
+  }
+  if (opts?.path?.trim()) {
+    parts.push(`File: ${opts.path.trim()}`);
+  }
+  if (opts?.language?.trim()) {
+    parts.push(`Language: ${opts.language.trim()}`);
+  }
+  if (opts?.recentSnippets && opts.recentSnippets.length > 0) {
+    parts.push("<related_context>");
+    opts.recentSnippets.forEach((snippet, index) => {
+      parts.push(`--- snippet ${index + 1} ---`);
+      parts.push(snippet.replace(/\s+$/, ""));
+    });
+    parts.push("</related_context>");
+  }
+  parts.push(`<code>\n${prefix}${CURSOR_MARKER}${suffix}\n</code>`);
+  parts.push("Completion:\n");
+  return parts.join("\n");
 }
 
 export function lruKey(

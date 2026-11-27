@@ -125,6 +125,7 @@ export interface ProviderRequest {
   stopAtNewline?: boolean;
   language?: string | null;
   path?: string | null;
+  recentSnippets?: string[];
 }
 
 export interface ProviderResponse {

@@ -5,6 +5,7 @@ export function postprocess(
   firstLineOnly: boolean,
 ): string | null {
   let text = raw.replace(/\r\n/g, "\n").replace(/\r/g, "\n");
+  text = stripPromptArtifacts(text);
   text = stripCodeFences(text);
   text = text.replace(/\s+$/, "");
   if (!text) return null;
@@ -82,6 +83,17 @@ export function isMidLine(prefix: string): boolean {
 export function shouldShowOnlyFirstLine(prefix: string, suggestion: string): boolean {
   if (!suggestion.includes("\n")) return false;
   return isMidLine(prefix);
+}
+
+export function stripPromptArtifacts(text: string): string {
+  let t = text.replace(/<\|cursor\|>/g, "");
+  const trimmedStart = t.trimStart();
+  if (trimmedStart.startsWith("Completion:\n")) {
+    t = trimmedStart.slice("Completion:\n".length);
+  } else if (trimmedStart.startsWith("Completion: ")) {
+    t = trimmedStart.slice("Completion: ".length);
+  }
+  return t;
 }
 
 export function stripCodeFences(text: string): string {

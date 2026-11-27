@@ -594,8 +594,13 @@ describe("listModels & probeTemplate", () => {
     assert.equal(seenBody.max_output_tokens, 256);
     assert.equal(seenBody.store, false);
     assert.deepEqual(seenBody.reasoning, { effort: "none" });
-    assert.ok(typeof seenBody.instructions === "string" && seenBody.instructions.includes("<cursor>"));
-    assert.ok(typeof seenBody.input === "string" && !seenBody.input.includes("hijack"));
+    assert.ok(typeof seenBody.instructions === "string" && seenBody.instructions.includes("<|cursor|>"));
+    assert.ok(
+      typeof seenBody.input === "string" &&
+        seenBody.input.includes("<|cursor|>") &&
+        seenBody.input.includes("Example 1:") &&
+        !seenBody.input.includes("hijack"),
+    );
     assert.equal(seenBody.stop, undefined);
     assert.equal(seenBody.temperature, undefined);
 

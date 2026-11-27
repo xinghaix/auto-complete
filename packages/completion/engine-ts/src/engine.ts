@@ -243,6 +243,15 @@ export class CompletionEngine {
       return { kind: "skipped" };
     }
 
+    const effectiveTemplate = effectivePromptTemplate(s.providerConfig);
+    const isStructuredPrompt =
+      effectiveTemplate === "CHAT" || effectiveTemplate === "RESPONSES";
+    const recentSnippets = this.projectContexts.recentSnippets(
+      request.projectKey ?? "",
+      s.enableRecentFileContext,
+      s.recentFileLimit,
+      s.recentFileMaxChars,
+    );
     const prompt = buildPrompt({
       prefix: request.prefix,
       suffix: request.suffix,
@@ -251,21 +260,22 @@ export class CompletionEngine {
       path: request.path,
       language: request.language,
       sendFilePath: s.sendFilePath,
-      recentSnippets: this.projectContexts.recentSnippets(
-        request.projectKey ?? "",
-        s.enableRecentFileContext,
-        s.recentFileLimit,
-        s.recentFileMaxChars,
-      ),
+      recentSnippets,
+      includeHeaderInPrefix: !isStructuredPrompt,
     });
-    const effectiveTemplate = effectivePromptTemplate(s.providerConfig);
-    const key = lruKey(request.language, s.model, prompt.prefix, prompt.suffix, {
-      promptTemplate: effectiveTemplate,
-      baseUrl: s.providerConfig.baseUrl,
-      temperature: s.temperature,
-      maxTokens: s.maxTokens,
-      firstLineOnlyWhenMidLine: s.firstLineOnlyWhenMidLine,
-    });
+    const key = lruKey(
+      request.language,
+      s.model,
+      prompt.header ? `${prompt.header}\n${prompt.prefix}` : prompt.prefix,
+      prompt.suffix,
+      {
+        promptTemplate: effectiveTemplate,
+        baseUrl: s.providerConfig.baseUrl,
+        temperature: s.temperature,
+        maxTokens: s.maxTokens,
+        firstLineOnlyWhenMidLine: s.firstLineOnlyWhenMidLine,
+      },
+    );
 
     // Check LRU cache BEFORE debounce so identical prompts return immediately at 0ms.
     if (!request.forceRefresh) {
@@ -378,7 +388,8 @@ export class CompletionEngine {
           stream: s.stream,
           stopAtNewline,
           language: request.language,
-          path: request.path,
+          path: s.sendFilePath ? request.path : null,
+          recentSnippets: isStructuredPrompt ? recentSnippets : [],
         },
         token,
       );

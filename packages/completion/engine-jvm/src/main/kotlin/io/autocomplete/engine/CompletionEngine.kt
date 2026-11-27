@@ -247,6 +247,16 @@ class CompletionEngine(
 
         val providerConfig = s.providerConfig.copy(stream = s.stream)
         val template = HttpCompletionClient.resolveTemplate(providerConfig)
+        val isStructuredPrompt =
+            template.wireFormat() == WireFormat.CHAT_MESSAGES ||
+                template.wireFormat() == WireFormat.RESPONSES_API
+        val recentSnippets =
+            projectContexts.recentSnippets(
+                request.projectKey,
+                s.enableRecentFileContext,
+                s.recentFileLimit,
+                s.recentFileMaxChars,
+            )
         val prompt =
             PromptBuilder.build(
                 prefix = request.prefix,
@@ -256,20 +266,15 @@ class CompletionEngine(
                 path = request.path,
                 language = request.language,
                 sendFilePath = s.sendFilePath,
-                recentSnippets =
-                    projectContexts.recentSnippets(
-                        request.projectKey,
-                        s.enableRecentFileContext,
-                        s.recentFileLimit,
-                        s.recentFileMaxChars,
-                    ),
-                wrapHeaderAsComment = template.wireFormat() != WireFormat.CHAT_MESSAGES,
+                recentSnippets = recentSnippets,
+                wrapHeaderAsComment = !isStructuredPrompt,
+                includeHeaderInPrefix = !isStructuredPrompt,
             )
         val lruKey =
             PromptBuilder.lruKey(
                 language = request.language,
                 model = s.model,
-                prefix = prompt.prefix,
+                prefix = if (prompt.header.isEmpty()) prompt.prefix else prompt.header + "\n" + prompt.prefix,
                 suffix = prompt.suffix,
                 promptTemplate = template.name,
                 baseUrl = providerConfig.baseUrl,
@@ -384,8 +389,9 @@ class CompletionEngine(
                         temperature = s.temperature,
                         stream = s.stream,
                         language = request.language,
-                        path = request.path,
+                        path = if (s.sendFilePath) request.path else null,
                         stopAtNewline = stopAtNewline,
+                        recentSnippets = if (isStructuredPrompt) recentSnippets else emptyList(),
                     ),
                     token,
                 )

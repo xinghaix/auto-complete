@@ -860,7 +860,12 @@ export function bodyFor(
           },
           {
             role: "user",
-            content: chatUserContent(request.prefix, request.suffix),
+            content: chatUserContent(request.prefix, request.suffix, {
+              path: request.path,
+              language: request.language,
+              recentSnippets: request.recentSnippets,
+              embedRules: false,
+            }),
           },
         ],
         max_tokens: maxTokens,
@@ -872,7 +877,14 @@ export function bodyFor(
       body = {
         model,
         instructions: STRICT_COMPLETION_INSTRUCTIONS,
-        input: chatUserContent(request.prefix, request.suffix),
+        // Embed strict completion rules inside `input` as well so proxies overriding top-level
+        // `instructions` (e.g. Codex OAuth gateways) still enforce strict FIM output.
+        input: chatUserContent(request.prefix, request.suffix, {
+          path: request.path,
+          language: request.language,
+          recentSnippets: request.recentSnippets,
+          embedRules: true,
+        }),
         max_output_tokens: maxTokens,
         store: false,
         stream,

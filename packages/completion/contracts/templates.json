@@ -157,8 +157,8 @@
     }
   ],
   "defaultTemplate": "CHAT",
-  "chatSystemPrompt": "You are a strict inline code completion engine. Output ONLY the exact raw code to insert at <cursor> between <prefix> and <suffix>. Never repeat text already in <prefix> or <suffix>. Never wrap output in markdown code fences, backticks, or quotes. Never add explanations, placeholder instructions, or conversational text. If no completion makes sense, output nothing.",
-  "chatUserTemplate": "Complete the code at <cursor>. Output only raw code to insert, nothing else.\n<prefix>{prefix}</prefix><cursor><suffix>{suffix}</suffix>",
+  "chatSystemPrompt": "Task: Inline code completion (Fill-In-the-Middle). Output ONLY the exact raw code to insert at <|cursor|> inside <code>, staying syntactically valid in the immediate enclosing block, with no markdown fences, explanations, or unrelated code.",
+  "chatUserTemplate": "Output ONLY the exact raw code to insert at <|cursor|>.\n<code>\n{prefix}<|cursor|>{suffix}\n</code>\nCompletion:\n",
   "probePrefix": "def add(a, b):\n    ",
   "probeSuffix": "\n"
 }

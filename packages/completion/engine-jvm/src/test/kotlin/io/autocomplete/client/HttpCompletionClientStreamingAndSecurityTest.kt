@@ -561,6 +561,8 @@ class HttpCompletionClientStreamingAndSecurityTest {
         assertEquals("return a + b", blocking.preview)
         assertEquals("/responses", blocking.resolvedPath)
         assertTrue(capturedBody.contains("\"instructions\""), "expected instructions: $capturedBody")
+        assertTrue(capturedBody.contains("<|cursor|>"), "expected in-place <|cursor|> marker: $capturedBody")
+        assertTrue(capturedBody.contains("Example 1:"), "expected embedded rules/examples in input: $capturedBody")
         assertTrue(capturedBody.contains("\"max_output_tokens\":256"), "expected max_output_tokens: $capturedBody")
         assertTrue(capturedBody.contains("\"store\":false"), "expected store=false: $capturedBody")
         assertTrue(capturedBody.contains("\"effort\":\"none\""), "expected nested reasoning.effort=none: $capturedBody")

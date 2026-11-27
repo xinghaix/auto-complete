@@ -38,6 +38,7 @@ data class ProviderRequest(
     val language: String? = null,
     val path: String? = null,
     val stopAtNewline: Boolean = false,
+    val recentSnippets: List<String> = emptyList(),
 )
 
 data class ProviderResponse(
@@ -648,7 +649,15 @@ class HttpCompletionClient(
                         ),
                         mapOf(
                             "role" to "user",
-                            "content" to PromptBuilder.chatUserContent(request.prefix, request.suffix),
+                            "content" to
+                                PromptBuilder.chatUserContent(
+                                    prefix = request.prefix,
+                                    suffix = request.suffix,
+                                    path = request.path,
+                                    language = request.language,
+                                    recentSnippets = request.recentSnippets,
+                                    embedRules = false,
+                                ),
                         ),
                     )
                 payload["model"] = model
@@ -661,7 +670,17 @@ class HttpCompletionClient(
             WireFormat.RESPONSES_API -> {
                 payload["model"] = model
                 payload["instructions"] = PromptBuilder.STRICT_COMPLETION_INSTRUCTIONS
-                payload["input"] = PromptBuilder.chatUserContent(request.prefix, request.suffix)
+                // Embed the strict completion rules inside `input` as well so proxies that override
+                // top-level `instructions` (e.g. Codex OAuth gateways) still enforce strict FIM output.
+                payload["input"] =
+                    PromptBuilder.chatUserContent(
+                        prefix = request.prefix,
+                        suffix = request.suffix,
+                        path = request.path,
+                        language = request.language,
+                        recentSnippets = request.recentSnippets,
+                        embedRules = true,
+                    )
                 payload["max_output_tokens"] = maxTokens
                 payload["store"] = false
                 payload["stream"] = stream

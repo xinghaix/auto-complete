@@ -832,7 +832,8 @@ class CompletionEngineTest {
                 projectContexts = contexts,
                 clientFactory = {
                     CompletionClient { request, _ ->
-                        prompts += request.prefix
+                        // Structured CHAT/RESPONSES keeps recentSnippets separate from raw prefix.
+                        prompts += request.prefix + "\n" + request.recentSnippets.joinToString("\n")
                         ProviderResponse("ok")
                     }
                 },
